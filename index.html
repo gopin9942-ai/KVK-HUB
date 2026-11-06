@@ -152,15 +152,21 @@ async function connectVoiceRoom(roomName){
    try{
     audioContext=audioContext||new AudioContext();
     const source=audioContext.createMediaElementSource(audioEl);
-    const gain=audioContext.createGain();gain.gain.value=(remoteAudioGains.get(participant.identity)??100)/100;
+    const gain=audioContext.createGain();
+    const initialVolume=remoteAudioGains.get(participant.identity)??100;
+    gain.gain.setValueAtTime(initialVolume/100,audioContext.currentTime);
     source.connect(gain);gain.connect(audioContext.destination);
-    remoteAudioGains.set(participant.identity,remoteAudioGains.get(participant.identity)??100);
+    remoteAudioGains.set(participant.identity,initialVolume);
     audioEl.volume=1;
     audioEl.play().catch(()=>{});
     remoteAudioGains.set(participant.identity,remoteAudioGains.get(participant.identity)??100);
     if(!window._kvkGainNodes)window._kvkGainNodes=new Map();
     window._kvkGainNodes.set(participant.identity,gain);
-   }catch(e){console.warn("Per-user audio boost unavailable:",e);audioEl.play().catch(()=>{});}
+   }catch(e){
+    console.warn("Per-user audio boost unavailable:",e);
+    audioEl.dataset.gainUnavailable="true";
+    audioEl.play().catch(()=>{});
+   }
   }
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{track.detach().forEach(el=>el.remove());});
@@ -218,7 +224,20 @@ function renderParticipants(){
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
    const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="200";slider.step="5";slider.value=String(remoteAudioGains.get(p.uid)??100);
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
-   slider.addEventListener("input",()=>{const value=Number(slider.value);remoteAudioGains.set(p.uid,value);volumeValue.textContent=value+"%";const gain=window._kvkGainNodes?.get(p.uid);if(gain&&audioContext)gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.04);});
+   slider.addEventListener("input",()=>{
+    const value=Number(slider.value);
+    remoteAudioGains.set(p.uid,value);
+    volumeValue.textContent=value+"%";
+    const gain=window._kvkGainNodes?.get(p.uid);
+    const audioEl=[...document.querySelectorAll(".remoteAudio")].find(el=>el.dataset.identity===p.uid);
+    if(gain&&audioContext){
+     if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});
+     gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.02);
+    }else if(audioEl){
+     audioEl.volume=Math.min(1,value/100);
+     if(value>100)console.warn("Volume boost above 100% requires Web Audio support.");
+    }
+   });
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,meter,label,panel);
    tile.addEventListener("click",e=>{if(e.target===slider)return;panel.classList.toggle("open");});
