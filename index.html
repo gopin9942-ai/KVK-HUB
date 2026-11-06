@@ -57,7 +57,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 import {loginWithGoogle,logoutUser,auth,db,onAuthStateChanged} from "./firebase.js";
 import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 import {
- collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,serverTimestamp
+ collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
@@ -87,11 +87,11 @@ function startPublicRooms(){
  stopPublicRooms();
  const list=$("publicRoomList");
  list.innerHTML='<div class="empty">Loading public rooms...</div>';
- stopRoomsListener=onSnapshot(collection(db,"rooms"),snapshot=>{
+ stopRoomsListener=onSnapshot(query(collection(db,"rooms"),where("isPublic","==",true)),snapshot=>{
   const rooms=snapshot.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.isPublic===true);
   rooms.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-  const currentIds=new Set(rooms.map(r=>r.id));
-  for(const [id,stop] of roomPresenceStops){if(!currentIds.has(id)){stop();roomPresenceStops.delete(id);}}
+  for(const stop of roomPresenceStops.values())stop();
+  roomPresenceStops.clear();
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No public rooms yet. Create the first room!";list.append(empty);return;}
   for(const room of rooms){
