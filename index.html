@@ -285,7 +285,7 @@ async function connectVoiceRoom(roomName){
    el.remove();
   });
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
@@ -306,7 +306,7 @@ async function connectVoiceRoom(roomName){
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;
  $("roomInfo").textContent="Connected: "+roomName;
- $("muteBtn").textContent="Mute Microphone";
+ $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
  homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
