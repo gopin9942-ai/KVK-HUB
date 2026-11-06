@@ -225,6 +225,12 @@ async function setRoomMicrophone(room,enabled){
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit"
   });
   await waitForDenoiserReady(node);
+  node.port.onmessage=event=>{
+   if(event.data?.type==="runtime-error"){
+    status.textContent="GTCRN processing error; microphone passthrough is active.";
+    console.warn("GTCRN runtime error:",event.data.message);
+   }
+  };
   destination=context.createMediaStreamDestination();
   source.connect(node);node.connect(destination);
   const processedTrack=destination.stream.getAudioTracks()[0];
