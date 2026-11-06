@@ -168,12 +168,14 @@ function renderParticipants(){
  if(!people.length){const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);return;}
  for(const p of people){
   const tile=document.createElement("div");tile.className="participantTile";
-  const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";img.src=p.photoURL||"";img.onerror=()=>{img.style.display="none";};
+  const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";
+  const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
+  if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
   const name=document.createElement("div");name.className="participantName";name.textContent=p.name||"User";
   const meter=document.createElement("div");meter.className="speakingMeter";
   const fill=document.createElement("div");fill.className="speakingMeterFill";fill.style.width=(activeSpeakerIds.has(p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";meter.append(fill);
   const label=document.createElement("div");label.className="speakingLabel";label.textContent=activeSpeakerIds.has(p.uid)?"Speaking":"Listening";
-  tile.append(img,name,meter,label);grid.append(tile);
+  tile.append(img,fallback,name,meter,label);grid.append(tile);
  }
 }
 function clearPresence(){
