@@ -266,7 +266,7 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)old.level=p.audioLevel||0.35;}updateParticipantIndicators();});
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const profile of participantProfiles.values()){const speaker=speakers.find(item=>item.identity===(profile.livekitIdentity||profile.uid));if(speaker)profile.level=speaker.audioLevel||0.35;}updateParticipantIndicators();});
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
@@ -356,15 +356,15 @@ function renderParticipants(){
   }
   const children=tile.children;
   children[2].textContent=p.name||"User";
-  children[4].textContent=activeSpeakerIds.has(p.uid)?"Speaking":"Listening";
-  children[3].firstChild.style.width=(activeSpeakerIds.has(p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
+  children[4].textContent=activeSpeakerIds.has(p.livekitIdentity||p.uid)?"Speaking":"Listening";
+  children[3].firstChild.style.width=(activeSpeakerIds.has(p.livekitIdentity||p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
  }
 }
 function updateParticipantIndicators(){
  for(const [id,tile] of participantTiles){
   const p=participantProfiles.get(id);if(!p)continue;
-  tile.children[4].textContent=activeSpeakerIds.has(id)?"Speaking":"Listening";
-  tile.children[3].firstChild.style.width=(activeSpeakerIds.has(id)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
+  tile.children[4].textContent=activeSpeakerIds.has(p.livekitIdentity||id)?"Speaking":"Listening";
+  tile.children[3].firstChild.style.width=(activeSpeakerIds.has(p.livekitIdentity||id)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
  }
 }
 function clearPresence(){
