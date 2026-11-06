@@ -87,19 +87,35 @@ let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
+// App-level ceiling: slider 100 maps to 50% digital amplitude.
+// This is not a calibrated dB or hearing-safety guarantee.
+const MAX_REMOTE_GAIN=0.5;
+function volumeToGain(value){
+ const n=Number(value);
+ const clamped=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+ return (clamped/100)*MAX_REMOTE_GAIN;
+}
+function loadRemoteVolume(identity){
+ const stored=localStorage.getItem("kvkRemoteVolume:"+identity);
+ if(stored===null)return 100;
+ const n=Number(stored);
+ return Number.isFinite(n)?Math.max(0,Math.min(100,n)):100;
+}
 const roomPresenceStops=new Map();
 let remoteAudioContext=null;
 
 function setRemoteVolume(identity,value){
  const numericValue=Number(value);
  const safeValue=Number.isFinite(numericValue)?Math.max(0,Math.min(100,numericValue)):0;
+ const gainValue=volumeToGain(safeValue);
  remoteAudioGains.set(identity,safeValue);
+ localStorage.setItem("kvkRemoteVolume:"+identity,String(safeValue));
  const nodes=remoteAudioNodes.get(identity)||new Set();
  nodes.forEach(node=>{
   node.audioEl.muted=(safeValue===0);
-  node.audioEl.volume=node.usesWebAudio?1:safeValue/100;
+  node.audioEl.volume=node.usesWebAudio?1:gainValue;
   if(node.usesWebAudio){
-   node.gain.gain.setTargetAtTime(safeValue/100,node.context.currentTime,0.015);
+   node.gain.gain.setTargetAtTime(gainValue,node.context.currentTime,0.015);
    if(node.context.state==="suspended")node.context.resume().catch(console.error);
   }
  });
@@ -107,7 +123,7 @@ function setRemoteVolume(identity,value){
  document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
   if(audioEl.dataset.identity===identity&&!nodes.size){
    audioEl.muted=(safeValue===0);
-   audioEl.volume=safeValue/100;
+   audioEl.volume=gainValue;
   }
  });
 }
@@ -118,7 +134,9 @@ function attachRemoteAudio(track,identity){
  audioEl.playsInline=true;
  audioEl.className="remoteAudio";
  audioEl.dataset.identity=identity;
- const savedValue=remoteAudioGains.get(identity)??100;
+ const savedValue=remoteAudioGains.get(identity)??loadRemoteVolume(identity);
+ remoteAudioGains.set(identity,savedValue);
+ const savedGain=volumeToGain(savedValue);
  audioEl.volume=1;
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
@@ -129,14 +147,14 @@ function attachRemoteAudio(track,identity){
   if(!remoteAudioContext)remoteAudioContext=new AudioContextClass();
   const source=remoteAudioContext.createMediaElementSource(audioEl);
   const gain=remoteAudioContext.createGain();
-  gain.gain.value=savedValue/100;
+  gain.gain.value=savedGain;
   source.connect(gain);
   gain.connect(remoteAudioContext.destination);
   node={context:remoteAudioContext,source,gain,audioEl,usesWebAudio:true};
   if(remoteAudioContext.state==="suspended")remoteAudioContext.resume().catch(()=>{});
  }catch(error){
   console.error("Per-user audio gain setup failed:",error);
-  audioEl.volume=savedValue/100;
+  audioEl.volume=savedGain;
   node={audioEl,usesWebAudio:false};
  }
  if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
@@ -286,7 +304,7 @@ function renderParticipants(){
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
    const initialAudioIdentity=p.livekitIdentity||p.uid;
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??100);
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??loadRemoteVolume(initialAudioIdentity));
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
