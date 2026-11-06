@@ -86,30 +86,17 @@ const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
-const remoteGainNodes=new Map();
-let audioContext=null;
 const roomPresenceStops=new Map();
 
 function setRemoteVolume(identity,value){
- const safeValue=Math.max(0,Math.min(200,Number(value)||0));
+ const safeValue=Math.max(0,Math.min(100,Number(value)||0));
  remoteAudioGains.set(identity,safeValue);
- const nodes=remoteGainNodes.get(identity);
- if(nodes&&nodes.size){
-  if(audioContext&&audioContext.state!=="running")audioContext.resume().catch(()=>{});
-  for(const gain of nodes){
-   // GainNode is the actual per-listener playback volume (0=silent, 100=normal, 200=2x).
-   gain.gain.cancelScheduledValues(audioContext.currentTime);
-   gain.gain.setValueAtTime(safeValue/100,audioContext.currentTime);
+ document.querySelectorAll(".remoteAudio").forEach(el=>{
+  if(el.dataset.identity===identity){
+   el.muted=safeValue===0;
+   el.volume=safeValue/100;
   }
- }else{
-  // Fallback for browsers where Web Audio cannot be attached.
-  document.querySelectorAll(".remoteAudio").forEach(el=>{
-   if(el.dataset.identity===identity){
-    el.muted=safeValue===0;
-    el.volume=Math.min(1,safeValue/100);
-   }
-  });
- }
+ });
 }
 
 function showHome(user){
@@ -164,7 +151,7 @@ async function connectVoiceRoom(roomName){
  if(!roomSnap.exists())throw new Error("Room not found. Ask the host to create a new public room.");
  if(activeRoom)await leaveVoiceRoom();
  // Every fresh room join starts each participant's local playback at normal volume.
- remoteAudioGains.clear();remoteGainNodes.clear();
+ remoteAudioGains.clear();
  status.textContent="Connecting to voice room...";
  const idToken=await auth.currentUser.getIdToken();
  const response=await fetch(WORKER_URL+"/token",{
@@ -179,28 +166,15 @@ async function connectVoiceRoom(roomName){
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)old.level=p.audioLevel||0.35;}updateParticipantIndicators();});
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio"){
-   const audioEl=track.attach();audioEl.autoplay=true;audioEl.playsInline=true;audioEl.muted=false;audioEl.volume=1;audioEl.className="remoteAudio";
+   const audioEl=track.attach();
+   const initialVolume=Math.max(0,Math.min(100,remoteAudioGains.get(participant.identity)??100));
+   audioEl.autoplay=true;audioEl.playsInline=true;
+   audioEl.className="remoteAudio";
    audioEl.dataset.identity=participant.identity;
+   audioEl.muted=initialVolume===0;
+   audioEl.volume=initialVolume/100;
    document.body.appendChild(audioEl);
-   try{
-    audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
-    const source=audioContext.createMediaElementSource(audioEl);
-    const gain=audioContext.createGain();
-    const initialVolume=Math.max(0,Math.min(200,remoteAudioGains.get(participant.identity)??100));
-    gain.gain.setValueAtTime(initialVolume/100,audioContext.currentTime);
-    source.connect(gain);gain.connect(audioContext.destination);
-    // Keep the HTML element at full volume; the independent GainNode controls this person only.
-    audioEl.volume=1;
-    audioEl.muted=false;
-    if(audioContext.state!=="running")audioContext.resume().catch(()=>{});
-    if(!remoteGainNodes.has(participant.identity))remoteGainNodes.set(participant.identity,new Set());
-    remoteGainNodes.get(participant.identity).add(gain);
-    audioEl.play().catch(()=>{});
-   }catch(e){
-    console.warn("Per-user audio gain unavailable:",e);
-    audioEl.dataset.gainUnavailable="true";
-    audioEl.play().catch(()=>{});
-   }
+   audioEl.play().catch(()=>{});
   }
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{track.detach().forEach(el=>el.remove());});
@@ -262,7 +236,7 @@ function renderParticipants(){
    const label=document.createElement("div");label.className="speakingLabel";
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="200";slider.step="5";slider.value=String(remoteAudioGains.get(p.uid)??100);
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(p.uid)??100);
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
@@ -292,7 +266,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();remoteGainNodes.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
