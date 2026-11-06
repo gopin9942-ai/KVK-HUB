@@ -23,11 +23,7 @@ header {
   background: #191f35;
 }
 
-header h1 {
-  color: #45d9ff;
-  margin: 0;
-}
-
+header h1 { color: #45d9ff; margin: 0; }
 header p { color: #aab5d0; }
 
 main {
@@ -54,6 +50,11 @@ button {
   color: #101321;
   font-size: 16px;
   font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
 }
 
 .secondary {
@@ -92,14 +93,12 @@ input {
 
 <main>
 
-<!-- LOGIN PAGE -->
 <section id="loginPage" class="card">
   <h2>Welcome to KVK HUB 🎙️</h2>
   <p>Sign in to connect with your friends.</p>
   <button id="loginBtn">Continue with Google</button>
 </section>
 
-<!-- HOME PAGE -->
 <section id="homePage">
 
   <div class="card">
@@ -118,29 +117,36 @@ input {
     <h2>🔒 Private Room</h2>
     <input id="roomCode" placeholder="Enter Room Code">
     <button id="joinBtn">Join Room</button>
-    <button class="secondary" id="createBtn">
-      Create Private Room
-    </button>
+    <button class="secondary" id="createBtn">Create Private Room</button>
   </div>
 
 </section>
 
-<p id="status">Please login to continue.</p>
+<p id="status">Checking login...</p>
 
 </main>
 
 <script type="module">
-import { loginWithGoogle } from "./firebase.js";
+import {
+  loginWithGoogle,
+  logoutUser,
+  auth,
+  onAuthStateChanged
+} from "./firebase.js";
 
 const loginPage = document.getElementById("loginPage");
 const homePage = document.getElementById("homePage");
 const status = document.getElementById("status");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 function showHome(user) {
   loginPage.style.display = "none";
   homePage.style.display = "block";
+
   document.getElementById("userName").textContent =
     "Hello, " + (user.displayName || "User");
+
   status.textContent = "You are logged in!";
 }
 
@@ -150,38 +156,57 @@ function showLogin() {
   status.textContent = "Please login to continue.";
 }
 
-document.getElementById("loginBtn").onclick = async () => {
+loginBtn.onclick = async () => {
+  loginBtn.disabled = true;
   status.textContent = "Connecting to Google...";
 
   try {
-    const user = await loginWithGoogle();
-    showHome(user);
+    await loginWithGoogle();
   } catch (error) {
     console.error(error);
     status.textContent = "Login Error: " + error.code;
+  } finally {
+    loginBtn.disabled = false;
   }
 };
 
-document.getElementById("logoutBtn").onclick = () => {
-  status.textContent = "Logout will be connected next.";
+logoutBtn.onclick = async () => {
+  logoutBtn.disabled = true;
+  status.textContent = "Logging out...";
+
+  try {
+    await logoutUser();
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Logout Error: " + error.code;
+  } finally {
+    logoutBtn.disabled = false;
+  }
 };
 
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    showHome(user);
+  } else {
+    showLogin();
+  }
+});
+
 document.getElementById("exploreBtn").onclick = () => {
-  status.textContent = "Public rooms coming soon!";
+  status.textContent = "Public rooms are not connected yet.";
 };
 
 document.getElementById("joinBtn").onclick = () => {
   const code = document.getElementById("roomCode").value.trim();
+
   status.textContent = code
-    ? "Room connection coming soon!"
+    ? "Room connection is not connected yet."
     : "Enter a room code!";
 };
 
 document.getElementById("createBtn").onclick = () => {
-  status.textContent = "Room creation coming soon!";
+  status.textContent = "Room creation is not connected yet.";
 };
-
-showLogin();
 </script>
 
 </body>
