@@ -11,6 +11,7 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
     this.processor = null;
     this.ready = false;
     this.destroyed = false;
+    this.processingFailed = false;
     this.inputFrame = new Float32Array(FRAME_SIZE);
     this.outputFrame = new Float32Array(FRAME_SIZE);
     this.inputPhase = 0;
@@ -45,21 +46,43 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
 
     if (this.destroyed) return false;
     const input = inputs[0]?.[0];
-    if (!this.ready || !input || input.length !== QUANTUM) return true;
+    if (!input || input.length !== QUANTUM) return true;
 
-    this.inputFrame.set(input, this.inputPhase * QUANTUM);
-
-    if (this.inputPhase === BLOCKS_PER_FRAME - 1) {
-      this.outputFrame.set(this.processor.process(this.inputFrame));
-      output.set(this.outputFrame.subarray(0, QUANTUM));
-      this.outputPhase = 1 % BLOCKS_PER_FRAME;
-    } else {
-      const start = this.outputPhase * QUANTUM;
-      output.set(this.outputFrame.subarray(start, start + QUANTUM));
-      this.outputPhase = (this.outputPhase + 1) % BLOCKS_PER_FRAME;
+    // If the WASM processor fails at runtime, keep the microphone path alive
+    // instead of throwing inside AudioWorklet and interrupting the audio graph.
+    if (this.processingFailed || !this.ready) {
+      output.set(input);
+      return true;
     }
 
-    this.inputPhase = (this.inputPhase + 1) % BLOCKS_PER_FRAME;
+    try {
+      this.inputFrame.set(input, this.inputPhase * QUANTUM);
+
+      if (this.inputPhase === BLOCKS_PER_FRAME - 1) {
+        const processed = this.processor.process(this.inputFrame);
+        if (!processed || processed.length !== FRAME_SIZE) {
+          throw new Error("GTCRN returned an invalid audio frame.");
+        }
+        this.outputFrame.set(processed);
+        output.set(this.outputFrame.subarray(0, QUANTUM));
+        this.outputPhase = 1 % BLOCKS_PER_FRAME;
+      } else {
+        const start = this.outputPhase * QUANTUM;
+        output.set(this.outputFrame.subarray(start, start + QUANTUM));
+        this.outputPhase = (this.outputPhase + 1) % BLOCKS_PER_FRAME;
+      }
+
+      this.inputPhase = (this.inputPhase + 1) % BLOCKS_PER_FRAME;
+    } catch (error) {
+      this.processingFailed = true;
+      try { this.processor?.destroy(); } catch (_) {}
+      this.processor = null;
+      output.set(input);
+      this.port.postMessage({
+        type: "runtime-error",
+        message: error?.message || String(error)
+      });
+    }
     return true;
   }
 
