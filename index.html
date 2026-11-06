@@ -78,7 +78,9 @@ import {
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
-let activeRoom=null,micEnabled=true,currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+$("noiseSuppressionToggle").checked=localStorage.getItem("kvkNoiseSuppression")!=="false";
+$("echoCancellationToggle").checked=localStorage.getItem("kvkEchoCancellation")!=="false";
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
@@ -191,13 +193,15 @@ async function connectVoiceRoom(roomName){
  };
  document.addEventListener("pointerdown",unlockRoomAudio);
  document.addEventListener("keydown",unlockRoomAudio);
- try{await room.localParticipant.setMicrophoneEnabled(true,{
-  echoCancellation:$("echoCancellationToggle").checked,
-  noiseSuppression:$("noiseSuppressionToggle").checked,
-  autoGainControl:true
- });}
+ try{
+  await room.localParticipant.setMicrophoneEnabled(micEnabled,{
+   echoCancellation:$("echoCancellationToggle").checked,
+   noiseSuppression:$("noiseSuppressionToggle").checked,
+   autoGainControl:true
+  });
+ }
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
- activeRoom=room;currentRoomCode=roomName;micEnabled=true;
+ activeRoom=room;currentRoomCode=roomName;
  $("roomInfo").textContent="Connected: "+roomName;
  $("muteBtn").textContent="Mute Microphone";
  homePage.style.display="none";roomPage.style.display="block";
@@ -308,6 +312,7 @@ $("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
  try{
    micEnabled=!micEnabled;
+   localStorage.setItem("kvkMicEnabled",String(micEnabled));
    await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled,{
     echoCancellation:$("echoCancellationToggle").checked,
     noiseSuppression:$("noiseSuppressionToggle").checked,
@@ -317,8 +322,14 @@ $("muteBtn").onclick=async()=>{
   }
  catch(e){console.error(e);status.textContent="Microphone Error: "+e.message;}
 };
-$("noiseSuppressionToggle").addEventListener("change",applyMicAudioSettings);
-$("echoCancellationToggle").addEventListener("change",applyMicAudioSettings);
+$("noiseSuppressionToggle").addEventListener("change",()=>{
+ localStorage.setItem("kvkNoiseSuppression",String($("noiseSuppressionToggle").checked));
+ applyMicAudioSettings();
+});
+$("echoCancellationToggle").addEventListener("change",()=>{
+ localStorage.setItem("kvkEchoCancellation",String($("echoCancellationToggle").checked));
+ applyMicAudioSettings();
+});
 async function applyMicAudioSettings(){
  if(!activeRoom||!micEnabled)return;
  try{
