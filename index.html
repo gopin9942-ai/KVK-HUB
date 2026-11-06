@@ -86,17 +86,47 @@ const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
+const remoteAudioNodes=new Map();
 const roomPresenceStops=new Map();
+let remoteAudioContext=null;
 
 function setRemoteVolume(identity,value){
  const safeValue=Math.max(0,Math.min(100,Number(value)||0));
  remoteAudioGains.set(identity,safeValue);
- document.querySelectorAll(".remoteAudio").forEach(el=>{
-  if(el.dataset.identity===identity){
-   el.muted=safeValue===0;
-   el.volume=safeValue/100;
-  }
- });
+ const audioNode=remoteAudioNodes.get(identity);
+ if(audioNode){
+  audioNode.gain.gain.setTargetAtTime(safeValue/100,audioNode.context.currentTime,0.015);
+  if(audioNode.context.state==="suspended")audioNode.context.resume().catch(console.error);
+ }
+}
+
+function attachRemoteAudio(track,identity){
+ const audioEl=track.attach();
+ audioEl.autoplay=true;
+ audioEl.playsInline=true;
+ audioEl.className="remoteAudio";
+ audioEl.dataset.identity=identity;
+ audioEl.volume=1;
+ audioEl.muted=false;
+ document.body.appendChild(audioEl);
+ try{
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)throw new Error("Web Audio API is unavailable");
+  if(!remoteAudioContext)remoteAudioContext=new AudioContextClass();
+  const source=remoteAudioContext.createMediaElementSource(audioEl);
+  const gain=remoteAudioContext.createGain();
+  gain.gain.value=(remoteAudioGains.get(identity)??100)/100;
+  source.connect(gain);
+  gain.connect(remoteAudioContext.destination);
+  remoteAudioNodes.set(identity,{context:remoteAudioContext,source,gain,audioEl});
+  if(remoteAudioContext.state==="suspended")remoteAudioContext.resume().catch(()=>{});
+ }catch(error){
+  console.error("Per-user audio gain setup failed:",error);
+  const value=remoteAudioGains.get(identity)??100;
+  audioEl.muted=value===0;
+  audioEl.volume=value/100;
+ }
+ audioEl.play().catch(()=>{});
 }
 
 function showHome(user){
@@ -165,19 +195,18 @@ async function connectVoiceRoom(roomName){
  const room=new Room();
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)old.level=p.audioLevel||0.35;}updateParticipantIndicators();});
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
-  if(track.kind==="audio"){
-   const audioEl=track.attach();
-   const initialVolume=Math.max(0,Math.min(100,remoteAudioGains.get(participant.identity)??100));
-   audioEl.autoplay=true;audioEl.playsInline=true;
-   audioEl.className="remoteAudio";
-   audioEl.dataset.identity=participant.identity;
-   audioEl.muted=initialVolume===0;
-   audioEl.volume=initialVolume/100;
-   document.body.appendChild(audioEl);
-   audioEl.play().catch(()=>{});
-  }
+  if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
- room.on(RoomEvent.TrackUnsubscribed,track=>{track.detach().forEach(el=>el.remove());});
+ room.on(RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
+  track.detach().forEach(el=>{
+   const node=remoteAudioNodes.get(participant.identity);
+   if(node&&node.audioEl===el){
+    try{node.source.disconnect();node.gain.disconnect();}catch(e){}
+    remoteAudioNodes.delete(participant.identity);
+   }
+   el.remove();
+  });
+ });
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
  // Try to start remote audio automatically after the user taps Join.
@@ -207,9 +236,9 @@ async function connectVoiceRoom(roomName){
  homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
-  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",lastSeen:serverTimestamp()},{merge:true});
+  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",lastSeen:serverTimestamp()},{merge:true});
   await updatePresence();
-  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,name:d.name||"User",photoURL:d.photoURL||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
   presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
   stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
@@ -236,13 +265,13 @@ function renderParticipants(){
    const label=document.createElement("div");label.className="speakingLabel";
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(p.uid)??100);
+   const audioIdentity=p.livekitIdentity||p.uid;
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(audioIdentity)??100);
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
-    setRemoteVolume(p.uid,value);
+    setRemoteVolume(audioIdentity,value);
     volumeValue.textContent=value+"%";
-    // setRemoteVolume applies this value to this participant's GainNode (or safe fallback).
    });
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,meter,label,panel);
@@ -266,7 +295,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const node of remoteAudioNodes.values()){try{node.source.disconnect();node.gain.disconnect();}catch(e){}}remoteAudioNodes.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
