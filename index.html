@@ -58,9 +58,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="participantGrid" class="participantGrid"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> Noise Cancellation</label>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked style="width:auto;margin:0"> Echo Cancellation</label>
- <p class="small" style="margin:8px 0 0">Both are ON by default. Turn them off if needed.</p>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Noise Cancellation (Always ON)</label>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
+ <p class="small" style="margin:8px 0 0">Noise suppression, voice isolation and echo cancellation stay ON automatically. Effectiveness depends on your browser and microphone.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect / Leave Room</button>
@@ -231,8 +231,9 @@ async function connectVoiceRoom(roomName){
  document.addEventListener("keydown",unlockRoomAudio);
  try{
   await room.localParticipant.setMicrophoneEnabled(micEnabled,{
-   echoCancellation:$("echoCancellationToggle").checked,
-   noiseSuppression:$("noiseSuppressionToggle").checked,
+   echoCancellation:true,
+   noiseSuppression:true,
+   voiceIsolation:true,
    autoGainControl:true
   });
  }
@@ -344,8 +345,9 @@ $("muteBtn").onclick=async()=>{
    micEnabled=!micEnabled;
    localStorage.setItem("kvkMicEnabled",String(micEnabled));
    await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled,{
-    echoCancellation:$("echoCancellationToggle").checked,
-    noiseSuppression:$("noiseSuppressionToggle").checked,
+    echoCancellation:true,
+    noiseSuppression:true,
+    voiceIsolation:true,
     autoGainControl:true
    });
    $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
@@ -365,8 +367,9 @@ async function applyMicAudioSettings(){
  try{
   await activeRoom.localParticipant.setMicrophoneEnabled(false);
   await activeRoom.localParticipant.setMicrophoneEnabled(true,{
-   echoCancellation:$("echoCancellationToggle").checked,
-   noiseSuppression:$("noiseSuppressionToggle").checked,
+   echoCancellation:true,
+   noiseSuppression:true,
+   voiceIsolation:true,
    autoGainControl:true
   });
   status.textContent="Audio settings updated.";
