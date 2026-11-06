@@ -86,8 +86,22 @@ const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
+const remoteGainNodes=new Map();
 let audioContext=null;
 const roomPresenceStops=new Map();
+
+function setRemoteVolume(identity,value){
+ remoteAudioGains.set(identity,value);
+ const nodes=remoteGainNodes.get(identity);
+ if(nodes){
+  for(const gain of nodes){
+   if(audioContext){
+    if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});
+    gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.02);
+   }
+  }
+ }
+}
 
 function showHome(user){
  loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
@@ -140,6 +154,8 @@ async function connectVoiceRoom(roomName){
  const roomSnap=await getDoc(roomRef);
  if(!roomSnap.exists())throw new Error("Room not found. Ask the host to create a new public room.");
  if(activeRoom)await leaveVoiceRoom();
+ // Every fresh room join starts each participant's local playback at normal volume.
+ remoteAudioGains.clear();remoteGainNodes.clear();
  status.textContent="Connecting to voice room...";
  const idToken=await auth.currentUser.getIdToken();
  const response=await fetch(WORKER_URL+"/token",{
@@ -158,20 +174,18 @@ async function connectVoiceRoom(roomName){
    audioEl.dataset.identity=participant.identity;
    document.body.appendChild(audioEl);
    try{
-    audioContext=audioContext||new AudioContext();
+    audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
     const source=audioContext.createMediaElementSource(audioEl);
     const gain=audioContext.createGain();
     const initialVolume=remoteAudioGains.get(participant.identity)??100;
     gain.gain.setValueAtTime(initialVolume/100,audioContext.currentTime);
     source.connect(gain);gain.connect(audioContext.destination);
-    remoteAudioGains.set(participant.identity,initialVolume);
     audioEl.volume=1;
     audioEl.play().catch(()=>{});
-    remoteAudioGains.set(participant.identity,remoteAudioGains.get(participant.identity)??100);
-    if(!window._kvkGainNodes)window._kvkGainNodes=new Map();
-    window._kvkGainNodes.set(participant.identity,gain);
+    if(!remoteGainNodes.has(participant.identity))remoteGainNodes.set(participant.identity,new Set());
+    remoteGainNodes.get(participant.identity).add(gain);
    }catch(e){
-    console.warn("Per-user audio boost unavailable:",e);
+    console.warn("Per-user audio gain unavailable:",e);
     audioEl.dataset.gainUnavailable="true";
     audioEl.play().catch(()=>{});
    }
@@ -240,15 +254,12 @@ function renderParticipants(){
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
-    remoteAudioGains.set(p.uid,value);
+    setRemoteVolume(p.uid,value);
     volumeValue.textContent=value+"%";
-    const gain=window._kvkGainNodes?.get(p.uid);
-    const audioEl=[...document.querySelectorAll(".remoteAudio")].find(el=>el.dataset.identity===p.uid);
-    if(gain&&audioContext){
-     if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});
-     gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.02);
-    }else if(audioEl){
-     audioEl.volume=Math.min(1,value/100);
+    const audioEls=[...document.querySelectorAll(".remoteAudio")].filter(el=>el.dataset.identity===p.uid);
+    // Fallback works up to 100%; values above 100 require Web Audio gain support.
+    if(!remoteGainNodes.has(p.uid)){
+     audioEls.forEach(el=>{el.volume=Math.min(1,value/100);});
      if(value>100)console.warn("Volume boost above 100% requires Web Audio support.");
     }
    });
@@ -274,7 +285,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();window._kvkGainNodes?.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();remoteGainNodes.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
