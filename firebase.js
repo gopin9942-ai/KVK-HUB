@@ -5,7 +5,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -19,7 +20,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+export const auth = getAuth(app);
+export { onAuthStateChanged };
+
 const provider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
