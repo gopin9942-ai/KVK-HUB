@@ -56,7 +56,6 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p class="small" id="voiceMembers">Connecting member count...</p>
 <h3>People in this room</h3>
 <div id="participantGrid" class="participantGrid"></div>
-<button id="enableAudioBtn" class="secondary">Enable Speaker Audio</button>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect / Leave Room</button>
 </div>
@@ -152,6 +151,19 @@ async function connectVoiceRoom(roomName){
  room.on(RoomEvent.TrackUnsubscribed,track=>{track.detach().forEach(el=>el.remove());});
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
+ // Try to start remote audio automatically after the user taps Join.
+ room.startAudio().catch(()=>{});
+ // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
+ const unlockRoomAudio=()=>{
+  if(activeRoom!==room)return;
+  room.startAudio().then(()=>{
+   Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
+   document.removeEventListener("pointerdown",unlockRoomAudio);
+   document.removeEventListener("keydown",unlockRoomAudio);
+  }).catch(()=>{});
+ };
+ document.addEventListener("pointerdown",unlockRoomAudio);
+ document.addEventListener("keydown",unlockRoomAudio);
  try{await room.localParticipant.setMicrophoneEnabled(true);}
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;micEnabled=true;
@@ -224,14 +236,6 @@ $("createBtn").onclick=async()=>{
   status.textContent="ROOM ERROR: "+e.message;
   try{if(!activeRoom)await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
  }finally{$("createBtn").disabled=false;}
-};
-$("enableAudioBtn").onclick=async()=>{
- if(!activeRoom)return;
- try{
-  await activeRoom.startAudio();
-  await Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
-  status.textContent="Speaker audio enabled.";
- }catch(e){console.error(e);status.textContent="Could not enable speaker audio: "+e.message;}
 };
 $("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
