@@ -185,7 +185,7 @@ async function connectVoiceRoom(roomName){
  };
  document.addEventListener("pointerdown",unlockRoomAudio);
  document.addEventListener("keydown",unlockRoomAudio);
- try{await room.localParticipant.setMicrophoneEnabled(true);}
+ try{await room.localParticipant.setMicrophoneEnabled(true,{echoCancellation:true,noiseSuppression:true,autoGainControl:true});}
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;micEnabled=true;
  $("roomInfo").textContent="Connected: "+roomName;
