@@ -94,22 +94,22 @@ function setRemoteVolume(identity,value){
  const numericValue=Number(value);
  const safeValue=Number.isFinite(numericValue)?Math.max(0,Math.min(100,numericValue)):0;
  remoteAudioGains.set(identity,safeValue);
- const audioNode=remoteAudioNodes.get(identity);
- if(audioNode){
-  // Hard mute at exactly zero as well as setting the per-person Web Audio gain.
-  audioNode.audioEl.muted=(safeValue===0);
-  audioNode.audioEl.volume=safeValue===0?0:1;
-  audioNode.gain.gain.setTargetAtTime(safeValue/100,audioNode.context.currentTime,0.015);
-  if(audioNode.context.state==="suspended")audioNode.context.resume().catch(console.error);
- }else{
-  // Keep the saved value for tracks that subscribe after the slider was moved.
-  document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
-   if(audioEl.dataset.identity===identity){
-    audioEl.muted=(safeValue===0);
-    audioEl.volume=safeValue===0?0:1;
-   }
-  });
- }
+ const nodes=remoteAudioNodes.get(identity)||new Set();
+ nodes.forEach(node=>{
+  node.audioEl.muted=(safeValue===0);
+  node.audioEl.volume=node.usesWebAudio?1:safeValue/100;
+  if(node.usesWebAudio){
+   node.gain.gain.setTargetAtTime(safeValue/100,node.context.currentTime,0.015);
+   if(node.context.state==="suspended")node.context.resume().catch(console.error);
+  }
+ });
+ // Also update any matching element while a track is being attached.
+ document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
+  if(audioEl.dataset.identity===identity&&!nodes.size){
+   audioEl.muted=(safeValue===0);
+   audioEl.volume=safeValue/100;
+  }
+ });
 }
 
 function attachRemoteAudio(track,identity){
@@ -118,26 +118,29 @@ function attachRemoteAudio(track,identity){
  audioEl.playsInline=true;
  audioEl.className="remoteAudio";
  audioEl.dataset.identity=identity;
+ const savedValue=remoteAudioGains.get(identity)??100;
  audioEl.volume=1;
- audioEl.muted=false;
+ audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
+ let node=null;
  try{
   const AudioContextClass=window.AudioContext||window.webkitAudioContext;
   if(!AudioContextClass)throw new Error("Web Audio API is unavailable");
   if(!remoteAudioContext)remoteAudioContext=new AudioContextClass();
   const source=remoteAudioContext.createMediaElementSource(audioEl);
   const gain=remoteAudioContext.createGain();
-  gain.gain.value=(remoteAudioGains.get(identity)??100)/100;
+  gain.gain.value=savedValue/100;
   source.connect(gain);
   gain.connect(remoteAudioContext.destination);
-  remoteAudioNodes.set(identity,{context:remoteAudioContext,source,gain,audioEl});
+  node={context:remoteAudioContext,source,gain,audioEl,usesWebAudio:true};
   if(remoteAudioContext.state==="suspended")remoteAudioContext.resume().catch(()=>{});
  }catch(error){
   console.error("Per-user audio gain setup failed:",error);
-  const value=remoteAudioGains.get(identity)??100;
-  audioEl.muted=value===0;
-  audioEl.volume=value/100;
+  audioEl.volume=savedValue/100;
+  node={audioEl,usesWebAudio:false};
  }
+ if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
+ remoteAudioNodes.get(identity).add(node);
  audioEl.play().catch(()=>{});
 }
 
@@ -211,10 +214,15 @@ async function connectVoiceRoom(roomName){
  });
  room.on(RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
   track.detach().forEach(el=>{
-   const node=remoteAudioNodes.get(participant.identity);
-   if(node&&node.audioEl===el){
-    try{node.source.disconnect();node.gain.disconnect();}catch(e){}
-    remoteAudioNodes.delete(participant.identity);
+   const nodes=remoteAudioNodes.get(participant.identity);
+   if(nodes){
+    for(const node of [...nodes]){
+     if(node.audioEl===el){
+      try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}
+      nodes.delete(node);
+     }
+    }
+    if(!nodes.size)remoteAudioNodes.delete(participant.identity);
    }
    el.remove();
   });
@@ -309,7 +317,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const node of remoteAudioNodes.values()){try{node.source.disconnect();node.gain.disconnect();}catch(e){}}remoteAudioNodes.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}}}remoteAudioNodes.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
