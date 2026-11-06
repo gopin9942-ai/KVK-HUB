@@ -91,15 +91,24 @@ let audioContext=null;
 const roomPresenceStops=new Map();
 
 function setRemoteVolume(identity,value){
- remoteAudioGains.set(identity,value);
+ const safeValue=Math.max(0,Math.min(200,Number(value)||0));
+ remoteAudioGains.set(identity,safeValue);
  const nodes=remoteGainNodes.get(identity);
- if(nodes){
+ if(nodes&&nodes.size){
+  if(audioContext&&audioContext.state!=="running")audioContext.resume().catch(()=>{});
   for(const gain of nodes){
-   if(audioContext){
-    if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});
-    gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.02);
-   }
+   // GainNode is the actual per-listener playback volume (0=silent, 100=normal, 200=2x).
+   gain.gain.cancelScheduledValues(audioContext.currentTime);
+   gain.gain.setValueAtTime(safeValue/100,audioContext.currentTime);
   }
+ }else{
+  // Fallback for browsers where Web Audio cannot be attached.
+  document.querySelectorAll(".remoteAudio").forEach(el=>{
+   if(el.dataset.identity===identity){
+    el.muted=safeValue===0;
+    el.volume=Math.min(1,safeValue/100);
+   }
+  });
  }
 }
 
@@ -177,13 +186,16 @@ async function connectVoiceRoom(roomName){
     audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
     const source=audioContext.createMediaElementSource(audioEl);
     const gain=audioContext.createGain();
-    const initialVolume=remoteAudioGains.get(participant.identity)??100;
+    const initialVolume=Math.max(0,Math.min(200,remoteAudioGains.get(participant.identity)??100));
     gain.gain.setValueAtTime(initialVolume/100,audioContext.currentTime);
     source.connect(gain);gain.connect(audioContext.destination);
+    // Keep the HTML element at full volume; the independent GainNode controls this person only.
     audioEl.volume=1;
-    audioEl.play().catch(()=>{});
+    audioEl.muted=false;
+    if(audioContext.state!=="running")audioContext.resume().catch(()=>{});
     if(!remoteGainNodes.has(participant.identity))remoteGainNodes.set(participant.identity,new Set());
     remoteGainNodes.get(participant.identity).add(gain);
+    audioEl.play().catch(()=>{});
    }catch(e){
     console.warn("Per-user audio gain unavailable:",e);
     audioEl.dataset.gainUnavailable="true";
@@ -256,12 +268,7 @@ function renderParticipants(){
     const value=Number(slider.value);
     setRemoteVolume(p.uid,value);
     volumeValue.textContent=value+"%";
-    const audioEls=[...document.querySelectorAll(".remoteAudio")].filter(el=>el.dataset.identity===p.uid);
-    // Fallback works up to 100%; values above 100 require Web Audio gain support.
-    if(!remoteGainNodes.has(p.uid)){
-     audioEls.forEach(el=>{el.volume=Math.min(1,value/100);});
-     if(value>100)console.warn("Volume boost above 100% requires Web Audio support.");
-    }
+    // setRemoteVolume applies this value to this participant's GainNode (or safe fallback).
    });
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,meter,label,panel);
