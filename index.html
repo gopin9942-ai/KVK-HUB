@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover}.participantName{font-size:13px;margin:8px 0}.speakingMeter{height:7px;background:#303954;border-radius:10px;overflow:hidden}.speakingMeterFill{height:100%;background:#35c9f4;transition:width .1s}.speakingLabel{font-size:11px;color:#aab5d0}
 </style>
 </head>
 <body>
@@ -54,6 +54,8 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p class="small">You are connected to this voice room.</p>
 <p id="roomInfo"></p>
 <p class="small" id="voiceMembers">Connecting member count...</p>
+<h3>People in this room</h3>
+<div id="participantGrid" class="participantGrid"></div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect / Leave Room</button>
 </div>
@@ -71,7 +73,9 @@ const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=true,currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
-let stopRoomsListener=null;
+let stopRoomsListener=null,stopRoomPeopleListener=null;
+const participantProfiles=new Map();
+let activeSpeakerIds=new Set();
 const roomPresenceStops=new Map();
 
 function showHome(user){
@@ -136,6 +140,7 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)participantProfiles.set(p.identity,{...old,level:p.audioLevel||0.35});}renderParticipants();});
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
  try{await room.localParticipant.setMicrophoneEnabled(true);}
@@ -146,8 +151,9 @@ async function connectVoiceRoom(roomName){
  homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
-  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",lastSeen:serverTimestamp()},{merge:true});
+  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",lastSeen:serverTimestamp()},{merge:true});
   await updatePresence();
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{participantProfiles.clear();for(const p of people.docs){const d=p.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000)participantProfiles.set(p.id,{uid:p.id,name:d.name||"User",photoURL:d.photoURL||"",level:0});}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
   presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
   stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
@@ -156,9 +162,25 @@ async function connectVoiceRoom(roomName){
  }catch(e){console.error("Presence error:",e);$("voiceMembers").textContent="Member count unavailable: check Firestore rules";}
  status.textContent="Voice connected! Share the room code with friends.";
 }
+function renderParticipants(){
+ const grid=$("participantGrid");if(!grid)return;grid.replaceChildren();
+ const people=[...participantProfiles.values()];
+ if(!people.length){const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);return;}
+ for(const p of people){
+  const tile=document.createElement("div");tile.className="participantTile";
+  const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";img.src=p.photoURL||"";img.onerror=()=>{img.style.display="none";};
+  const name=document.createElement("div");name.className="participantName";name.textContent=p.name||"User";
+  const meter=document.createElement("div");meter.className="speakingMeter";
+  const fill=document.createElement("div");fill.className="speakingMeterFill";fill.style.width=(activeSpeakerIds.has(p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";meter.append(fill);
+  const label=document.createElement("div");label.className="speakingLabel";label.textContent=activeSpeakerIds.has(p.uid)?"Speaking":"Listening";
+  tile.append(img,name,meter,label);grid.append(tile);
+ }
+}
 function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
+ if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
+ participantProfiles.clear();activeSpeakerIds.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
