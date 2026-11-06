@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover}.participantName{font-size:13px;margin:8px 0}.speakingMeter{height:7px;background:#303954;border-radius:10px;overflow:hidden}.speakingMeterFill{height:100%;background:#35c9f4;transition:width .1s}.speakingLabel{font-size:11px;color:#aab5d0}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover}.participantName{font-size:13px;margin:8px 0}.speakingMeter{height:7px;background:#303954;border-radius:10px;overflow:hidden}.speakingMeterFill{height:100%;background:#35c9f4;transition:width .1s}.speakingLabel{font-size:11px;color:#aab5d0}
 </style>
 </head>
 <body>
@@ -76,6 +76,9 @@ let activeRoom=null,micEnabled=true,currentRoomCode=null,presenceTimer=null,stop
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
+const participantTiles=new Map();
+const remoteAudioGains=new Map();
+let audioContext=null;
 const roomPresenceStops=new Map();
 
 function showHome(user){
@@ -140,12 +143,24 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)participantProfiles.set(p.identity,{...old,level:p.audioLevel||0.35});}renderParticipants();});
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));for(const p of speakers){const old=participantProfiles.get(p.identity);if(old)old.level=p.audioLevel||0.35;}updateParticipantIndicators();});
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio"){
    const audioEl=track.attach();audioEl.autoplay=true;audioEl.playsInline=true;audioEl.muted=false;audioEl.volume=1;audioEl.className="remoteAudio";
+   audioEl.dataset.identity=participant.identity;
    document.body.appendChild(audioEl);
-   audioEl.play().catch(()=>{status.textContent="Audio blocked by browser. Click Enable Speaker Audio.";});
+   try{
+    audioContext=audioContext||new AudioContext();
+    const source=audioContext.createMediaElementSource(audioEl);
+    const gain=audioContext.createGain();gain.gain.value=(remoteAudioGains.get(participant.identity)??100)/100;
+    source.connect(gain);gain.connect(audioContext.destination);
+    remoteAudioGains.set(participant.identity,remoteAudioGains.get(participant.identity)??100);
+    audioEl.volume=1;
+    audioEl.play().catch(()=>{});
+    remoteAudioGains.set(participant.identity,remoteAudioGains.get(participant.identity)??100);
+    if(!window._kvkGainNodes)window._kvkGainNodes=new Map();
+    window._kvkGainNodes.set(participant.identity,gain);
+   }catch(e){console.warn("Per-user audio boost unavailable:",e);audioEl.play().catch(()=>{});}
   }
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{track.detach().forEach(el=>el.remove());});
@@ -174,7 +189,7 @@ async function connectVoiceRoom(roomName){
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
   const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",lastSeen:serverTimestamp()},{merge:true});
   await updatePresence();
-  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{participantProfiles.clear();for(const p of people.docs){const d=p.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000)participantProfiles.set(p.id,{uid:p.id,name:d.name||"User",photoURL:d.photoURL||"",level:0});}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,name:d.name||"User",photoURL:d.photoURL||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
   presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
   stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
@@ -184,26 +199,49 @@ async function connectVoiceRoom(roomName){
  status.textContent="Voice connected! Share the room code with friends.";
 }
 function renderParticipants(){
- const grid=$("participantGrid");if(!grid)return;grid.replaceChildren();
+ const grid=$("participantGrid");if(!grid)return;
  const people=[...participantProfiles.values()];
- if(!people.length){const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);return;}
+ if(!people.length){if(!grid.querySelector(".empty")){grid.replaceChildren();const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);}return;}
+ grid.querySelector(".empty")?.remove();
  for(const p of people){
-  const tile=document.createElement("div");tile.className="participantTile";
-  const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";
-  const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
-  if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
-  const name=document.createElement("div");name.className="participantName";name.textContent=p.name||"User";
-  const meter=document.createElement("div");meter.className="speakingMeter";
-  const fill=document.createElement("div");fill.className="speakingMeterFill";fill.style.width=(activeSpeakerIds.has(p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";meter.append(fill);
-  const label=document.createElement("div");label.className="speakingLabel";label.textContent=activeSpeakerIds.has(p.uid)?"Speaking":"Listening";
-  tile.append(img,fallback,name,meter,label);grid.append(tile);
+  let tile=participantTiles.get(p.uid);
+  if(!tile){
+   tile=document.createElement("div");tile.className="participantTile";
+   const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";
+   const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
+   if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
+   const name=document.createElement("div");name.className="participantName";
+   const meter=document.createElement("div");meter.className="speakingMeter";
+   const fill=document.createElement("div");fill.className="speakingMeterFill";meter.append(fill);
+   const label=document.createElement("div");label.className="speakingLabel";
+   const panel=document.createElement("div");panel.className="volumePanel";
+   const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="200";slider.step="5";slider.value=String(remoteAudioGains.get(p.uid)??100);
+   volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
+   slider.addEventListener("input",()=>{const value=Number(slider.value);remoteAudioGains.set(p.uid,value);volumeValue.textContent=value+"%";const gain=window._kvkGainNodes?.get(p.uid);if(gain&&audioContext)gain.gain.setTargetAtTime(value/100,audioContext.currentTime,0.04);});
+   panel.append(volumeLabel,slider);
+   tile.append(img,fallback,name,meter,label,panel);
+   tile.addEventListener("click",e=>{if(e.target===slider)return;panel.classList.toggle("open");});
+   participantTiles.set(p.uid,tile);grid.append(tile);
+  }
+  const children=tile.children;
+  children[2].textContent=p.name||"User";
+  children[4].textContent=activeSpeakerIds.has(p.uid)?"Speaking":"Listening";
+  children[3].firstChild.style.width=(activeSpeakerIds.has(p.uid)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
+ }
+}
+function updateParticipantIndicators(){
+ for(const [id,tile] of participantTiles){
+  const p=participantProfiles.get(id);if(!p)continue;
+  tile.children[4].textContent=activeSpeakerIds.has(id)?"Speaking":"Listening";
+  tile.children[3].firstChild.style.width=(activeSpeakerIds.has(id)?Math.max(12,Math.round((p.level||0.35)*100)):0)+"%";
  }
 }
 function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();window._kvkGainNodes?.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
