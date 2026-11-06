@@ -277,12 +277,14 @@ function renderParticipants(){
    const label=document.createElement("div");label.className="speakingLabel";
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
-   const audioIdentity=p.livekitIdentity||p.uid;
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(audioIdentity)??100);
+   const initialAudioIdentity=p.livekitIdentity||p.uid;
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??100);
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
-    setRemoteVolume(audioIdentity,value);
+    const latestProfile=participantProfiles.get(p.uid);
+    const currentAudioIdentity=latestProfile?.livekitIdentity||p.livekitIdentity||p.uid;
+    setRemoteVolume(currentAudioIdentity,value);
     volumeValue.textContent=value+"%";
    });
    panel.append(volumeLabel,slider);
