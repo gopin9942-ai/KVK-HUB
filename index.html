@@ -115,12 +115,29 @@ document.getElementById("joinBtn").onclick=async()=>{
  try{await connectVoiceRoom(code);}
  catch(error){console.error(error);status.textContent="Voice Error: "+error.message;}
 };
-document.getElementById("createBtn").onclick=async()=>{
+const createBtn=document.getElementById("createBtn");
+createBtn.onclick=async()=>{
  const code="kvk-"+Math.random().toString(36).slice(2,8);
  document.getElementById("roomCode").value=code;
- try{await connectVoiceRoom(code);status.textContent="Room created for testing. Share code: "+code;}
- catch(error){console.error(error);status.textContent="Voice Error: "+error.message;}
+ createBtn.disabled=true;
+ status.textContent="Creating room... Please wait.";
+ try{
+  await connectVoiceRoom(code);
+  status.textContent="Room created! Share code: "+code;
+ }catch(error){
+  console.error("Create room failed:",error);
+  status.textContent="ROOM ERROR: "+(error?.message||String(error));
+ }finally{
+  createBtn.disabled=false;
+ }
 };
+window.addEventListener("error",event=>{
+ status.textContent="APP ERROR: "+(event.message||"Unknown JavaScript error");
+});
+window.addEventListener("unhandledrejection",event=>{
+ const reason=event.reason;
+ status.textContent="APP ERROR: "+(reason?.message||String(reason||"Unknown promise error"));
+});
 document.getElementById("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
  try{micEnabled=!micEnabled;await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled);
