@@ -91,12 +91,24 @@ const roomPresenceStops=new Map();
 let remoteAudioContext=null;
 
 function setRemoteVolume(identity,value){
- const safeValue=Math.max(0,Math.min(100,Number(value)||0));
+ const numericValue=Number(value);
+ const safeValue=Number.isFinite(numericValue)?Math.max(0,Math.min(100,numericValue)):0;
  remoteAudioGains.set(identity,safeValue);
  const audioNode=remoteAudioNodes.get(identity);
  if(audioNode){
+  // Hard mute at exactly zero as well as setting the per-person Web Audio gain.
+  audioNode.audioEl.muted=(safeValue===0);
+  audioNode.audioEl.volume=safeValue===0?0:1;
   audioNode.gain.gain.setTargetAtTime(safeValue/100,audioNode.context.currentTime,0.015);
   if(audioNode.context.state==="suspended")audioNode.context.resume().catch(console.error);
+ }else{
+  // Keep the saved value for tracks that subscribe after the slider was moved.
+  document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
+   if(audioEl.dataset.identity===identity){
+    audioEl.muted=(safeValue===0);
+    audioEl.volume=safeValue===0?0:1;
+   }
+  });
  }
 }
 
