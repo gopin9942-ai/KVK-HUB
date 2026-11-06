@@ -15,7 +15,7 @@ main{max-width:520px;margin:auto;padding:20px}
 button{width:100%;;padding:13px;margin-top:12px;border:0;border-radius:10px;background:#35c9f4;color:#101321;font-size:15px;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.55;cursor:wait}.secondary{background:#303954;color:white}
 input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid #46516e;background:#101321;color:white;font-size:15px}
-#homePage,#voicePanel{display:none}
+#homePage,#roomPage{display:none}
 #status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere;min-height:22px}
 .small{color:#aab5d0;font-size:13px;line-height:1.5}
 #roomInfo{overflow-wrap:anywhere;color:#45d9ff}
@@ -46,9 +46,16 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <input id="roomCode" placeholder="Enter Room Code" maxlength="40">
 <button id="joinBtn">Join Room</button><button class="secondary" id="createBtn">Create Public Room</button>
 </div>
-<div class="card" id="voicePanel"><h2>🎙️ Voice Room</h2><p id="roomInfo"></p>
+
+</section>
+<section id="roomPage">
+<div class="card">
+<h2>🎙️ Voice Room</h2>
+<p class="small">You are connected to this voice room.</p>
+<p id="roomInfo"></p>
 <p class="small" id="voiceMembers">Connecting member count...</p>
-<button id="muteBtn" class="secondary">Mute Microphone</button><button id="leaveBtn">Leave Room</button>
+<button id="muteBtn" class="secondary">Mute Microphone</button>
+<button id="leaveBtn">Disconnect / Leave Room</button>
 </div>
 </section>
 <p id="status">Checking login...</p>
@@ -62,20 +69,20 @@ import {
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 const $=id=>document.getElementById(id);
-const loginPage=$("loginPage"),homePage=$("homePage"),status=$("status"),voicePanel=$("voicePanel");
+const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=true,currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
 let stopRoomsListener=null;
 const roomPresenceStops=new Map();
 
 function showHome(user){
- loginPage.style.display="none";homePage.style.display="block";
+ loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
  $("userName").textContent="Hello, "+(user.displayName||"User");
  status.textContent="You are logged in!";
  startPublicRooms();
 }
 function showLogin(){
  stopPublicRooms();
- loginPage.style.display="block";homePage.style.display="none";voicePanel.style.display="none";
+ loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";
  status.textContent="Please login to continue.";
 }
 function stopPublicRooms(){
@@ -129,14 +136,14 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){clearPresence();activeRoom=null;currentRoomCode=null;voicePanel.style.display="none";status.textContent="Disconnected from room."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
  try{await room.localParticipant.setMicrophoneEnabled(true);}
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;micEnabled=true;
  $("roomInfo").textContent="Connected: "+roomName;
  $("muteBtn").textContent="Mute Microphone";
- voicePanel.style.display="block";
+ homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
   const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",lastSeen:serverTimestamp()},{merge:true});
@@ -159,7 +166,7 @@ function clearPresence(){
 async function leaveVoiceRoom(){
  clearPresence();
  if(activeRoom){const room=activeRoom;activeRoom=null;await room.disconnect();}
- currentRoomCode=null;voicePanel.style.display="none";status.textContent="You left the room.";
+ currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
