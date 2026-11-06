@@ -59,7 +59,6 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="browserNoiseLayerToggle" type="checkbox" style="width:auto;margin:0"> Extra browser noise reduction (experimental test)</label>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
  <p class="small" style="margin:8px 0 0">AI voice enhancement runs before your microphone audio is sent to the room. You can turn it OFF or ON here. Results depend on your microphone and device.</p>
 </div>
@@ -81,10 +80,8 @@ const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
 let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
-let browserNoiseLayerEnabled=localStorage.getItem("kvkBrowserNoiseLayer")==="true";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
 $("noiseSuppressionToggle").checked=noiseCancellationEnabled;
-$("browserNoiseLayerToggle").checked=browserNoiseLayerEnabled;
 $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
@@ -203,8 +200,8 @@ async function stopLocalMicrophone(room=activeRoom){
 async function setRoomMicrophone(room,enabled){
  await stopLocalMicrophone(room);
  if(!enabled)return;
- const getStream=useBrowserSuppression=>navigator.mediaDevices.getUserMedia({
-  audio:{echoCancellation:true,noiseSuppression:useBrowserSuppression,autoGainControl:true,channelCount:1},
+ const getStream=(useBrowserSuppression,useAutoGainControl=true)=>navigator.mediaDevices.getUserMedia({
+  audio:{echoCancellation:true,noiseSuppression:useBrowserSuppression,autoGainControl:useAutoGainControl,channelCount:1},
   video:false
  });
  if(!noiseCancellationEnabled){
@@ -216,7 +213,7 @@ async function setRoomMicrophone(room,enabled){
   status.textContent="Noise Cancellation OFF.";
   return;
  }
- let stream=await getStream(browserNoiseLayerEnabled);
+ let stream=await getStream(false,false);
  let context=null,source=null,node=null,destination=null;
  try{
   context=new AudioContext({sampleRate:48000,latencyHint:"interactive"});
@@ -234,7 +231,7 @@ async function setRoomMicrophone(room,enabled){
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
   localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;
-  status.textContent=browserNoiseLayerEnabled?"AI Noise Cancellation ON (GTCRN + browser suppression — experimental).":"AI Noise Cancellation ON (GTCRN).";
+  status.textContent="AI Noise Cancellation ON (GTCRN).";
  }catch(error){
   try{node?.port.postMessage({type:"destroy"});node?.disconnect();}catch(e){}
   try{source?.disconnect();}catch(e){}
@@ -242,7 +239,7 @@ async function setRoomMicrophone(room,enabled){
   try{if(context&&context.state!=="closed")await context.close();}catch(e){}
   stream.getTracks().forEach(t=>t.stop());
   console.warn("GTCRN unavailable; using browser noise suppression:",error);
-  stream=await getStream(true);
+  stream=await getStream(true,true);
   const fallbackTrack=stream.getAudioTracks()[0];
   if(!fallbackTrack){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
   try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;}
@@ -431,17 +428,6 @@ $("noiseSuppressionToggle").addEventListener("change",async()=>{
   catch(e){console.error(e);status.textContent="Noise Cancellation change failed: "+e.message;}
  }else{
   status.textContent=noiseCancellationEnabled?"AI Noise Cancellation will be ON when you unmute.":"Noise Cancellation will stay OFF when you unmute.";
- }
-});
-$("browserNoiseLayerToggle").addEventListener("change",async()=>{
- browserNoiseLayerEnabled=$("browserNoiseLayerToggle").checked;
- localStorage.setItem("kvkBrowserNoiseLayer",String(browserNoiseLayerEnabled));
- if(activeRoom&&micEnabled&&noiseCancellationEnabled){
-  status.textContent=browserNoiseLayerEnabled?"Testing GTCRN + browser noise reduction...":"Switching to GTCRN only...";
-  try{await setRoomMicrophone(activeRoom,true);}
-  catch(e){console.error(e);status.textContent="Noise reduction mode change failed: "+e.message;}
- }else{
-  status.textContent=browserNoiseLayerEnabled?"GTCRN + browser suppression will be used when AI cancellation is ON.":"GTCRN only will be used when AI cancellation is ON.";
  }
 });
 $("leaveBtn").onclick=leaveVoiceRoom;
