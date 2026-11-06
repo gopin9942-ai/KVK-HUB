@@ -58,9 +58,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="participantGrid" class="participantGrid"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Noise Cancellation (Always ON)</label>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
- <p class="small" style="margin:8px 0 0">Noise suppression, voice isolation and echo cancellation stay ON automatically. Effectiveness depends on your browser and microphone.</p>
+ <p class="small" style="margin:8px 0 0">AI voice enhancement runs before your microphone audio is sent to the room. You can turn it OFF or ON here. Results depend on your microphone and device.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect / Leave Room</button>
@@ -79,7 +79,9 @@ const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
-$("noiseSuppressionToggle").checked=true;
+let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
+let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
+$("noiseSuppressionToggle").checked=noiseCancellationEnabled;
 $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
@@ -176,6 +178,75 @@ function startPublicRooms(){
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load rooms. Check Firestore security rules.</div>';status.textContent="ROOM LIST ERROR: "+error.message;});
 }
+async function waitForDenoiserReady(node,timeoutMs=20000){
+ return new Promise((resolve,reject)=>{
+  const timeout=setTimeout(()=>{node.port.onmessage=null;reject(new Error("AI noise model timed out while loading."));},timeoutMs);
+  node.port.onmessage=event=>{
+   if(event.data?.type==="ready"){clearTimeout(timeout);node.port.onmessage=null;resolve();}
+   if(event.data?.type==="error"){clearTimeout(timeout);node.port.onmessage=null;reject(new Error(event.data.message||"AI noise model failed to load."));}
+  };
+ });
+}
+async function stopLocalMicrophone(room=activeRoom){
+ const track=localPublishedMicTrack;localPublishedMicTrack=null;
+ if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
+ if(track){try{track.stop();}catch(e){}}
+ if(localMicNode){try{localMicNode.port.postMessage({type:"destroy"});localMicNode.disconnect();}catch(e){}localMicNode=null;}
+ if(localMicSource){try{localMicSource.disconnect();}catch(e){}localMicSource=null;}
+ if(localMicDestination){try{localMicDestination.stream.getTracks().forEach(t=>t.stop());}catch(e){}localMicDestination=null;}
+ if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
+ if(localMicContext){const ctx=localMicContext;localMicContext=null;try{if(ctx.state!=="closed")await ctx.close();}catch(e){}}
+}
+async function setRoomMicrophone(room,enabled){
+ await stopLocalMicrophone(room);
+ if(!enabled)return;
+ const getStream=useBrowserSuppression=>navigator.mediaDevices.getUserMedia({
+  audio:{echoCancellation:true,noiseSuppression:useBrowserSuppression,autoGainControl:true,channelCount:1},
+  video:false
+ });
+ if(!noiseCancellationEnabled){
+  const stream=await getStream(false);
+  const track=stream.getAudioTracks()[0];
+  if(!track){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
+  try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;}
+  catch(e){stream.getTracks().forEach(t=>t.stop());throw e;}
+  status.textContent="Noise Cancellation OFF.";
+  return;
+ }
+ let stream=await getStream(false);
+ let context=null,source=null,node=null,destination=null;
+ try{
+  context=new AudioContext({sampleRate:48000,latencyHint:"interactive"});
+  if(context.sampleRate!==48000)throw new Error("This device does not provide 48 kHz audio required by the AI noise model.");
+  await context.resume();
+  await context.audioWorklet.addModule(new URL("./noise-processor.js",import.meta.url).href);
+  source=context.createMediaStreamSource(stream);
+  node=new AudioWorkletNode(context,"kvk-gtcrn-denoiser",{
+   numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit"
+  });
+  await waitForDenoiserReady(node);
+  destination=context.createMediaStreamDestination();
+  source.connect(node);node.connect(destination);
+  const processedTrack=destination.stream.getAudioTracks()[0];
+  if(!processedTrack)throw new Error("AI processor did not create an audio track.");
+  await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
+  localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;
+  status.textContent="AI Noise Cancellation ON (GTCRN).";
+ }catch(error){
+  try{node?.port.postMessage({type:"destroy"});node?.disconnect();}catch(e){}
+  try{source?.disconnect();}catch(e){}
+  try{destination?.stream.getTracks().forEach(t=>t.stop());}catch(e){}
+  try{if(context&&context.state!=="closed")await context.close();}catch(e){}
+  stream.getTracks().forEach(t=>t.stop());
+  console.warn("GTCRN unavailable; using browser noise suppression:",error);
+  stream=await getStream(true);
+  const fallbackTrack=stream.getAudioTracks()[0];
+  if(!fallbackTrack){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
+  try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;}
+  catch(publishError){stream.getTracks().forEach(t=>t.stop());throw publishError;}
+  status.textContent="AI model unavailable; browser Noise Cancellation fallback is ON.";
+ }
+}
 async function connectVoiceRoom(roomName){
  if(!auth.currentUser)throw new Error("Please login first.");
  const roomRef=doc(db,"rooms",roomName);
@@ -230,12 +301,7 @@ async function connectVoiceRoom(roomName){
  document.addEventListener("pointerdown",unlockRoomAudio);
  document.addEventListener("keydown",unlockRoomAudio);
  try{
-  await room.localParticipant.setMicrophoneEnabled(micEnabled,{
-   echoCancellation:true,
-   noiseSuppression:true,
-   voiceIsolation:true,
-   autoGainControl:true
-  });
+  await setRoomMicrophone(room,micEnabled);
  }
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;
@@ -312,7 +378,7 @@ function clearPresence(){
 }
 async function leaveVoiceRoom(){
  clearPresence();
- if(activeRoom){const room=activeRoom;activeRoom=null;await room.disconnect();}
+ if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
  currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
@@ -341,43 +407,29 @@ $("createBtn").onclick=async()=>{
 };
 $("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
+ const nextEnabled=!micEnabled;
  try{
-   micEnabled=!micEnabled;
-   localStorage.setItem("kvkMicEnabled",String(micEnabled));
-   await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled,{
-    echoCancellation:true,
-    noiseSuppression:true,
-    voiceIsolation:true,
-    autoGainControl:true
-   });
-   $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
-  }
- catch(e){console.error(e);status.textContent="Microphone Error: "+e.message;}
-};
-$("noiseSuppressionToggle").addEventListener("change",()=>{
- localStorage.setItem("kvkNoiseSuppression",String($("noiseSuppressionToggle").checked));
- applyMicAudioSettings();
-});
-$("echoCancellationToggle").addEventListener("change",()=>{
- localStorage.setItem("kvkEchoCancellation",String($("echoCancellationToggle").checked));
- applyMicAudioSettings();
-});
-async function applyMicAudioSettings(){
- if(!activeRoom||!micEnabled)return;
- try{
-  await activeRoom.localParticipant.setMicrophoneEnabled(false);
-  await activeRoom.localParticipant.setMicrophoneEnabled(true,{
-   echoCancellation:true,
-   noiseSuppression:true,
-   voiceIsolation:true,
-   autoGainControl:true
-  });
-  status.textContent="Audio settings updated.";
+  await setRoomMicrophone(activeRoom,nextEnabled);
+  micEnabled=nextEnabled;
+  localStorage.setItem("kvkMicEnabled",String(micEnabled));
+  $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
  }catch(e){
-  console.error("Audio settings update failed:",e);
-  status.textContent="Audio settings error: "+e.message;
+  console.error(e);status.textContent="Microphone Error: "+e.message;
+  micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
+  $("muteBtn").textContent="Unmute Microphone";
  }
-}
+};
+$("noiseSuppressionToggle").addEventListener("change",async()=>{
+ noiseCancellationEnabled=$("noiseSuppressionToggle").checked;
+ localStorage.setItem("kvkNoiseSuppression",String(noiseCancellationEnabled));
+ if(activeRoom&&micEnabled){
+  status.textContent=noiseCancellationEnabled?"Turning AI Noise Cancellation ON...":"Turning Noise Cancellation OFF...";
+  try{await setRoomMicrophone(activeRoom,true);}
+  catch(e){console.error(e);status.textContent="Noise Cancellation change failed: "+e.message;}
+ }else{
+  status.textContent=noiseCancellationEnabled?"AI Noise Cancellation will be ON when you unmute.":"Noise Cancellation will stay OFF when you unmute.";
+ }
+});
 $("leaveBtn").onclick=leaveVoiceRoom;
 window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
 window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
