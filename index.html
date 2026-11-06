@@ -87,13 +87,14 @@ let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
-// App-level ceiling: slider 100 maps to 50% digital amplitude.
-// This is not a calibrated dB or hearing-safety guarantee.
-const MAX_REMOTE_GAIN=0.5;
-function volumeToGain(value){
+const roomPresenceStops=new Map();
+// 100 on the slider is capped at 50% media-element volume.
+// This is a software limit, not a calibrated dB safety guarantee.
+const MAX_REMOTE_VOLUME=0.5;
+function volumeToMediaVolume(value){
  const n=Number(value);
  const clamped=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
- return (clamped/100)*MAX_REMOTE_GAIN;
+ return (clamped/100)*MAX_REMOTE_VOLUME;
 }
 function loadRemoteVolume(identity){
  const stored=localStorage.getItem("kvkRemoteVolume:"+identity);
@@ -101,33 +102,19 @@ function loadRemoteVolume(identity){
  const n=Number(stored);
  return Number.isFinite(n)?Math.max(0,Math.min(100,n)):100;
 }
-const roomPresenceStops=new Map();
-let remoteAudioContext=null;
-
 function setRemoteVolume(identity,value){
- const numericValue=Number(value);
- const safeValue=Number.isFinite(numericValue)?Math.max(0,Math.min(100,numericValue)):0;
- const gainValue=volumeToGain(safeValue);
+ const n=Number(value);
+ const safeValue=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+ const mediaVolume=volumeToMediaVolume(safeValue);
  remoteAudioGains.set(identity,safeValue);
  localStorage.setItem("kvkRemoteVolume:"+identity,String(safeValue));
- const nodes=remoteAudioNodes.get(identity)||new Set();
- nodes.forEach(node=>{
-  node.audioEl.muted=(safeValue===0);
-  node.audioEl.volume=node.usesWebAudio?1:gainValue;
-  if(node.usesWebAudio){
-   node.gain.gain.setTargetAtTime(gainValue,node.context.currentTime,0.015);
-   if(node.context.state==="suspended")node.context.resume().catch(console.error);
-  }
- });
- // Also update any matching element while a track is being attached.
  document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
-  if(audioEl.dataset.identity===identity&&!nodes.size){
+  if(audioEl.dataset.identity===identity){
    audioEl.muted=(safeValue===0);
-   audioEl.volume=gainValue;
+   audioEl.volume=mediaVolume;
   }
  });
 }
-
 function attachRemoteAudio(track,identity){
  const audioEl=track.attach();
  audioEl.autoplay=true;
@@ -136,29 +123,11 @@ function attachRemoteAudio(track,identity){
  audioEl.dataset.identity=identity;
  const savedValue=remoteAudioGains.get(identity)??loadRemoteVolume(identity);
  remoteAudioGains.set(identity,savedValue);
- const savedGain=volumeToGain(savedValue);
- audioEl.volume=1;
+ audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
- let node=null;
- try{
-  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
-  if(!AudioContextClass)throw new Error("Web Audio API is unavailable");
-  if(!remoteAudioContext)remoteAudioContext=new AudioContextClass();
-  const source=remoteAudioContext.createMediaElementSource(audioEl);
-  const gain=remoteAudioContext.createGain();
-  gain.gain.value=savedGain;
-  source.connect(gain);
-  gain.connect(remoteAudioContext.destination);
-  node={context:remoteAudioContext,source,gain,audioEl,usesWebAudio:true};
-  if(remoteAudioContext.state==="suspended")remoteAudioContext.resume().catch(()=>{});
- }catch(error){
-  console.error("Per-user audio gain setup failed:",error);
-  audioEl.volume=savedGain;
-  node={audioEl,usesWebAudio:false};
- }
  if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
- remoteAudioNodes.get(identity).add(node);
+ remoteAudioNodes.get(identity).add({audioEl});
  audioEl.play().catch(()=>{});
 }
 
