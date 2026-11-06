@@ -10,15 +10,20 @@
 body{margin:0;font-family:Arial,sans-serif;background:#101321;color:white}
 header{text-align:center;padding:25px 15px;background:#191f35}
 header h1{color:#45d9ff;margin:0} header p{color:#aab5d0}
-main{max-width:450px;margin:auto;padding:20px}
-.card{background:#1b2239;border:1px solid #303954;border-radius:16px;padding:22px;margin-top:20px}
-button{width:100%;padding:14px;margin-top:13px;border:0;border-radius:10px;background:#35c9f4;color:#101321;font-size:16px;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6}.secondary{background:#303954;color:white}
+main{max-width:520px;margin:auto;padding:20px}
+.card{background:#1b2239;border:1px solid #303954;border-radius:16px;padding:20px;margin-top:18px}
+button{width:100%;;padding:13px;margin-top:12px;border:0;border-radius:10px;background:#35c9f4;color:#101321;font-size:15px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.secondary{background:#303954;color:white}
 input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid #46516e;background:#101321;color:white;font-size:15px}
 #homePage,#voicePanel{display:none}
-#status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere}
+#status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere;min-height:22px}
 .small{color:#aab5d0;font-size:13px;line-height:1.5}
 #roomInfo{overflow-wrap:anywhere;color:#45d9ff}
+.roomItem{background:#10182b;border:1px solid #35415f;border-radius:12px;padding:14px;margin-top:12px}
+.roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
+.roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
+.roomItem button{margin-top:10px}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}
 </style>
 </head>
 <body>
@@ -30,43 +35,89 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 </section>
 <section id="homePage">
 <div class="card"><h2>Welcome!</h2><p id="userName"></p><button class="secondary" id="logoutBtn">Logout</button></div>
-<div class="card"><h2>🌍 Public Rooms</h2><p>Public room directory is coming next.</p><button id="exploreBtn" class="secondary">Explore Rooms</button></div>
-<div class="card"><h2>🔒 Room</h2><p class="small">Create a room code or enter an existing code to test voice chat.</p>
+<div class="card">
+<h2>🌍 Public Rooms</h2>
+<p class="small">Public rooms created by users appear here. Online count updates while members are connected.</p>
+<button id="refreshRoomsBtn" class="secondary">Refresh Rooms</button>
+<div id="publicRoomList"><div class="empty">Loading public rooms...</div></div>
+</div>
+<div class="card"><h2>🔒 Create / Join Room</h2>
+<p class="small">Create a public room or enter a room code shared by a friend.</p>
 <input id="roomCode" placeholder="Enter Room Code" maxlength="40">
-<button id="joinBtn">Join Room</button><button class="secondary" id="createBtn">Create Room</button>
+<button id="joinBtn">Join Room</button><button class="secondary" id="createBtn">Create Public Room</button>
 </div>
 <div class="card" id="voicePanel"><h2>🎙️ Voice Room</h2><p id="roomInfo"></p>
+<p class="small" id="voiceMembers">Connecting member count...</p>
 <button id="muteBtn" class="secondary">Mute Microphone</button><button id="leaveBtn">Leave Room</button>
 </div>
 </section>
 <p id="status">Checking login...</p>
 </main>
 <script type="module">
-import {loginWithGoogle,logoutUser,auth,onAuthStateChanged} from "./firebase.js";
+import {loginWithGoogle,logoutUser,auth,db,onAuthStateChanged} from "./firebase.js";
 import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
+import {
+ collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
-const loginPage=document.getElementById("loginPage");
-const homePage=document.getElementById("homePage");
-const status=document.getElementById("status");
-const loginBtn=document.getElementById("loginBtn");
-const logoutBtn=document.getElementById("logoutBtn");
-const voicePanel=document.getElementById("voicePanel");
-let activeRoom=null;
-let micEnabled=true;
+const $=id=>document.getElementById(id);
+const loginPage=$("loginPage"),homePage=$("homePage"),status=$("status"),voicePanel=$("voicePanel");
+let activeRoom=null,micEnabled=true,currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+let stopRoomsListener=null;
+const roomPresenceStops=new Map();
 
 function showHome(user){
  loginPage.style.display="none";homePage.style.display="block";
- document.getElementById("userName").textContent="Hello, "+(user.displayName||"User");
+ $("userName").textContent="Hello, "+(user.displayName||"User");
  status.textContent="You are logged in!";
+ startPublicRooms();
 }
 function showLogin(){
+ stopPublicRooms();
  loginPage.style.display="block";homePage.style.display="none";voicePanel.style.display="none";
  status.textContent="Please login to continue.";
 }
+function stopPublicRooms(){
+ if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
+ for(const stop of roomPresenceStops.values())stop();
+ roomPresenceStops.clear();
+}
+function startPublicRooms(){
+ stopPublicRooms();
+ const list=$("publicRoomList");
+ list.innerHTML='<div class="empty">Loading public rooms...</div>';
+ stopRoomsListener=onSnapshot(collection(db,"rooms"),snapshot=>{
+  const rooms=snapshot.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.isPublic===true);
+  rooms.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  const currentIds=new Set(rooms.map(r=>r.id));
+  for(const [id,stop] of roomPresenceStops){if(!currentIds.has(id)){stop();roomPresenceStops.delete(id);}}
+  list.replaceChildren();
+  if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No public rooms yet. Create the first room!";list.append(empty);return;}
+  for(const room of rooms){
+   const item=document.createElement("div");item.className="roomItem";
+   const name=document.createElement("strong");name.textContent=room.name||room.id;
+   const code=document.createElement("div");code.className="roomMeta";code.textContent="Room code: "+room.id;
+   const count=document.createElement("div");count.className="roomMeta";count.textContent="Checking online members...";
+   const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
+   item.append(name,code,count,join);list.append(item);
+   if(!roomPresenceStops.has(room.id)){
+    const stop=onSnapshot(collection(db,"rooms",room.id,"participants"),people=>{
+     const now=Date.now();
+     const online=people.docs.filter(p=>{const seen=p.data().lastSeen?.toMillis?.()||0;return now-seen<90000;}).length;
+     count.textContent=online+" online";
+    },err=>{count.textContent="Member count unavailable";console.error(err);});
+    roomPresenceStops.set(room.id,stop);
+   }
+  }
+ },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load rooms. Check Firestore security rules.</div>';status.textContent="ROOM LIST ERROR: "+error.message;});
+}
 async function connectVoiceRoom(roomName){
- if(!auth.currentUser) throw new Error("Please login first.");
- if(activeRoom) await leaveVoiceRoom();
+ if(!auth.currentUser)throw new Error("Please login first.");
+ const roomRef=doc(db,"rooms",roomName);
+ const roomSnap=await getDoc(roomRef);
+ if(!roomSnap.exists())throw new Error("Room not found. Ask the host to create a new public room.");
+ if(activeRoom)await leaveVoiceRoom();
  status.textContent="Connecting to voice room...";
  const idToken=await auth.currentUser.getIdToken();
  const response=await fetch(WORKER_URL+"/token",{
@@ -75,76 +126,74 @@ async function connectVoiceRoom(roomName){
   body:JSON.stringify({roomName})
  });
  const data=await response.json().catch(()=>({}));
- if(!response.ok) throw new Error(data.error||"Token request failed ("+response.status+")");
- if(!data.token||!data.serverUrl) throw new Error("Worker response is missing token or serverUrl.");
+ if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
+ if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- room.on(RoomEvent.Disconnected,()=>{
-  if(activeRoom===room){activeRoom=null;voicePanel.style.display="none";status.textContent="Disconnected from room.";}
- });
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){clearPresence();activeRoom=null;currentRoomCode=null;voicePanel.style.display="none";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
  try{await room.localParticipant.setMicrophoneEnabled(true);}
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
- activeRoom=room;micEnabled=true;
- document.getElementById("roomInfo").textContent="Connected: "+roomName;
- document.getElementById("muteBtn").textContent="Mute Microphone";
+ activeRoom=room;currentRoomCode=roomName;micEnabled=true;
+ $("roomInfo").textContent="Connected: "+roomName;
+ $("muteBtn").textContent="Mute Microphone";
  voicePanel.style.display="block";
- status.textContent="Voice connected! Allow microphone access if asked.";
+ try{
+  const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
+  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,name:auth.currentUser.displayName||"User",lastSeen:serverTimestamp()},{merge:true});
+  await updatePresence();
+  presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
+  stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
+   const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
+   $("voiceMembers").textContent=online+" member(s) online";
+  });
+ }catch(e){console.error("Presence error:",e);$("voiceMembers").textContent="Member count unavailable: check Firestore rules";}
+ status.textContent="Voice connected! Share the room code with friends.";
+}
+function clearPresence(){
+ if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
+ if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
+ if(currentRoomCode&&auth.currentUser){
+  deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
+ }
 }
 async function leaveVoiceRoom(){
+ clearPresence();
  if(activeRoom){const room=activeRoom;activeRoom=null;await room.disconnect();}
- voicePanel.style.display="none";status.textContent="You left the room.";
+ currentRoomCode=null;voicePanel.style.display="none";status.textContent="You left the room.";
 }
-loginBtn.onclick=async()=>{
- loginBtn.disabled=true;status.textContent="Connecting to Google...";
- try{await loginWithGoogle();}
- catch(error){console.error(error);status.textContent="Login Error: "+(error.code||error.message);}
- finally{loginBtn.disabled=false;}
-};
-logoutBtn.onclick=async()=>{
- logoutBtn.disabled=true;
- try{await leaveVoiceRoom();await logoutUser();}
- catch(error){console.error(error);status.textContent="Logout Error: "+error.message;}
- finally{logoutBtn.disabled=false;}
-};
+$("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
+$("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
 onAuthStateChanged(auth,user=>{if(user)showHome(user);else showLogin();});
-document.getElementById("exploreBtn").onclick=()=>{status.textContent="Public room directory is not connected yet.";};
-document.getElementById("joinBtn").onclick=async()=>{
- const code=document.getElementById("roomCode").value.trim();
+$("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
+$("joinBtn").onclick=async()=>{
+ const code=$("roomCode").value.trim();
  if(!code){status.textContent="Enter a room code!";return;}
  if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
- try{await connectVoiceRoom(code);}
- catch(error){console.error(error);status.textContent="Voice Error: "+error.message;}
+ try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
-const createBtn=document.getElementById("createBtn");
-createBtn.onclick=async()=>{
+$("createBtn").onclick=async()=>{
  const code="kvk-"+Math.random().toString(36).slice(2,8);
- document.getElementById("roomCode").value=code;
- createBtn.disabled=true;
- status.textContent="Creating room... Please wait.";
+ $("createBtn").disabled=true;status.textContent="Creating public room...";
  try{
+  await setDoc(doc(db,"rooms",code),{name:(auth.currentUser.displayName||"User")+"'s room",isPublic:true,createdBy:auth.currentUser.uid,createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()});
+  $("roomCode").value=code;
   await connectVoiceRoom(code);
   status.textContent="Room created! Share code: "+code;
- }catch(error){
-  console.error("Create room failed:",error);
-  status.textContent="ROOM ERROR: "+(error?.message||String(error));
- }finally{
-  createBtn.disabled=false;
- }
+ }catch(e){
+  console.error("Create room failed:",e);
+  status.textContent="ROOM ERROR: "+e.message;
+  try{if(!activeRoom)await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
+ }finally{$("createBtn").disabled=false;}
 };
-window.addEventListener("error",event=>{
- status.textContent="APP ERROR: "+(event.message||"Unknown JavaScript error");
-});
-window.addEventListener("unhandledrejection",event=>{
- const reason=event.reason;
- status.textContent="APP ERROR: "+(reason?.message||String(reason||"Unknown promise error"));
-});
-document.getElementById("muteBtn").onclick=async()=>{
+$("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
- try{micEnabled=!micEnabled;await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled);
- document.getElementById("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";}
- catch(error){console.error(error);status.textContent="Microphone Error: "+error.message;}
+ try{micEnabled=!micEnabled;await activeRoom.localParticipant.setMicrophoneEnabled(micEnabled);$("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";}
+ catch(e){console.error(e);status.textContent="Microphone Error: "+e.message;}
 };
-document.getElementById("leaveBtn").onclick=leaveVoiceRoom;
+$("leaveBtn").onclick=leaveVoiceRoom;
+window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
+window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
+window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
 </script>
 </body>
 </html>
