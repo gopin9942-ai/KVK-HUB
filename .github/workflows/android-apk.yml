@@ -63,7 +63,7 @@ jobs:
           ]
           for permission in permissions:
               if permission not in content:
-                  content = content.replace("</manifest>", permission + "\\n</manifest>")
+                  content = content.replace("</manifest>", permission + "\n</manifest>")
           manifest.write_text(content)
           PY
 
