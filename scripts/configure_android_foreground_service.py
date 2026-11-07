@@ -185,15 +185,28 @@ public class KvkVoiceService extends Service {
             PendingIntent.getActivity(this, 1, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent muteIntent = new Intent(this, KvkVoiceActionReceiver.class);
-        muteIntent.setAction(ACTION_MUTE);
-        PendingIntent mutePending = PendingIntent.getBroadcast(this, 2, muteIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        // Launch the Activity directly from the notification action. Android allows
+        // this user-initiated Activity launch; routing through a BroadcastReceiver and
+        // calling startActivity() from its background context can be blocked on Android 10+.
+        Intent muteIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        PendingIntent mutePending = null;
+        if (muteIntent != null) {
+            muteIntent.setAction("com.kvkhub.voice.NOTIFICATION_MUTE");
+            muteIntent.putExtra("kvkNotificationAction", ACTION_MUTE);
+            muteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            mutePending = PendingIntent.getActivity(this, 2, muteIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        }
 
-        Intent unmuteIntent = new Intent(this, KvkVoiceActionReceiver.class);
-        unmuteIntent.setAction(ACTION_UNMUTE);
-        PendingIntent unmutePending = PendingIntent.getBroadcast(this, 4, unmuteIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent unmuteIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        PendingIntent unmutePending = null;
+        if (unmuteIntent != null) {
+            unmuteIntent.setAction("com.kvkhub.voice.NOTIFICATION_UNMUTE");
+            unmuteIntent.putExtra("kvkNotificationAction", ACTION_UNMUTE);
+            unmuteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            unmutePending = PendingIntent.getActivity(this, 4, unmuteIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        }
 
         Intent disconnectIntent = new Intent(this, KvkVoiceActionReceiver.class);
         disconnectIntent.setAction(ACTION_DISCONNECT);
