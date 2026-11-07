@@ -425,21 +425,7 @@ $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
-const speakingParticipants=new WeakSet();
 const participantTiles=new Map();
-
-function bindParticipantSpeaking(participant){
- if(!participant||speakingParticipants.has(participant))return;
- speakingParticipants.add(participant);
- participant.on("isSpeakingChanged",speaking=>{
-  const identity=participant.identity;
-  if(speaking)activeSpeakerIds.add(identity);
-  else activeSpeakerIds.delete(identity);
-  const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
-  if(profile)profile.level=speaking?(Number(participant.audioLevel)||0):0;
-  updateParticipantIndicators();
- });
-}
 const remoteAudioGains=new Map();
 const roomPresenceStops=new Map();
 // 100 on the slider is capped at 50% media-element volume.
@@ -787,10 +773,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
    if(profile)profile.level=Number(participant.audioLevel)||0;
   }
-  console.info("[KVK speaker] ActiveSpeakersChanged",{localIdentity:room.localParticipant.identity,active:speakers.map(p=>({identity:p.identity,level:Number(p.audioLevel)||0})),profiles:[...participantProfiles.values()].map(p=>({uid:p.uid,livekitIdentity:p.livekitIdentity}))});
   updateParticipantIndicators();
  });
- room.on(RoomEvent.ParticipantConnected,participant=>bindParticipantSpeaking(participant));
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
@@ -801,10 +785,6 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
- // Bind speaking-change listeners for participants who were already in the room
- // before this client finished connecting.
- for(const participant of room.remoteParticipants.values())bindParticipantSpeaking(participant);
- bindParticipantSpeaking(room.localParticipant);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
