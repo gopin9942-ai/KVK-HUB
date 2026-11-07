@@ -317,19 +317,39 @@ function attachRemoteAudio(track,identity){
 }
 
 let selectedProfilePhoto=null;
+function profilePlaceholder(name){
+ const letter=(name||"U").trim().charAt(0).toUpperCase()||"U";
+ return "data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88"><rect width="100%" height="100%" fill="#303954"/><text x="50%" y="58%" text-anchor="middle" dominant-baseline="middle" font-size="42" fill="white">'+letter+'</text></svg>');
+}
 function profileAvatar(user,photo){return photo||user.photoURL||"";}
 async function loadUserProfile(user){
- const ref=doc(db,"users",user.uid);
- const snap=await getDoc(ref);
- const data=snap.exists()?snap.data():{};
- const name=data.displayName||user.displayName||"User";
- const photo=profileAvatar(user,data.photoDataUrl);
- $("profileTopName").textContent=name;
- $("profileTopPhoto").src=photo||"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88"><rect width="100%" height="100%" fill="#303954"/><text x="50%" y="58%" text-anchor="middle" font-size="42" fill="white">☺</text></svg>');
+ // Show Google account details immediately; Firestore custom values are optional overrides.
+ const googleName=user.displayName||user.email?.split("@")[0]||"Google User";
+ const googlePhoto=user.photoURL||"";
+ $("profileUid").textContent=user.uid||"Unavailable";
+ $("profileTopName").textContent=googleName;
+ $("profileNameInput").value=googleName;
+ $("profileTopPhoto").src=googlePhoto||profilePlaceholder(googleName);
  $("profilePreview").src=$("profileTopPhoto").src;
- $("profileNameInput").value=name;
- $("profileUid").textContent=user.uid;
- selectedProfilePhoto=data.photoDataUrl||null;
+ $("userName").textContent="Hello, "+googleName;
+ selectedProfilePhoto=null;
+ try{
+  const snap=await getDoc(doc(db,"users",user.uid));
+  const data=snap.exists()?snap.data():{};
+  const name=(typeof data.displayName==="string"&&data.displayName.trim())?data.displayName.trim():googleName;
+  const customPhoto=(typeof data.photoDataUrl==="string"&&data.photoDataUrl.startsWith("data:image/"))?data.photoDataUrl:"";
+  const photo=profileAvatar(user,customPhoto);
+  $("profileTopName").textContent=name;
+  $("profileNameInput").value=name;
+  $("profileTopPhoto").src=photo||profilePlaceholder(name);
+  $("profilePreview").src=$("profileTopPhoto").src;
+  $("userName").textContent="Hello, "+name;
+  selectedProfilePhoto=customPhoto||null;
+ }catch(error){
+  console.error("Profile read failed; showing Google account defaults:",error);
+  // Keep the Google name, photo and permanent UID visible even if Firestore rules deny profile reads.
+  status.textContent="Google profile loaded. Custom profile could not be loaded: "+error.message;
+ }
 }
 async function saveProfile(){
  const user=auth.currentUser;if(!user)return;
