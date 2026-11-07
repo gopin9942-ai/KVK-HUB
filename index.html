@@ -362,7 +362,8 @@ const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppres
 const GTCRN_WORKLET_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn/workletProcessor.js";
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
-let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
+// Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
+let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
 let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")==="true";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
 let localSpeakingContext=null,localSpeakingAnalyser=null,localSpeakingSamples=null;
