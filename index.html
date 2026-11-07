@@ -138,9 +138,99 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
 .passwordModalError{min-height:19px;margin-top:8px!important;color:#ff9aa8!important}
 .passwordModalActions{display:flex;gap:10px;margin-top:8px}
 .passwordModalActions button{flex:1}
+
+/* KVK HUB visual refresh — preview branch */
+:root{color-scheme:dark;--cyan:#54dcff;--mint:#78f0d0;--ink:#0a1020;--panel:#151f35;--line:rgba(148,177,221,.17);--muted:#9eacc7}
+html,body{min-height:100%;background:radial-gradient(ellipse at 50% -20%,#253b61 0%,#10182b 42%,#090e1b 100%)}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.01em}
+header{background:rgba(13,20,37,.76);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:14px 18px}
+.brandMark{border-radius:16px;background:linear-gradient(145deg,#62e6ff,#3486ca);box-shadow:0 8px 28px #35c9f455}
+.brandCopy h1{font-weight:850;letter-spacing:.12em}
+.brandCopy p{letter-spacing:.2em}
+main{max-width:760px;padding:16px 18px 12px}
+.card{background:linear-gradient(145deg,rgba(27,41,67,.94),rgba(17,27,47,.96));border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 14px 38px rgba(0,0,0,.18);margin-top:0}
+button{border-radius:12px;min-height:44px;font-weight:750;letter-spacing:.01em;background:linear-gradient(135deg,#61e1fa,#36b9e8);box-shadow:0 7px 18px rgba(43,174,219,.16);transition:transform .16s ease,filter .16s ease}
+button:active{transform:scale(.985)}button.secondary{background:#263650;color:#e6f2ff;border:1px solid #405473;box-shadow:none}
+input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13px 14px}
+#bootSplash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;background:radial-gradient(ellipse at 50% 38%,#1b3d62 0%,#101a30 43%,#080d19 100%);transition:opacity .35s ease,visibility .35s ease}
+#bootSplash.done{opacity:0;visibility:hidden;pointer-events:none}
+.splashOrb{width:104px;height:104px;display:grid;place-items:center;border-radius:32px;color:#092036;background:linear-gradient(145deg,#70edff,#3a9fe0);box-shadow:0 0 0 10px #54dcff12,0 0 55px #35c9f466}
+.splashOrb svg{width:65px;height:65px}
+.splashTitle{font-size:clamp(38px,9vw,54px);font-weight:900;letter-spacing:.13em;color:#f4fbff;text-shadow:0 4px 28px #54dcff35}
+.splashTagline{font-size:clamp(11px,2.8vw,14px);font-weight:800;letter-spacing:.28em;color:#aebfd9}
+.splashTagline span{color:var(--cyan);padding:0 4px}
+.splashLoader{width:112px;height:3px;border-radius:9px;background:#ffffff18;overflow:hidden;margin-top:13px}
+.splashLoader i{display:block;width:42%;height:100%;border-radius:9px;background:var(--cyan);animation:splashLoad 1.2s ease-in-out infinite alternate}
+@keyframes splashLoad{from{transform:translateX(-10%)}to{transform:translateX(150%)}}
+#status{font-size:12px;color:var(--cyan);margin:7px 0 0;min-height:16px}
+#homePage[style*="display: block"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:13px}
+#homePage>.card:first-child{grid-column:1;grid-row:1}
+#homePage>.roomHubCard{grid-column:2;grid-row:1}
+#homePage>.myRoomsCard{grid-column:1 / -1;grid-row:2;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#homePage>.card h2{font-size:21px;letter-spacing:-.025em;margin:0 0 7px}
+#homePage>.card:first-child h2{font-size:23px}
+#homePage .profileTop{border-radius:14px;background:rgba(9,17,32,.58);border-color:#344765}
+#homePage .profileMenuButton{min-width:40px}
+.sectionEyebrow{font-size:9px;line-height:1.3;letter-spacing:.2em;font-weight:850;color:#72dff5;margin-bottom:5px}
+.roomHint{margin:0 0 14px}
+.roomInputLabel{display:block;font-size:9px;letter-spacing:.18em;color:#a9b8d2;font-weight:800;margin:0 0 -5px}
+.roomHubCard input{margin-top:10px}
+.roomActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.roomActions button{margin-top:10px;padding:10px 8px;font-size:13px;white-space:nowrap}
+.actionIcon{font-size:17px;margin-right:5px}
+.roomFootnote{font-size:10px;color:#91a2bf;margin:10px 0 0}
+.myRoomsHeading{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.myRoomsHeading h2{margin:0!important}
+.refreshButton{width:39px;height:39px;min-height:39px;margin:0;padding:0;font-size:22px}
+#myRoomList{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+#myRoomList .roomItem{margin-top:8px;padding:11px 13px;border-radius:13px;background:#0e192b;border-color:#31445f}
+#myRoomList .roomItem button{width:auto;min-height:36px;padding:8px 13px;margin:8px 6px 0 0;font-size:12px}
+#loginPage{max-width:440px;margin:40px auto;padding:26px}
+#loginPage h2{font-size:24px;letter-spacing:-.03em}
+#roomPage{min-height:0}
+@media(max-width:600px){
+ html,body{height:100%;min-height:100%;overflow:hidden}
+ body{min-height:100dvh}
+ header{padding:9px 12px}
+ main{padding:10px 10px 5px;gap:9px}
+ #homePage[style*="display: block"]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);gap:9px}
+ #homePage>.card:first-child{grid-column:1;grid-row:1;padding:11px 13px}
+ #homePage>.roomHubCard{grid-column:1;grid-row:2;padding:12px 13px}
+ #homePage>.myRoomsCard{grid-column:1;grid-row:3;padding:11px 13px}
+ #homePage>.card h2{font-size:17px}
+ #homePage>.card:first-child h2{font-size:19px}
+ #homePage>.card:first-child>#userName{font-size:11px;margin:2px 0}
+ #homePage .profileTop{margin-top:6px;padding:7px 9px;gap:9px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:38px;height:38px}
+ #homePage .profileTop strong{font-size:12px}
+ #homePage .profileTop small{font-size:9px}
+ #homePage .profileMenuButton{width:34px;height:34px;min-width:34px}
+ .sectionEyebrow{font-size:8px;margin-bottom:3px}
+ .roomHint{font-size:10px;margin:0 0 7px}
+ .roomInputLabel{font-size:8px}
+ .roomHubCard input{margin-top:8px;padding:10px 12px;font-size:13px}
+ .roomActions{gap:8px}
+ .roomActions button{min-height:39px;padding:8px 5px;font-size:12px;margin-top:8px}
+ .roomFootnote{font-size:9px;margin-top:6px}
+ .myRoomsHeading{margin-bottom:4px}
+ .refreshButton{width:34px;height:34px;min-height:34px}
+ #myRoomList .roomItem{padding:8px 9px;margin-top:6px}
+ #myRoomList .roomMeta{font-size:10px;margin-top:3px}
+ #myRoomList .roomItem button{min-height:32px;padding:6px 10px;margin-top:6px;font-size:11px}
+ #myRoomList .empty{font-size:11px;padding:8px}
+ #status{font-size:10px;min-height:14px;margin-top:2px}
+ #loginPage{margin:0;padding:18px}
+}
+@media(max-width:380px){
+ #homePage>.card:first-child,#homePage>.roomHubCard,#homePage>.myRoomsCard{padding:9px 10px}
+ .roomActions button{font-size:11px}
+ .splashOrb{width:88px;height:88px;border-radius:27px}
+ .splashOrb svg{width:56px;height:56px}
+}
 </style>
 </head>
 <body>
+<div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="24" y="7" width="16" height="31" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M15 29v3a17 17 0 0 0 34 0v-3M32 49v8m-10 0h20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
 <header><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
 <main>
 <section id="loginPage" class="card">
@@ -171,17 +261,13 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
  <button id="saveProfileBtn">Save Profile</button>
  <button class="secondary" id="closeProfileBtn">Close</button>
 </div></div>
-<div class="card"><h2>🔒 Create / Join Room</h2>
-<p class="small">Create a password-protected room or join a room using its Room ID.</p>
-<input id="roomCode" placeholder="Enter Room ID" maxlength="40">
-<button id="joinBtn">Join Room</button>
-<button class="secondary" id="createBtn">Create Room (Password Protected)</button>
-<p class="small">Create a room, then share its invite link and password with your friends.</p>
+<div class="card roomHubCard"><div class="sectionEyebrow">YOUR VOICE SPACE</div><h2>Rooms</h2><p class="small roomHint">Jump into a room or start your own.</p>
+<label class="roomInputLabel" for="roomCode">ROOM ID</label><input id="roomCode" placeholder="Enter room ID" maxlength="40" autocomplete="off">
+<div class="roomActions"><button id="joinBtn"><span class="actionIcon">↗</span> Join Room</button><button class="secondary" id="createBtn"><span class="actionIcon">＋</span> Create Room</button></div>
+<p class="roomFootnote">Private rooms are protected with a password.</p>
 </div>
-<div class="card">
-<h2>📁 My Rooms</h2>
-<p class="small">Rooms you created and rooms you joined are saved here.</p>
-<button id="refreshRoomsBtn" class="secondary">Refresh My Rooms</button>
+<div class="card myRoomsCard">
+<div class="myRoomsHeading"><div><div class="sectionEyebrow">QUICK ACCESS</div><h2>My Rooms</h2></div><button id="refreshRoomsBtn" class="secondary refreshButton" aria-label="Refresh My Rooms">↻</button></div>
 <div id="myRoomList"><div class="empty">Loading your rooms...</div></div>
 </div>
 
@@ -242,7 +328,7 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
  </div>
 </div>
 
-<p id="status">Checking login...</p>
+<p id="status" role="status" aria-live="polite"></p>
 </main>
 <script type="module">
 import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
@@ -999,6 +1085,7 @@ async function leaveVoiceRoom(){
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
 onAuthStateChanged(auth,async user=>{
  try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
+ $("bootSplash").classList.add("done");
  if(!user){showLogin();return;}
  showHome(user);
  const inviteRoom=new URLSearchParams(location.search).get("room");
