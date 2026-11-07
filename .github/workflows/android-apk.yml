@@ -47,7 +47,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp index.html firebase.js noise-processor.js native-call.js www/
+          cp index.html firebase.js native-call.js www/
           npx esbuild firebase.js --bundle --format=esm --outfile=www/firebase.js --external:https://www.gstatic.com/*
           npx esbuild native-call.js --bundle --format=esm --outfile=www/native-call.js
 
