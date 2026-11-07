@@ -87,10 +87,15 @@ public class KvkCallPlugin extends Plugin {
     @Override
     public void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
-        if (intent != null && "com.kvkhub.voice.NOTIFICATION_UNMUTE".equals(
-            intent.getStringExtra("kvkNotificationAction"))) {
-            dispatchNotificationAction("UNMUTE");
-            intent.removeExtra("kvkNotificationAction");
+        if (intent != null) {
+            String action = intent.getStringExtra("kvkNotificationAction");
+            if ("com.kvkhub.voice.action.MUTE".equals(action)) {
+                dispatchNotificationAction("MUTE");
+                intent.removeExtra("kvkNotificationAction");
+            } else if ("com.kvkhub.voice.action.UNMUTE".equals(action)) {
+                dispatchNotificationAction("UNMUTE");
+                intent.removeExtra("kvkNotificationAction");
+            }
         }
     }
 
@@ -177,9 +182,14 @@ public class KvkVoiceService extends Service {
             PendingIntent.getActivity(this, 1, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent toggleMicIntent = new Intent(this, KvkVoiceActionReceiver.class);
-        toggleMicIntent.setAction(micEnabled ? ACTION_MUTE : ACTION_UNMUTE);
-        PendingIntent toggleMicPending = PendingIntent.getBroadcast(this, 2, toggleMicIntent,
+        Intent muteIntent = new Intent(this, KvkVoiceActionReceiver.class);
+        muteIntent.setAction(ACTION_MUTE);
+        PendingIntent mutePending = PendingIntent.getBroadcast(this, 2, muteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Intent unmuteIntent = new Intent(this, KvkVoiceActionReceiver.class);
+        unmuteIntent.setAction(ACTION_UNMUTE);
+        PendingIntent unmutePending = PendingIntent.getBroadcast(this, 4, unmuteIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent disconnectIntent = new Intent(this, KvkVoiceActionReceiver.class);
@@ -196,7 +206,8 @@ public class KvkVoiceService extends Service {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(0, micEnabled ? "Mute" : "Unmute", toggleMicPending)
+            .addAction(0, "Mute", mutePending)
+            .addAction(0, "Unmute", unmutePending)
             .addAction(0, "Disconnect", disconnectPending);
         if (contentPending != null) builder.setContentIntent(contentPending);
         return builder.build();
@@ -224,12 +235,11 @@ public class KvkVoiceActionReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
-        if (KvkVoiceService.ACTION_MUTE.equals(action)) {
-            KvkCallPlugin.dispatchNotificationAction("MUTE");
-        } else if (KvkVoiceService.ACTION_UNMUTE.equals(action)) {
+        if (KvkVoiceService.ACTION_MUTE.equals(action)
+                || KvkVoiceService.ACTION_UNMUTE.equals(action)) {
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
             if (launch != null) {
-                launch.putExtra("kvkNotificationAction", "com.kvkhub.voice.NOTIFICATION_UNMUTE");
+                launch.putExtra("kvkNotificationAction", action);
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 context.startActivity(launch);
             }
