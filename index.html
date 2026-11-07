@@ -161,7 +161,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
 import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 import {
- collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,serverTimestamp,query,where
+ collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
@@ -193,21 +193,34 @@ async function refreshModeration(){
    // Ban records may contain profile metadata. If not, try the public user profile
    // stored under the Firebase UID in users/{uid}.
    let profileData=typeof entry==="object"?entry:{};
-   const profileUid=profileData.uid||profileData.targetUid||identity;
+   let profileUid=profileData.uid||profileData.targetUid||profileData.firebaseUid||"";
+   let presenceData={};
    try{
+    // The ban list often contains only a LiveKit identity, not the Firebase UID.
+    // Resolve that identity through this room's participant records first.
+    if(!profileUid){
+     const peopleSnap=await getDocs(collection(db,"rooms",currentRoomCode,"participants"));
+     const matched=peopleSnap.docs.find(person=>{
+      const personData=person.data();
+      return person.id===identity||personData.livekitIdentity===identity;
+     });
+     if(matched){profileUid=matched.id;presenceData=matched.data();}
+    }
+    if(!profileUid)profileUid=identity;
     const profileSnap=await getDoc(doc(db,"users",profileUid));
-    if(profileSnap.exists())profileData={...profileSnap.data(),...profileData};
+    if(profileSnap.exists())profileData={...profileData,...profileSnap.data()};
    }catch(profileError){console.warn("Could not load banned member profile:",profileError);}
-   const memberName=profileData.displayName||profileData.name||"Banned member";
-   const memberPhoto=profileData.photoDataUrl||profileData.photoURL||profileData.photoUrl||"";
-   const publicId=profileData.publicId||profileData.kvkUserId||"";
+   const memberName=profileData.displayName||profileData.name||presenceData.name||"Member";
+   const memberPhoto=profileData.photoDataUrl||profileData.photoURL||profileData.photoUrl||presenceData.photoURL||"";
+   const publicId=profileData.publicId||profileData.kvkUserId||profileUid||identity;
    const row=document.createElement("div");row.className="roomItem adminMemberRow";
    const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
    if(memberPhoto){avatar.src=memberPhoto;avatar.onerror=()=>{avatar.style.display="none";};}
    else{avatar.style.display="none";}
    const details=document.createElement("div");details.className="adminMemberDetails";details.style.flex="1";
    const label=document.createElement("strong");label.textContent=memberName;
-   const userId=document.createElement("div");userId.className="roomMeta";userId.textContent=publicId?"@"+publicId:"User ID: "+profileUid;
+   label.style.fontSize="13px";
+   const userId=document.createElement("div");userId.className="roomMeta";userId.textContent=publicId?(String(publicId).startsWith("@")?publicId:"@"+publicId):"User ID: "+identity;
    const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
    details.append(label,userId,sub);
    const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=()=>moderationAction("/unban",identity);
