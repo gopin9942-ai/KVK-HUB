@@ -39,6 +39,22 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .adminActionMenu button{width:100%;margin:0 0 5px;padding:10px;text-align:left}
 .adminActionMenu button:last-child{margin-bottom:0}
 .adminActionMenu .dangerAction{background:#8f3445;color:#fff}
+.settingsPanel{background:#151d31;border:1px solid #35415f;border-radius:11px;margin:8px 0 10px;padding:11px;max-width:100%;font-size:13px}
+.settingsHeading{font-size:14px;font-weight:700;margin-bottom:10px;color:#45d9ff}
+.settingsSubheading{font-size:12px;color:#aab5d0;font-weight:700;margin:4px 0 6px}
+.settingsPanel .roomItem{padding:8px 9px;margin-top:7px;border-radius:9px}
+.settingsPanel .roomMeta{font-size:11px}
+.settingsPanel .adminMemberRow{gap:7px}
+.settingsPanel .adminMemberDetails strong{font-size:12px}
+.settingsPanel button{font-size:12px;padding:8px 10px;margin-top:7px;border-radius:8px}
+.settingsPanel .deleteChannelAction{width:auto;background:#8f3445;color:#fff;margin-top:12px}
+.deleteConfirmBox{margin-top:10px;padding:10px;border:1px solid #8f3445;border-radius:9px;background:#291a28}
+.deleteCountdownText{font-size:12px;color:#ffd4d9;line-height:1.5}
+.deleteConfirmButtons{display:flex;gap:8px}
+.deleteConfirmButtons button{width:auto;flex:1;margin-top:8px}
+.confirmDeleteAction{background:#8f3445;color:#fff}
+.cancelDeleteAction{background:#303954;color:#fff}
+
 </style>
 </head>
 <body>
@@ -71,11 +87,18 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
  <p id="roomInfo" class="small" style="margin:8px 0;min-width:0;overflow-wrap:anywhere">Room connected</p>
  <button id="roomSettingsBtn" class="secondary" style="width:auto;flex:0 0 auto;margin:0;padding:9px 12px;display:none">⚙️ Settings</button>
 </div>
-<div id="roomSettingsPanel" class="card" style="display:none;margin:10px 0;padding:14px">
- <h3 style="margin:0 0 10px">⚙️ Room Settings</h3>
- <h4 style="margin:8px 0">Banned Users</h4>
+<div id="roomSettingsPanel" class="settingsPanel" style="display:none">
+ <div class="settingsHeading">Room Settings</div>
+ <div class="settingsSubheading">Banned Users</div>
  <div id="adminBanned"><div class="empty">Open settings to load banned users.</div></div>
- <button id="deleteChannelBtn" style="display:none;background:#8f3445;color:white">Delete Channel</button>
+ <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
+ <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
+  <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
+  <div class="deleteConfirmButtons">
+   <button id="confirmDeleteChannelBtn" class="confirmDeleteAction" disabled>Confirm Delete</button>
+   <button id="cancelDeleteChannelBtn" class="cancelDeleteAction">Cancel</button>
+  </div>
+ </div>
 </div>
 <button id="copyRoomCodeBtn" class="secondary">Copy Room Code</button>
 <p class="small" id="voiceMembers">Connecting member count...</p>
@@ -155,6 +178,8 @@ async function moderationAction(path,targetIdentity,extra={}){
  }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;return false;}
 }
 let isRoomAdmin=false;
+let deleteCountdownTimer=null;
+let deleteCountdownRemaining=0;
 const adminMuteState=new Map();
 function identityAudioIsMuted(identity){
  if(!activeRoom)return false;
@@ -643,26 +668,62 @@ $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent=
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
 onAuthStateChanged(auth,user=>{if(user)showHome(user);else showLogin();});
 $("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
+function stopDeleteCountdown(){
+ if(deleteCountdownTimer){clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;}
+ deleteCountdownRemaining=0;
+ $("deleteConfirmBox").style.display="none";
+ $("confirmDeleteChannelBtn").disabled=true;
+ $("confirmDeleteChannelBtn").textContent="Confirm Delete";
+ $("deleteChannelBtn").disabled=false;
+}
 $("roomSettingsBtn").onclick=()=>{
  const panel=$("roomSettingsPanel");
  const opening=panel.style.display==="none";
  panel.style.display=opening?"block":"none";
+ if(!opening)stopDeleteCountdown();
  if(opening)refreshModeration();
 };
-$("deleteChannelBtn").onclick=async()=>{
+$("deleteChannelBtn").onclick=()=>{
  if(!isRoomAdmin||!currentRoomCode)return;
+ stopDeleteCountdown();
+ $("deleteConfirmBox").style.display="block";
+ $("deleteCountdownText").textContent="Accidental delete protection: wait 5 seconds before confirming.";
+ const confirmButton=$("confirmDeleteChannelBtn");
+ confirmButton.disabled=true;
+ deleteCountdownRemaining=5;
+ $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+ deleteCountdownTimer=setInterval(()=>{
+  deleteCountdownRemaining--;
+  if(deleteCountdownRemaining>0){
+   $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+  }else{
+   clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;
+   $("deleteCountdownText").textContent="Please check carefully. You can now confirm deleting this channel.";
+   confirmButton.disabled=false;
+  }
+ },1000);
+};
+$("cancelDeleteChannelBtn").onclick=stopDeleteCountdown;
+$("confirmDeleteChannelBtn").onclick=async()=>{
+ if(!isRoomAdmin||!currentRoomCode||deleteCountdownRemaining>0||$("confirmDeleteChannelBtn").disabled)return;
  const roomToDelete=currentRoomCode;
- if(!confirm("Delete this channel permanently? All members will be disconnected and the room will be removed."))return;
- const button=$("deleteChannelBtn");button.disabled=true;
+ const button=$("confirmDeleteChannelBtn");
+ button.disabled=true;button.textContent="Deleting...";
+ $("deleteChannelBtn").disabled=true;
  try{
   await workerAdminRequest("/delete-room",{roomName:roomToDelete});
   await deleteDoc(doc(db,"rooms",roomToDelete));
+  stopDeleteCountdown();
   await leaveVoiceRoom();
   status.textContent="Channel deleted.";
  }catch(error){
   console.error("Delete channel failed:",error);
   status.textContent="Could not delete channel: "+error.message;
- }finally{button.disabled=false;}
+  stopDeleteCountdown();
+ }finally{
+  button.textContent="Confirm Delete";
+  $("deleteChannelBtn").disabled=false;
+ }
 };
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
