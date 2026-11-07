@@ -681,7 +681,7 @@ async function setRoomMicrophone(room,enabled){
   if(!track){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
   try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;}
   catch(e){stream.getTracks().forEach(t=>t.stop());throw e;}
-  status.textContent="Noise Cancellation OFF.";
+  status.textContent="Device Noise Suppression ON (low CPU).";
   return;
  }
  let stream=await getStream(false);
