@@ -501,6 +501,23 @@ document.addEventListener("click",event=>{
  if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton"))$("profileMenu").hidden=true;
 });
 $("saveProfileBtn").onclick=saveProfile;
+$("logoutBtn").onclick=async()=>{
+ const button=$("logoutBtn");
+ button.disabled=true;
+ $("profileMenu").hidden=true;
+ status.textContent="Logging out...";
+ try{
+  // Disconnect any active voice room before clearing the signed-in Firebase session.
+  if(currentRoomCode||activeRoom)await leaveVoiceRoom();
+  await logoutUser();
+  status.textContent="Logged out successfully. Please sign in again.";
+ }catch(error){
+  console.error("Logout failed:",error);
+  status.textContent="Logout failed: "+(error.code||error.message||"Unknown error");
+ }finally{
+  button.disabled=false;
+ }
+};
 $("profilePhotoInput").onchange=async event=>{
  const file=event.target.files?.[0];if(!file)return;
  if(!file.type.startsWith("image/")){status.textContent="Choose an image file.";return;}
