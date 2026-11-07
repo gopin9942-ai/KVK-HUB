@@ -162,9 +162,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="moderationPanel" style="display:none"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" style="width:auto;margin:0"> AI Noise Cancellation (Optional — uses more CPU)</label>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
- <p class="small" style="margin:8px 0 0">AI voice enhancement runs before your microphone audio is sent to the room. You can turn it OFF or ON here. Results depend on your microphone and device.</p>
+ <p class="small" style="margin:8px 0 0">Lightweight mode is the default for smoother gaming and lower CPU/RAM use. Turn AI Noise Cancellation ON only if you need extra noise filtering.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect</button>
@@ -363,7 +363,7 @@ const GTCRN_WORKLET_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-supp
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
-let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
+let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")==="true";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
 let localSpeakingContext=null,localSpeakingAnalyser=null,localSpeakingSamples=null;
 $("noiseSuppressionToggle").checked=noiseCancellationEnabled;
@@ -388,7 +388,6 @@ function bindParticipantSpeaking(participant){
 }
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
-const remoteSpeakingMeters=new Map();
 const roomPresenceStops=new Map();
 // 100 on the slider is capped at 50% media-element volume.
 // This is a software limit, not a calibrated dB safety guarantee.
@@ -428,25 +427,9 @@ function attachRemoteAudio(track,identity){
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
+ // Keep remote audio on its native media element. Avoid creating one extra
+ // AudioContext and analyser per participant to reduce CPU and memory usage.
  const nodeRecord={audioEl};
- // Measure the actual incoming WebRTC audio on this client. This works even
- // when the server's ActiveSpeakersChanged event only reports the local user.
- try{
-  const context=new AudioContext({latencyHint:"interactive"});
-  const source=context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
-  const analyser=context.createAnalyser();
-  const silentGain=context.createGain();
-  analyser.fftSize=512;
-  analyser.smoothingTimeConstant=0.35;
-  silentGain.gain.value=0;
-  source.connect(analyser);
-  analyser.connect(silentGain);
-  silentGain.connect(context.destination);
-  context.resume().catch(()=>{});
-  nodeRecord.source=source;nodeRecord.analyser=analyser;nodeRecord.gain=silentGain;
-  nodeRecord.context=context;nodeRecord.samples=new Float32Array(analyser.fftSize);
-  remoteSpeakingMeters.set(identity,nodeRecord);
- }catch(error){console.warn("Remote speaking meter unavailable:",error);}
  if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
  remoteAudioNodes.get(identity).add(nodeRecord);
  audioEl.play().catch(()=>{});
@@ -800,20 +783,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Measure incoming remote audio tracks locally, rather than relying on
-  // ActiveSpeakersChanged being delivered consistently by every room/client.
-  for(const [identity,meter] of remoteSpeakingMeters){
-   if(meter.context?.state==="suspended")meter.context.resume().catch(()=>{});
-   let sum=0;
-   meter.analyser.getFloatTimeDomainData(meter.samples);
-   for(const sample of meter.samples)sum+=sample*sample;
-   const level=Math.sqrt(sum/meter.samples.length);
-   const speaking=level>=0.012;
-   if(speaking)activeSpeakerIds.add(identity);else activeSpeakerIds.delete(identity);
-   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
-   if(profile)profile.level=speaking?level:0;
-  }
-  // Keep local microphone detection isolated to this client's own tile.
+  // Speaking indicators are visual only; skip their work while backgrounded.
+  if(document.hidden)return;
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
    const identity=room.localParticipant.identity;
@@ -823,13 +794,12 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    else{activeSpeakerIds.delete(identity);localProfile.level=0;}
   }
   updateParticipantIndicators();
- },80);
+ },250);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
  const unlockRoomAudio=()=>{
   if(activeRoom!==room)return;
-  for(const meter of remoteSpeakingMeters.values())meter.context?.resume().catch(()=>{});
   room.startAudio().then(()=>{
    Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
    document.removeEventListener("pointerdown",unlockRoomAudio);
@@ -988,7 +958,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
