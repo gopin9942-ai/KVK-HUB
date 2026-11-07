@@ -5,7 +5,7 @@ const QUANTUM = 128;
 const BLOCKS_PER_FRAME = FRAME_SIZE / QUANTUM;
 
 class KVKGTCRNDenoiser extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
     this.processor = null;
     this.wasmBinary = options.processorOptions?.wasmBinary;
