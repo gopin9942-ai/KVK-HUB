@@ -447,7 +447,7 @@ async function setRoomMicrophone(room,enabled){
   status.textContent="GTCRN unavailable ("+reason+"). Browser Noise Cancellation fallback is ON.";
  }
 }
-async function connectVoiceRoom(roomName){
+async function connectVoiceRoom(roomName,restoreMode=false){
  if(!auth.currentUser)throw new Error("Please login first.");
  const roomRef=doc(db,"rooms",roomName);
  const roomSnap=await getDoc(roomRef);
@@ -554,6 +554,11 @@ async function connectVoiceRoom(roomName){
   micEnabled=false;
   localStorage.setItem("kvkMicEnabled","false");
   status.textContent="You joined successfully. Your microphone is locked by the room admin.";
+ }else if(restoreMode){
+  // Rejoin silently after refresh; never turn the microphone on without a fresh user action.
+  micEnabled=false;
+  localStorage.setItem("kvkMicEnabled","false");
+  status.textContent="Reconnected to the room. Your microphone is OFF; tap Unmute when ready.";
  }else{
   try{
    await setRoomMicrophone(room,micEnabled);
@@ -676,7 +681,7 @@ onAuthStateChanged(auth,async user=>{
  const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
  if(savedRoom){
   status.textContent="Restoring your previous room...";
-  try{await connectVoiceRoom(savedRoom);status.textContent="Welcome back! Reconnected to "+savedRoom+".";}
+  try{await connectVoiceRoom(savedRoom,true);status.textContent="Welcome back! Reconnected to "+savedRoom+". Your microphone is OFF.";}
   catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
  }
 });
