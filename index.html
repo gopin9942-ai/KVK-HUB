@@ -390,6 +390,7 @@ function bindParticipantSpeaking(participant){
 }
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
+const remoteSpeakingMeters=new Map();
 const roomPresenceStops=new Map();
 // 100 on the slider is capped at 50% media-element volume.
 // This is a software limit, not a calibrated dB safety guarantee.
@@ -429,9 +430,25 @@ function attachRemoteAudio(track,identity){
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
- // Keep remote audio on its native media element. Avoid creating one extra
- // AudioContext and analyser per participant to reduce CPU and memory usage.
  const nodeRecord={audioEl};
+ // Analyse each incoming participant track locally. This reliably drives the
+ // speaking glow on every listener, independent of room-wide speaker events.
+ try{
+  const context=new AudioContext({latencyHint:"interactive"});
+  const source=context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+  const analyser=context.createAnalyser();
+  const silentGain=context.createGain();
+  analyser.fftSize=512;
+  analyser.smoothingTimeConstant=0.35;
+  silentGain.gain.value=0;
+  source.connect(analyser);
+  analyser.connect(silentGain);
+  silentGain.connect(context.destination);
+  context.resume().catch(()=>{});
+  nodeRecord.source=source;nodeRecord.analyser=analyser;nodeRecord.gain=silentGain;
+  nodeRecord.context=context;nodeRecord.samples=new Float32Array(analyser.fftSize);
+  remoteSpeakingMeters.set(identity,nodeRecord);
+ }catch(error){console.warn("Remote speaking meter unavailable:",error);}
  if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
  remoteAudioNodes.get(identity).add(nodeRecord);
  audioEl.play().catch(()=>{});
@@ -801,23 +818,19 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Speaking indicators are visual only; skip their work while backgrounded.
+  // Measure actual incoming audio locally. This works even if LiveKit's
+  // ActiveSpeakersChanged event is inconsistent across clients.
   if(document.hidden)return;
-  // Poll every remote participant as well as listening for LiveKit's speaker events.
-  // This keeps the glow reliable in both the browser and Android WebView.
-  for(const participant of room.remoteParticipants.values()){
-   bindParticipantSpeaking(participant);
-   const identity=participant.identity;
+  for(const [identity,meter] of remoteSpeakingMeters){
+   if(meter.context?.state==="suspended")meter.context.resume().catch(()=>{});
+   let sum=0;
+   meter.analyser.getFloatTimeDomainData(meter.samples);
+   for(const sample of meter.samples)sum+=sample*sample;
+   const level=Math.sqrt(sum/meter.samples.length);
+   const speaking=level>=0.012;
+   if(speaking)activeSpeakerIds.add(identity);else activeSpeakerIds.delete(identity);
    const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
-   const level=Number(participant.audioLevel)||0;
-   const speaking=participant.isSpeaking===true||level>=0.01;
-   if(speaking){
-    activeSpeakerIds.add(identity);
-    if(profile)profile.level=level;
-   }else{
-    activeSpeakerIds.delete(identity);
-    if(profile)profile.level=0;
-   }
+   if(profile)profile.level=speaking?level:0;
   }
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
@@ -835,6 +848,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const unlockRoomAudio=()=>{
   if(activeRoom!==room)return;
   room.startAudio().then(()=>{
+   for(const meter of remoteSpeakingMeters.values())meter.context?.resume().catch(()=>{});
    Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
    document.removeEventListener("pointerdown",unlockRoomAudio);
    document.removeEventListener("keydown",unlockRoomAudio);
@@ -992,7 +1006,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
