@@ -477,8 +477,22 @@ function startMyRooms(){
  list.innerHTML='<div class="empty">Loading your rooms...</div>';
  const uid=auth.currentUser?.uid;
  if(!uid){list.textContent="Please login to view your rooms.";return;}
- stopRoomsListener=onSnapshot(collection(db,"users",uid,"myRooms"),snapshot=>{
-  const rooms=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+ stopRoomsListener=onSnapshot(collection(db,"users",uid,"myRooms"),async snapshot=>{
+  const rooms=[];
+  // Remove stale My Rooms entries when their Firestore room document no longer exists.
+  for(const d of snapshot.docs){
+   const room={id:d.id,...d.data()};
+   try{
+    const roomSnap=await getDoc(doc(db,"rooms",room.id));
+    if(!roomSnap.exists()){
+     await deleteDoc(doc(db,"users",uid,"myRooms",room.id));
+     continue;
+    }
+   }catch(checkError){
+    console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
+   }
+   rooms.push(room);
+  }
   rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
@@ -940,6 +954,7 @@ $("confirmDeleteChannelBtn").onclick=async()=>{
  try{
   await workerAdminRequest("/delete-room",{roomName:roomToDelete});
   await deleteDoc(doc(db,"rooms",roomToDelete));
+  await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToDelete));
   stopDeleteCountdown();
   await leaveVoiceRoom();
   status.textContent="Channel deleted.";
@@ -1037,7 +1052,7 @@ $("leaveRoomSettingsBtn").onclick=async()=>{
  const roomToLeave=currentRoomCode;
  if(!confirm("Leave this room? You will need the room password next time."))return;
  const button=$("leaveRoomSettingsBtn");button.disabled=true;button.textContent="Leaving...";
- try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await leaveVoiceRoom();status.textContent="You left the room. Password required next time.";}
+ try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToLeave));await leaveVoiceRoom();status.textContent="You left the room. It was removed from My Rooms. Password required next time."; }
  catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
  finally{button.disabled=false;button.textContent="Leave Room";}
 };
