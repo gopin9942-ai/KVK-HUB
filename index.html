@@ -925,9 +925,12 @@ $("joinBtn").onclick=async()=>{
  if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
  try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
-$("createPrivateBtn").onclick=()=>{
- status.textContent="Private Room: Invite Code and Room ID + Password access are being prepared. Secure Cloudflare Worker verification is required before creation can be enabled.";
-};
+const createPrivateBtn=$("createPrivateBtn");
+if(createPrivateBtn){
+ createPrivateBtn.onclick=()=>{
+  status.textContent="Private Room: Invite Code and Room ID + Password access are being prepared. Secure Cloudflare Worker verification is required before creation can be enabled.";
+ };
+}
 $("createBtn").onclick=async()=>{
  const code="kvk-"+Math.random().toString(36).slice(2,8);
  $("createBtn").disabled=true;status.textContent="Creating public room...";
