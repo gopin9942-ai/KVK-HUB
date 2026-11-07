@@ -111,7 +111,7 @@ import androidx.core.app.ServiceCompat;
 public class KvkVoiceService extends Service {
     static final String ACTION_START = "com.kvkhub.voice.action.START";
     static final String ACTION_UPDATE = "com.kvkhub.voice.action.UPDATE";
-    static final String ACTION_MUTE = "com.kvkhub.voice.action.MUTE";
+    static final String ACTION_TOGGLE_MIC = "com.kvkhub.voice.action.TOGGLE_MIC";
     static final String ACTION_DISCONNECT = "com.kvkhub.voice.action.DISCONNECT";
     private static final String CHANNEL_ID = "kvk_voice_session";
     private static final int NOTIFICATION_ID = 7401;
@@ -135,8 +135,8 @@ public class KvkVoiceService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
-            if (ACTION_MUTE.equals(action)) {
-                KvkCallPlugin.dispatchNotificationAction("MUTE");
+            if (ACTION_TOGGLE_MIC.equals(action)) {
+                KvkCallPlugin.dispatchNotificationAction("TOGGLE_MIC");
                 return START_STICKY;
             }
             if (ACTION_DISCONNECT.equals(action)) {
@@ -165,9 +165,9 @@ public class KvkVoiceService extends Service {
             PendingIntent.getActivity(this, 1, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent muteIntent = new Intent(this, KvkVoiceActionReceiver.class);
-        muteIntent.setAction(ACTION_MUTE);
-        PendingIntent mutePending = PendingIntent.getBroadcast(this, 2, muteIntent,
+        Intent toggleMicIntent = new Intent(this, KvkVoiceActionReceiver.class);
+        toggleMicIntent.setAction(ACTION_TOGGLE_MIC);
+        PendingIntent toggleMicPending = PendingIntent.getBroadcast(this, 2, toggleMicIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent disconnectIntent = new Intent(this, KvkVoiceActionReceiver.class);
@@ -184,7 +184,7 @@ public class KvkVoiceService extends Service {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(0, "Mute", mutePending)
+            .addAction(0, micEnabled ? "Mute" : "Unmute", toggleMicPending)
             .addAction(0, "Disconnect", disconnectPending);
         if (contentPending != null) builder.setContentIntent(contentPending);
         return builder.build();
@@ -212,8 +212,8 @@ public class KvkVoiceActionReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
-        if (KvkVoiceService.ACTION_MUTE.equals(action)) {
-            KvkCallPlugin.dispatchNotificationAction("MUTE");
+        if (KvkVoiceService.ACTION_TOGGLE_MIC.equals(action)) {
+            KvkCallPlugin.dispatchNotificationAction("TOGGLE_MIC");
         } else if (KvkVoiceService.ACTION_DISCONNECT.equals(action)) {
             KvkCallPlugin.dispatchNotificationAction("DISCONNECT");
         }
