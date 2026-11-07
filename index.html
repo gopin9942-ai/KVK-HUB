@@ -107,6 +107,7 @@ function bindParticipantSpeaking(participant){
 }
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
+const remoteSpeakingMeters=new Map();
 const roomPresenceStops=new Map();
 // 100 on the slider is capped at 50% media-element volume.
 // This is a software limit, not a calibrated dB safety guarantee.
@@ -146,8 +147,27 @@ function attachRemoteAudio(track,identity){
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
+ const nodeRecord={audioEl};
+ // Measure the actual incoming WebRTC audio on this client. This works even
+ // when the server's ActiveSpeakersChanged event only reports the local user.
+ try{
+  const context=new AudioContext({latencyHint:"interactive"});
+  const source=context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+  const analyser=context.createAnalyser();
+  const silentGain=context.createGain();
+  analyser.fftSize=512;
+  analyser.smoothingTimeConstant=0.35;
+  silentGain.gain.value=0;
+  source.connect(analyser);
+  analyser.connect(silentGain);
+  silentGain.connect(context.destination);
+  context.resume().catch(()=>{});
+  nodeRecord.source=source;nodeRecord.analyser=analyser;nodeRecord.gain=silentGain;
+  nodeRecord.context=context;nodeRecord.samples=new Float32Array(analyser.fftSize);
+  remoteSpeakingMeters.set(identity,nodeRecord);
+ }catch(error){console.warn("Remote speaking meter unavailable:",error);}
  if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
- remoteAudioNodes.get(identity).add({audioEl});
+ remoteAudioNodes.get(identity).add(nodeRecord);
  audioEl.play().catch(()=>{});
 }
 
@@ -349,6 +369,8 @@ async function connectVoiceRoom(roomName){
     for(const node of [...nodes]){
      if(node.audioEl===el){
       try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}
+      try{node.context?.close();}catch(e){}
+      if(remoteSpeakingMeters.get(participant.identity)===node)remoteSpeakingMeters.delete(participant.identity);
       nodes.delete(node);
      }
     }
@@ -368,10 +390,20 @@ async function connectVoiceRoom(roomName){
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Remote speaking is driven only by LiveKit events. Polling remote
-  // audioLevel/isSpeaking here can overwrite a fresh ActiveSpeakersChanged event
-  // with stale zero values and immediately switch the remote glow off.
-  // The local microphone analyser is intentionally isolated to this client's tile.
+  // Measure incoming remote audio tracks locally, rather than relying on
+  // ActiveSpeakersChanged being delivered consistently by every room/client.
+  for(const [identity,meter] of remoteSpeakingMeters){
+   if(meter.context?.state==="suspended")meter.context.resume().catch(()=>{});
+   let sum=0;
+   meter.analyser.getFloatTimeDomainData(meter.samples);
+   for(const sample of meter.samples)sum+=sample*sample;
+   const level=Math.sqrt(sum/meter.samples.length);
+   const speaking=level>=0.012;
+   if(speaking)activeSpeakerIds.add(identity);else activeSpeakerIds.delete(identity);
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
+   if(profile)profile.level=speaking?level:0;
+  }
+  // Keep local microphone detection isolated to this client's own tile.
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
    const identity=room.localParticipant.identity;
@@ -475,7 +507,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}}}remoteAudioNodes.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
