@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'index.html'
+      - 'native-call.js'
+      - 'scripts/configure_android_foreground_service.py'
       - 'firebase.js'
       - 'capacitor.config.json'
       - 'package.json'
@@ -45,8 +47,9 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp index.html firebase.js noise-processor.js www/
+          cp index.html firebase.js noise-processor.js native-call.js www/
           npx esbuild firebase.js --bundle --format=esm --outfile=www/firebase.js --external:https://www.gstatic.com/*
+          npx esbuild native-call.js --bundle --format=esm --outfile=www/native-call.js
 
       - name: Generate Android project
         run: npx cap add android
