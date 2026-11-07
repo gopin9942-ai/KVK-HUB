@@ -951,15 +951,47 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
    await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,lastSeen:serverTimestamp()},{merge:true});
   };
-  await updatePresence();
-  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
-  presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
-  stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
-   const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
-   $("voiceMembers").textContent=online+" member(s) online";
+  // Start read listeners independently of the initial presence write. On Android
+  // WebView, a failed write must not prevent the room roster from subscribing.
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
+   const present=new Set();
+   for(const snap of people.docs){
+    const d=snap.data(),seen=d.lastSeen?.toMillis?.()||0;
+    if(Date.now()-seen<90000){
+     present.add(snap.id);
+     const prior=participantProfiles.get(snap.id);
+     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});
+    }
+   }
+   for(const id of [...participantProfiles.keys()]){
+    if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}
+   }
+   renderParticipants();
+  },err=>{
+   console.error("Participant roster listener failed:",err);
+   $("participantGrid").textContent="Participant list unavailable: "+(err.code||err.message||"Firestore error");
   });
- }catch(e){console.error("Presence error:",e);$("voiceMembers").textContent="Member count unavailable: check Firestore rules";}
- status.textContent="Voice connected! Share the room code with friends.";
+  stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
+   const now=Date.now();
+   const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
+   $("voiceMembers").textContent=online+" member(s) online";
+  },err=>{
+   console.error("Member count listener failed:",err);
+   $("voiceMembers").textContent="Member count unavailable: "+(err.code||err.message||"Firestore error");
+  });
+  try{
+   await updatePresence();
+   presenceTimer=setInterval(()=>updatePresence().catch(error=>{
+    console.error("Presence heartbeat failed:",error);
+    $("voiceMembers").textContent="Presence sync error: "+(error.code||error.message||"Firestore error");
+   }),25000);
+  }catch(presenceError){
+   console.error("Initial presence write failed:",presenceError);
+   $("voiceMembers").textContent="Presence sync failed: "+(presenceError.code||presenceError.message||"Firestore error");
+   status.textContent="Voice connected, but your member presence could not sync. "+(presenceError.code||presenceError.message||"Check Firestore rules.");
+  }
+ }catch(e){console.error("Presence setup error:",e);$("voiceMembers").textContent="Member count unavailable: "+(e.code||e.message||"Firestore error");}
+ if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected! Share the room code with friends.";
 }
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
