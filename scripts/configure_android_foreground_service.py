@@ -119,8 +119,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
+import androidx.core.content.ContextCompat;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
@@ -168,14 +171,15 @@ public class KvkVoiceService extends Service {
             micEnabled = intent.getBooleanExtra("micEnabled", micEnabled);
         }
         Notification notification = buildNotification();
-        int types = 0;
         if (Build.VERSION.SDK_INT >= 29) {
-            // Keep the microphone FGS type for the entire room session, even
-            // while muted. The service was started while the app was visible;
-            // dropping this type on Mute prevents Android 14 from allowing a
-            // background Unmute action to resume microphone capture.
-            types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+            // Keep microphone FGS access through Mute only when RECORD_AUDIO
+            // permission has already been granted. First-time muted joins still
+            // start a valid media service without requesting mic access silently.
+            int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED) {
+                types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+            }
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, types);
         } else {
             startForeground(NOTIFICATION_ID, notification);
