@@ -64,11 +64,18 @@ jobs:
           content = path.read_text()
           if "import android.media.AudioManager;" not in content:
               lines = content.splitlines(keepends=True)
-              lines.insert(1, "import android.media.AudioManager;\\n")
+              lines.insert(1, "import android.media.AudioManager;\n")
               content = "".join(lines)
           if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
-              pattern = r"(public class MainActivity extends BridgeActivity\\s*\\{)"
-              method = "\\n    @Override\\n    public void onResume() {\\n        super.onResume();\\n        setVolumeControlStream(AudioManager.STREAM_MUSIC);\\n    }\\n"
+              pattern = r"(public class MainActivity extends BridgeActivity\s*\{)"
+              method = """
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  // Keep hardware volume keys on Media volume while KVK HUB is foregrounded.
+                  setVolumeControlStream(AudioManager.STREAM_MUSIC);
+              }
+          """
               content, count = re.subn(pattern, lambda match: match.group(1) + method, content, count=1)
               if count != 1:
                   raise SystemExit("Could not find MainActivity class declaration")
