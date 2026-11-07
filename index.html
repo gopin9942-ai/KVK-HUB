@@ -136,7 +136,8 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
   <div class="settingsSubheading">Banned Users</div>
   <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
  </div>
- <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
+ <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
+  <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
  <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
   <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
   <div class="deleteConfirmButtons">
@@ -157,7 +158,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
  <p class="small" style="margin:8px 0 0">AI voice enhancement runs before your microphone audio is sent to the room. You can turn it OFF or ON here. Results depend on your microphone and device.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
-<button id="leaveBtn">Disconnect / Leave Room</button>
+<button id="leaveBtn">Disconnect</button>
 </div>
 </section>
 <p id="status">Checking login...</p>
@@ -274,8 +275,11 @@ function identityAudioIsMuted(identity){
 function setupModeration(roomData){
  isRoomAdmin=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
  $("moderationPanel").style.display="none";
- $("roomSettingsBtn").style.display=isRoomAdmin?"block":"none";
+ // Room Settings is available to every participant; admin-only actions stay hidden.
+ $("roomSettingsBtn").style.display="block";
+ $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
+ $("leaveRoomSettingsBtn").style.display="block";
 }
 
 const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
@@ -1024,7 +1028,19 @@ $("copyRoomCodeBtn").onclick=async()=>{
   status.textContent="Room code copied! Now you can send it to your friends.";
  }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
 };
-$("leaveBtn").onclick=leaveVoiceRoom;
+$("leaveBtn").onclick=async()=>{
+ try{await leaveVoiceRoom();status.textContent="Disconnected. Your room access is saved.";}
+ catch(error){console.error("Disconnect failed:",error);status.textContent="Could not disconnect: "+error.message;}
+};
+$("leaveRoomSettingsBtn").onclick=async()=>{
+ if(!currentRoomCode||!auth.currentUser)return;
+ const roomToLeave=currentRoomCode;
+ if(!confirm("Leave this room? You will need the room password next time."))return;
+ const button=$("leaveRoomSettingsBtn");button.disabled=true;button.textContent="Leaving...";
+ try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await leaveVoiceRoom();status.textContent="You left the room. Password required next time.";}
+ catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
+ finally{button.disabled=false;button.textContent="Leave Room";}
+};
 window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
 window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
 window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
