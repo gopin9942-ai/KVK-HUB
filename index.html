@@ -848,6 +848,7 @@ function renderParticipants(){
     const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
     const muteButton=document.createElement("button");muteButton.type="button";muteButton.className="muteToggleAction";
     const banButton=document.createElement("button");banButton.type="button";banButton.textContent="Ban user";
+    const kickButton=document.createElement("button");kickButton.type="button";kickButton.textContent="Kick user";kickButton.style.background="#8f6b2f";kickButton.style.color="#fff";
     const getTargetIdentity=()=>{const profile=participantProfiles.get(p.uid);return profile?.livekitIdentity||p.livekitIdentity||p.uid;};
     const syncMuteLabel=()=>{const identity=getTargetIdentity();const muted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);muteButton.textContent=muted?"Unmute":"Mute";};
     syncMuteLabel();
@@ -857,6 +858,23 @@ function renderParticipants(){
      try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
      finally{muteButton.disabled=false;}
     };
+    kickButton.onclick=async event=>{
+     event.stopPropagation();dropdown.hidden=true;
+     const identity=getTargetIdentity();
+     const profile=participantProfiles.get(p.uid)||p;
+     const memberName=profile.name||"this member";
+     if(!confirm("Kick "+memberName+" from this room? They can rejoin with the same room password."))return;
+     kickButton.disabled=true;kickButton.textContent="Kicking...";
+     try{
+      const succeeded=await moderationAction("/kick",identity);
+      if(succeeded){
+       participantProfiles.delete(p.uid);
+       participantTiles.get(p.uid)?.remove();
+       participantTiles.delete(p.uid);
+       status.textContent=memberName+" was disconnected from the room. They can rejoin.";
+      }
+     }finally{kickButton.disabled=false;kickButton.textContent="Kick user";}
+    };
     banButton.onclick=async event=>{
      event.stopPropagation();dropdown.hidden=true;
      const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;
@@ -865,7 +883,7 @@ function renderParticipants(){
      const ok=await moderationAction("/ban",identity,{targetUid:savedProfile.uid,targetName:savedProfile.displayName,targetPhotoURL:savedProfile.photoDataUrl||savedProfile.photoURL||"",targetPublicId:savedProfile.publicId||""});
      if(ok){try{await setDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity),{uid:savedProfile.uid,displayName:savedProfile.displayName||"Member",photoDataUrl:savedProfile.photoDataUrl||null,photoURL:savedProfile.photoURL||"",publicId:savedProfile.publicId||"",livekitIdentity:identity,updatedAt:serverTimestamp()},{merge:true});await refreshModeration();}catch(e){console.error("Could not save banned profile snapshot:",e);status.textContent="User banned, but profile details could not be saved. Check Firestore rules.";}}
     };
-    dropdown.append(muteButton,banButton);
+    dropdown.append(muteButton,kickButton,banButton);
     dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
     menuWrap.append(dots,dropdown);tile.append(menuWrap);
    }
