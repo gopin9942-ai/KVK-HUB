@@ -23,7 +23,12 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}
+.tileAdminMenu{position:absolute;top:6px;right:6px;z-index:30}
+.tileAdminDots{width:30px;height:30px;margin:0;padding:0;border-radius:8px;background:#303954;color:#fff;font-size:21px;line-height:1}
+.tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
+.tileAdminDropdown[hidden]{display:none}
+.tileAdminDropdown button{width:100%;margin:0;padding:9px;text-align:left;background:#8f3445;color:#fff;font-size:13px}
 .adminMemberRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .adminMemberDetails{min-width:0;overflow-wrap:anywhere}
 .adminMenuWrap{position:relative;flex:0 0 auto}
@@ -69,10 +74,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="moderationPanel" class="card" style="display:none;margin:12px 0;padding:14px;border:1px solid #45d9ff">
  <h3 style="margin:0 0 8px">🛡️ Room Admin</h3>
  <p class="small">Only this room's creator can moderate members.</p>
- <button id="refreshModerationBtn" class="secondary">Refresh Members / Banned List</button>
- <h4>Room Members</h4><div id="adminParticipants"><div class="empty">Loading...</div></div>
  <details class="roomSettings" style="margin-top:14px;background:#10182b;border:1px solid #35415f;border-radius:10px;padding:12px">
   <summary style="cursor:pointer;font-weight:bold">⚙️ Room Settings</summary>
+  <button id="refreshModerationBtn" class="secondary">Refresh Banned Users</button>
   <h4>Banned Users</h4><div id="adminBanned"><div class="empty">Loading...</div></div>
  </details>
 </div>
@@ -111,50 +115,24 @@ function moderationArray(data,keys){
 }
 async function refreshModeration(){
  if(!currentRoomCode||!auth.currentUser)return;
- const participantsBox=$("adminParticipants"),bannedBox=$("adminBanned");
- participantsBox.textContent="Loading members...";bannedBox.textContent="Loading banned members...";
+ const bannedBox=$("adminBanned");
+ bannedBox.textContent="Loading banned users...";
  try{
-  const [peopleData,bannedData]=await Promise.all([
-   workerAdminRequest("/participants",{roomName:currentRoomCode}),
-   workerAdminRequest("/banned-users",{roomName:currentRoomCode})
-  ]);
-  const people=moderationArray(peopleData,["participants","items"]);
+  const bannedData=await workerAdminRequest("/banned-users",{roomName:currentRoomCode});
   const banned=moderationArray(bannedData,["bannedUsers","banned","users","items"]);
-  participantsBox.replaceChildren();
-  if(!people.length){const e=document.createElement("div");e.className="empty";e.textContent="No other members currently in the room.";participantsBox.append(e);}
-  for(const person of people){
-   const identity=person.identity||person.sid||person.uid;
-   if(!identity||identity===auth.currentUser.uid)continue;
-   const row=document.createElement("div");row.className="roomItem adminMemberRow";
-   const details=document.createElement("div");details.className="adminMemberDetails";
-   const label=document.createElement("strong");label.textContent=person.name||person.metadata?.name||identity;
-   const sub=document.createElement("div");sub.className="roomMeta";sub.textContent=identity;
-   details.append(label,sub);
-   const menuWrap=document.createElement("div");menuWrap.className="adminMenuWrap";
-   const menuButton=document.createElement("button");menuButton.type="button";menuButton.className="adminDots";menuButton.textContent="⋮";menuButton.setAttribute("aria-label","Member actions");
-   const menu=document.createElement("div");menu.className="adminActionMenu";menu.hidden=true;
-   const audioTrack=(person.tracks||[]).find(t=>t.type==="AUDIO"||t.type===0||t.source==="MICROPHONE");
-   const isMuted=!!audioTrack?.muted;
-   const muteToggle=document.createElement("button");muteToggle.type="button";muteToggle.className="secondary";muteToggle.textContent=isMuted?"Unmute":"Mute";
-   muteToggle.onclick=async()=>{menu.hidden=true;await moderationAction(isMuted?"/unmute":"/mute",identity);};
-   const ban=document.createElement("button");ban.type="button";ban.className="dangerAction";ban.textContent="Ban";ban.onclick=async()=>{menu.hidden=true;await moderationAction("/ban",identity);};
-   menu.append(muteToggle,ban);
-   menuButton.onclick=()=>{menu.hidden=!menu.hidden;};
-   menuWrap.append(menuButton,menu);row.append(details,menuWrap);participantsBox.append(row);
-  }
   bannedBox.replaceChildren();
-  if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned members.";bannedBox.append(e);}
+  if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned users.";bannedBox.append(e);}
   for(const entry of banned){
-   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||entry.name||"");
+   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||"");
    if(!identity)continue;
-   const row=document.createElement("div");row.className="roomItem";
-   const label=document.createElement("strong");label.textContent=identity;
-   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.onclick=()=>moderationAction("/unban",identity);
+   const row=document.createElement("div");row.className="roomItem adminMemberRow";
+   const label=document.createElement("strong");label.textContent="Banned member";
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";
+   unban.onclick=()=>moderationAction("/unban",identity);
    row.append(label,unban);bannedBox.append(row);
   }
  }catch(error){
-  console.error("Moderation refresh failed:",error);
-  participantsBox.textContent="Could not load members: "+error.message;
+  console.error("Banned users refresh failed:",error);
   bannedBox.textContent="Could not load banned list: "+error.message;
  }
 }
@@ -166,10 +144,11 @@ async function moderationAction(path,targetIdentity){
   await refreshModeration();
  }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;}
 }
+let isRoomAdmin=false;
 function setupModeration(roomData){
- const isOwner=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
- $("moderationPanel").style.display=isOwner?"block":"none";
- if(isOwner)refreshModeration();
+ isRoomAdmin=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
+ $("moderationPanel").style.display=isRoomAdmin?"block":"none";
+ if(isRoomAdmin)refreshModeration();
 }
 
 const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
@@ -571,7 +550,17 @@ function renderParticipants(){
    });
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,panel);
-   tile.addEventListener("click",e=>{if(e.target===slider)return;panel.classList.toggle("open");});
+   if(isRoomAdmin){
+    const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
+    const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
+    const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
+    const banButton=document.createElement("button");banButton.type="button";banButton.textContent="Ban user";
+    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const profile=participantProfiles.get(p.uid);const identity=profile?.livekitIdentity||p.livekitIdentity||p.uid;await moderationAction("/ban",identity);};
+    dropdown.append(banButton);
+    dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
+    menuWrap.append(dots,dropdown);tile.append(menuWrap);
+   }
+   tile.addEventListener("click",e=>{if(e.target===slider||e.target.closest(".tileAdminMenu"))return;panel.classList.toggle("open");});
    participantTiles.set(p.uid,tile);grid.append(tile);
   }
   const children=tile.children;
@@ -598,7 +587,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
