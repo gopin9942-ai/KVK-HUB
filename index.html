@@ -312,7 +312,16 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{activeSpeakerIds=new Set(speakers.map(p=>p.identity));updateParticipantIndicators();});
+ // LiveKit owns remote-speaker state. Keep its active speaker identities intact;
+ // the local microphone analyser below only adds/removes the local user's identity.
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
+  activeSpeakerIds=new Set(speakers.map(p=>p.identity));
+  for(const participant of speakers){
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
+   if(profile)profile.level=Number(participant.audioLevel)||0;
+  }
+  updateParticipantIndicators();
+ });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
@@ -339,20 +348,16 @@ async function connectVoiceRoom(roomName){
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  const liveParticipants=[room.localParticipant,...room.remoteParticipants.values()];
-  activeSpeakerIds.clear();
-  for(const profile of participantProfiles.values()){
-   // Identify the signed-in user's tile by Firebase UID as well as LiveKit identity;
-   // presence snapshots can briefly contain an older LiveKit identity.
-   const isLocal=profile.uid===auth.currentUser?.uid;
-   const identity=isLocal?room.localParticipant.identity:(profile.livekitIdentity||profile.uid);
-   const participant=isLocal?room.localParticipant:liveParticipants.find(p=>p.identity===identity);
-   const level=participant?Number(participant.audioLevel)||0:0;
-   // Read the raw local microphone waveform; use a lower RMS threshold for quiet mics.
-   const localLevel=isLocal?getLocalMicLevel():0;
-   const speaking=isLocal?(micEnabled&&localLevel>=0.008):(!!participant?.isSpeaking&&level>=0.025);
-   if(speaking){activeSpeakerIds.add(identity);profile.level=isLocal?localLevel:level;}
-   else profile.level=0;
+  // Do not clear remote identities here: ActiveSpeakersChanged is the
+  // authoritative LiveKit signal and fires when remote participants start/stop talking.
+  // This timer is responsible only for the local user's microphone waveform.
+  const localProfile=participantProfiles.get(auth.currentUser?.uid);
+  if(localProfile){
+   const identity=room.localParticipant.identity;
+   const localLevel=getLocalMicLevel();
+   const speaking=micEnabled&&localLevel>=0.008;
+   if(speaking){activeSpeakerIds.add(identity);localProfile.level=localLevel;}
+   else{activeSpeakerIds.delete(identity);localProfile.level=0;}
   }
   updateParticipantIndicators();
  },80);
