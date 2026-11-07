@@ -1090,7 +1090,7 @@ $("joinBtn").onclick=async()=>{
  try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
 $("createBtn").onclick=async()=>{
- const password=await askRoomPassword({title:"Create Private Room",description:"உங்கள் Room-க்கான password அமைக்கவும். குறைந்தது 3 characters இருக்க வேண்டும்.",confirmText:"Create Room",minLength:3});
+ const password=await askRoomPassword({title:"Create Private Room",description:"Set a password for your new room. Password must be at least 3 characters.",confirmText:"Create Room",minLength:3});
  if(password===null)return;
  const code="kvk-room-"+Math.random().toString(36).slice(2,8);
  const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
