@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCO3hWdEOYF2-NhFp4mDtPtUqziYoQMbFM",
@@ -14,7 +16,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// Keep Google login active across refreshes and browser restarts.
 export const authReady = setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 export { onAuthStateChanged };
@@ -23,10 +24,29 @@ const provider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
   await authReady;
+
+  // Android/iOS: use native Google Sign-In so the user returns to the app.
+  // Web: retain the existing Firebase popup flow.
+  if (Capacitor.isNativePlatform()) {
+    const result = await FirebaseAuthentication.signInWithGoogle({
+      skipNativeAuth: true
+    });
+    const idToken = result.credential?.idToken;
+    if (!idToken) {
+      throw new Error("Google Sign-In did not return an ID token. Check Firebase Android SHA-1 and Google provider settings.");
+    }
+    const credential = GoogleAuthProvider.credential(idToken);
+    const webResult = await signInWithCredential(auth, credential);
+    return webResult.user;
+  }
+
   const result = await signInWithPopup(auth, provider);
   return result.user;
 }
 
 export async function logoutUser() {
+  if (Capacitor.isNativePlatform()) {
+    try { await FirebaseAuthentication.signOut(); } catch (_) {}
+  }
   await signOut(auth);
 }
