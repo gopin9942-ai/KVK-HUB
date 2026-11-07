@@ -51,6 +51,19 @@ jobs:
           npx esbuild firebase.js --bundle --format=esm --outfile=www/firebase.js --external:https://www.gstatic.com/*
           npx esbuild native-call.js --bundle --format=esm --outfile=www/native-call.js
 
+      - name: Validate embedded app JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text()
+          scripts = re.findall(r'<script type="module">(.*?)</script>', html, re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f"Expected one inline module script, found {len(scripts)}")
+          Path("/tmp/kvk-index-inline.mjs").write_text(scripts[0])
+          PY
+          node --check /tmp/kvk-index-inline.mjs
+
       - name: Generate Android project
         run: npx cap add android
 
