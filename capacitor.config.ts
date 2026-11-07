@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.kvkhub.voice',
   appName: 'KVK HUB',
-  webDir: '.',
+  webDir: 'www',
   bundledWebRuntime: false,
   server: {
     androidScheme: 'https'
