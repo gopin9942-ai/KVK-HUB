@@ -224,9 +224,7 @@ async function startNativeVoiceService(roomName){
  try{
   const permission=await plugin.requestNotificationPermission();
   if(permission?.granted===false)status.textContent="Notification permission is off. KVK HUB will try to keep the room active in background.";
-  await plugin.start({roomName,micEnabled});
   if(!nativeKvkCallListenerReady){
-   nativeKvkCallListenerReady=true;
    await plugin.addListener("notificationAction",async event=>{
     try{
      if(event?.action==="MUTE"&&activeRoom&&micEnabled)await changeMicrophoneState(false);
@@ -234,7 +232,9 @@ async function startNativeVoiceService(roomName){
      else if(event?.action==="DISCONNECT"&&activeRoom)await leaveVoiceRoom();
     }catch(error){console.error("Notification action failed:",error);}
    });
+   nativeKvkCallListenerReady=true;
   }
+  await plugin.start({roomName,micEnabled});
  }catch(error){console.warn("Native foreground voice service unavailable:",error);status.textContent="Voice connected, but Android background service could not start: "+(error.message||error);}
 }
 async function updateNativeVoiceService(){
