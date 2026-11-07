@@ -23,7 +23,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/kvk-hub-debug.jks
+      ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/android/kvk-hub-debug.jks
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,13 +67,13 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/kvk-hub-debug.jks
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/android/kvk-hub-debug.jks
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kvk-hub-debug.jks"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "android/kvk-hub-debug.jks"
           cat >> android/app/build.gradle <<'EOF'
 
           // Use the repository's stable debug key so Firebase OAuth fingerprints remain consistent.
