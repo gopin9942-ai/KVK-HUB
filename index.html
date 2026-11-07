@@ -419,6 +419,7 @@ async function connectVoiceRoom(roomName){
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
  const unlockRoomAudio=()=>{
   if(activeRoom!==room)return;
+  for(const meter of remoteSpeakingMeters.values())meter.context?.resume().catch(()=>{});
   room.startAudio().then(()=>{
    Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
    document.removeEventListener("pointerdown",unlockRoomAudio);
