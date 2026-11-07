@@ -29,15 +29,18 @@ function isNativeCapacitorApp() {
 }
 
 async function getNativeGoogleAuth() {
-  const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
-  return FirebaseAuthentication;
+  const module = await import("@capacitor-firebase/authentication");
+  // Return a plain wrapper: the Capacitor plugin proxy is thenable-like,
+  // so returning it directly from an async function makes Promise resolution
+  // call a nonexistent native "then" method.
+  return { FirebaseAuthentication: module.FirebaseAuthentication };
 }
 
 export async function loginWithGoogle() {
   await authReady;
 
   if (isNativeCapacitorApp()) {
-    const FirebaseAuthentication = await getNativeGoogleAuth();
+    const { FirebaseAuthentication } = await getNativeGoogleAuth();
     const result = await FirebaseAuthentication.signInWithGoogle({
       skipNativeAuth: true
     });
