@@ -129,8 +129,11 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 </div>
 <div id="roomSettingsPanel" class="settingsPanel" style="display:none">
  <div class="settingsHeading">Room Settings</div>
- <div class="settingsSubheading">Banned Users</div>
- <div id="adminBanned"><div class="empty">Open settings to load banned users.</div></div>
+ <button id="unbanSettingsBtn" class="secondary" style="width:100%;margin:8px 0">Unban Settings</button>
+ <div id="unbanSettingsPanel" style="display:none">
+  <div class="settingsSubheading">Banned Users</div>
+  <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
+ </div>
  <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
  <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
   <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
@@ -861,7 +864,17 @@ $("roomSettingsBtn").onclick=()=>{
  const panel=$("roomSettingsPanel");
  const opening=panel.style.display==="none";
  panel.style.display=opening?"block":"none";
- if(!opening)stopDeleteCountdown();
+ if(!opening){
+  stopDeleteCountdown();
+  $("unbanSettingsPanel").style.display="none";
+  $("unbanSettingsBtn").textContent="Unban Settings";
+ }
+};
+$("unbanSettingsBtn").onclick=()=>{
+ const panel=$("unbanSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("unbanSettingsBtn").textContent=opening?"Hide Unban Settings":"Unban Settings";
  if(opening)refreshModeration();
 };
 $("deleteChannelBtn").onclick=()=>{
