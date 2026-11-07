@@ -51,6 +51,22 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
+      - name: Add Android microphone permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.RECORD_AUDIO" />',
+              '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+          ]
+          for permission in permissions:
+              if permission not in content:
+                  content = content.replace("</manifest>", permission + "\\n</manifest>")
+          manifest.write_text(content)
+          PY
+
       - name: Add Firebase Android configuration
         run: cp google-services.json android/app/google-services.json
 
