@@ -197,7 +197,7 @@ function stopLocalSpeakingMeter(){
 }
 function startLocalSpeakingMeter(){
  stopLocalSpeakingMeter();
- if(!localMicStream||!micEnabled)return;
+ if(!localMicStream)return;
  try{
   const context=new AudioContext({latencyHint:"interactive"});
   const source=context.createMediaStreamSource(localMicStream);
