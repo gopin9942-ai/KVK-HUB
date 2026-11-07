@@ -15,7 +15,7 @@ main{max-width:520px;margin:auto;padding:20px}
 button{width:100%;;padding:13px;margin-top:12px;border:0;border-radius:10px;background:#35c9f4;color:#101321;font-size:15px;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.55;cursor:wait}.secondary{background:#303954;color:white}
 input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid #46516e;background:#101321;color:white;font-size:15px}
-#homePage,#roomPage{display:none}
+#loginPage,#homePage,#roomPage{display:none}
 #status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere;min-height:22px}
 .small{color:#aab5d0;font-size:13px;line-height:1.5}
 #roomInfo{overflow-wrap:anywhere;color:#45d9ff}
@@ -118,7 +118,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p id="status">Checking login...</p>
 </main>
 <script type="module">
-import {loginWithGoogle,logoutUser,auth,db,onAuthStateChanged} from "./firebase.js";
+import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
 import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 import {
  collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,serverTimestamp,query,where
@@ -563,6 +563,8 @@ async function connectVoiceRoom(roomName){
   }
  }
  activeRoom=room;currentRoomCode=roomName;
+ // Remember the room for this signed-in user so a refresh can restore it.
+ localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
  $("roomInfo").textContent="Room connected";
  setupModeration(roomSnap.data());
  $("muteBtn").textContent=data.muted?"Muted by Admin — tap after admin unmute":(micEnabled?"Mute Microphone":"Unmute Microphone");
@@ -660,13 +662,24 @@ function clearPresence(){
  }
 }
 async function leaveVoiceRoom(){
+ if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
  currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
-onAuthStateChanged(auth,user=>{if(user)showHome(user);else showLogin();});
+onAuthStateChanged(auth,async user=>{
+ try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
+ if(!user){showLogin();return;}
+ showHome(user);
+ const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
+ if(savedRoom){
+  status.textContent="Restoring your previous room...";
+  try{await connectVoiceRoom(savedRoom);status.textContent="Welcome back! Reconnected to "+savedRoom+".";}
+  catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
+ }
+});
 $("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
 function stopDeleteCountdown(){
  if(deleteCountdownTimer){clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;}
