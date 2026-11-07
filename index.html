@@ -287,7 +287,9 @@ async function connectVoiceRoom(roomName){
  });
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
  await room.connect(data.serverUrl,data.token);
- // Poll LiveKit's real per-participant audio level so the meter moves continuously.
+ // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
+ activeRoom=room;
+ // Poll LiveKit's real per-participant audio level so the speaking glow updates continuously.
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
