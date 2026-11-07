@@ -211,6 +211,8 @@ function startLocalSpeakingMeter(){
 }
 function getLocalMicLevel(){
  if(!localSpeakingAnalyser||!localSpeakingSamples)return 0;
+ // Some mobile browsers suspend secondary AudioContexts after async permission prompts.
+ if(localSpeakingContext?.state==="suspended")localSpeakingContext.resume().catch(()=>{});
  localSpeakingAnalyser.getFloatTimeDomainData(localSpeakingSamples);
  let sum=0;
  for(const sample of localSpeakingSamples)sum+=sample*sample;
@@ -340,14 +342,15 @@ async function connectVoiceRoom(roomName){
   const liveParticipants=[room.localParticipant,...room.remoteParticipants.values()];
   activeSpeakerIds.clear();
   for(const profile of participantProfiles.values()){
-   const identity=profile.livekitIdentity||profile.uid;
-   const participant=liveParticipants.find(p=>p.identity===identity);
+   // Identify the signed-in user's tile by Firebase UID as well as LiveKit identity;
+   // presence snapshots can briefly contain an older LiveKit identity.
+   const isLocal=profile.uid===auth.currentUser?.uid;
+   const identity=isLocal?room.localParticipant.identity:(profile.livekitIdentity||profile.uid);
+   const participant=isLocal?room.localParticipant:liveParticipants.find(p=>p.identity===identity);
    const level=participant?Number(participant.audioLevel)||0:0;
-   // Measure this device's actual microphone waveform directly. LocalParticipant.isSpeaking
-   // is not consistently populated by every LiveKit/browser combination.
-   const isLocal=participant===room.localParticipant;
+   // Read the raw local microphone waveform; use a lower RMS threshold for quiet mics.
    const localLevel=isLocal?getLocalMicLevel():0;
-   const speaking=isLocal?(micEnabled&&localLevel>=0.018):(!!participant?.isSpeaking&&level>=0.025);
+   const speaking=isLocal?(micEnabled&&localLevel>=0.008):(!!participant?.isSpeaking&&level>=0.025);
    if(speaking){activeSpeakerIds.add(identity);profile.level=isLocal?localLevel:level;}
    else profile.level=0;
   }
@@ -419,7 +422,8 @@ function renderParticipants(){
   }
   const children=tile.children;
   children[2].textContent=p.name||"User";
-  const isSpeaking=activeSpeakerIds.has(p.livekitIdentity||p.uid);
+  const speakingIdentity=p.uid===auth.currentUser?.uid?(activeRoom?.localParticipant?.identity||p.livekitIdentity||p.uid):(p.livekitIdentity||p.uid);
+  const isSpeaking=activeSpeakerIds.has(speakingIdentity);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
@@ -427,7 +431,8 @@ function renderParticipants(){
 function updateParticipantIndicators(){
  for(const [id,tile] of participantTiles){
   const p=participantProfiles.get(id);if(!p)continue;
-  const isSpeaking=activeSpeakerIds.has(p.livekitIdentity||id);
+  const speakingIdentity=p.uid===auth.currentUser?.uid?(activeRoom?.localParticipant?.identity||p.livekitIdentity||id):(p.livekitIdentity||id);
+  const isSpeaking=activeSpeakerIds.has(speakingIdentity);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
