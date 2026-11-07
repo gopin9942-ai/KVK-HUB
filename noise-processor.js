@@ -20,6 +20,7 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
       if (event.data?.type === "destroy") this.destroy();
     };
 
+    this.reportedRuntimeError = false;
     this.initialize();
   }
 
@@ -28,7 +29,7 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
       if (!(this.wasmBinary instanceof ArrayBuffer) || this.wasmBinary.byteLength === 0) {
         throw new Error("GTCRN WASM binary was not provided by the main page.");
       }
-      const module = await loadGtcrnModule({ wasmBinary: this.wasmBinary });
+      const module = await loadGtcrnModule({ locateFile: (file) => file, wasmBinary: this.wasmBinary });
       this.wasmBinary = null;
       if (this.destroyed) return;
       this.processor = new GtcrnProcessor(module, { sampleRate: 48000 });
@@ -48,10 +49,19 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
     const input = inputs[0]?.[0];
     if (!this.ready || !input || input.length !== QUANTUM) return true;
 
-    this.inputFrame.set(input, this.inputPhase * QUANTUM);
+    try {
+      this.inputFrame.set(input, this.inputPhase * QUANTUM);
 
     if (this.inputPhase === BLOCKS_PER_FRAME - 1) {
-      this.outputFrame.set(this.processor.process(this.inputFrame));
+      const denoised = this.processor.process(this.inputFrame);
+      if (!(denoised instanceof Float32Array) || denoised.length !== FRAME_SIZE) {
+        throw new Error("GTCRN returned an invalid audio frame.");
+      }
+      this.outputFrame.set(denoised);
+      if (!this.hasProcessedFrame) {
+        this.hasProcessedFrame = true;
+        this.port.postMessage({ type: "processed" });
+      }
       output.set(this.outputFrame.subarray(0, QUANTUM));
       this.outputPhase = 1 % BLOCKS_PER_FRAME;
     } else {
@@ -60,7 +70,14 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
       this.outputPhase = (this.outputPhase + 1) % BLOCKS_PER_FRAME;
     }
 
-    this.inputPhase = (this.inputPhase + 1) % BLOCKS_PER_FRAME;
+      this.inputPhase = (this.inputPhase + 1) % BLOCKS_PER_FRAME;
+    } catch (error) {
+      this.ready = false;
+      if (!this.reportedRuntimeError) {
+        this.reportedRuntimeError = true;
+        this.port.postMessage({ type: "error", message: "GTCRN audio processing failed: " + (error?.message || String(error)) });
+      }
+    }
     return true;
   }
 
