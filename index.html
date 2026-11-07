@@ -90,6 +90,13 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <section id="loginPage" class="card">
 <h2>Welcome to KVK HUB 🎙️</h2><p>Sign in to connect with your friends.</p>
 <button id="loginBtn">Continue with Google</button>
+<div style="margin:18px 0 8px;text-align:center;color:#aab5d0;font-size:13px">OR SIGN IN WITH EMAIL</div>
+<input id="emailLoginInput" type="email" autocomplete="email" placeholder="Email address" maxlength="254">
+<input id="emailPasswordInput" type="password" autocomplete="current-password" placeholder="Password" minlength="6" maxlength="128">
+<button id="emailLoginBtn">Login with Email</button>
+<button id="emailRegisterBtn" class="secondary">Create New Account</button>
+<button id="emailResetBtn" class="secondary">Forgot Password?</button>
+<p class="small">Use a valid email address and a password with at least 6 characters.</p>
 </section>
 <section id="homePage">
 <div class="card"><h2>Welcome!</h2><p id="userName"></p>
@@ -189,7 +196,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p id="status">Checking login...</p>
 </main>
 <script type="module">
-import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
+import {loginWithGoogle,loginWithEmail,registerWithEmail,resetEmailPassword,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
 import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 import {
  collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
@@ -969,6 +976,45 @@ async function leaveVoiceRoom(){
  currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
+const emailInput=$("emailLoginInput"),emailPasswordInput=$("emailPasswordInput");
+function emailAuthError(error){
+ const messages={
+  "auth/invalid-email":"Please enter a valid email address.",
+  "auth/user-not-found":"No account found. Choose Create New Account first.",
+  "auth/wrong-password":"Incorrect password. Please try again.",
+  "auth/invalid-credential":"Email or password is incorrect.",
+  "auth/email-already-in-use":"This email already has an account. Please log in.",
+  "auth/weak-password":"Password must contain at least 6 characters.",
+  "auth/too-many-requests":"Too many attempts. Please wait and try again.",
+  "auth/operation-not-allowed":"Email/Password sign-in is not enabled in Firebase Console yet."
+ };
+ return messages[error.code]||error.message||"Please try again.";
+}
+$("emailLoginBtn").onclick=async()=>{
+ const email=emailInput.value.trim(),password=emailPasswordInput.value;
+ if(!email||!password){status.textContent="Enter your email and password.";return;}
+ $("emailLoginBtn").disabled=true;status.textContent="Signing in with email...";
+ try{await loginWithEmail(email,password);}
+ catch(e){console.error(e);status.textContent="Email Login Error: "+emailAuthError(e);}
+ finally{$("emailLoginBtn").disabled=false;}
+};
+$("emailRegisterBtn").onclick=async()=>{
+ const email=emailInput.value.trim(),password=emailPasswordInput.value;
+ if(!email||!password){status.textContent="Enter your email and choose a password.";return;}
+ if(password.length<6){status.textContent="Password must contain at least 6 characters.";return;}
+ $("emailRegisterBtn").disabled=true;status.textContent="Creating your account...";
+ try{await registerWithEmail(email,password);status.textContent="Account created successfully.";}
+ catch(e){console.error(e);status.textContent="Sign Up Error: "+emailAuthError(e);}
+ finally{$("emailRegisterBtn").disabled=false;}
+};
+$("emailResetBtn").onclick=async()=>{
+ const email=emailInput.value.trim();
+ if(!email){status.textContent="Enter your email address first.";return;}
+ $("emailResetBtn").disabled=true;status.textContent="Sending password reset email...";
+ try{await resetEmailPassword(email);status.textContent="Password reset link sent. Check your inbox and spam folder.";}
+ catch(e){console.error(e);status.textContent="Reset Error: "+emailAuthError(e);}
+ finally{$("emailResetBtn").disabled=false;}
+};
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
 onAuthStateChanged(auth,async user=>{
  try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
