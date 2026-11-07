@@ -51,7 +51,7 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
-      - name: Prefer Android Media volume keys
+      - name: Prefer Android Media audio while KVK HUB is active
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -62,25 +62,69 @@ jobs:
               raise SystemExit(f"Expected one MainActivity.java, found {len(files)}")
           path = files[0]
           content = path.read_text()
-          if "import android.media.AudioManager;" not in content:
-              lines = content.splitlines(keepends=True)
-              lines.insert(1, "import android.media.AudioManager;\n")
-              content = "".join(lines)
-          if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
-              pattern = r"(public class MainActivity extends BridgeActivity\s*\{)"
-              method = """
+          imports = [
+              "import android.media.AudioManager;",
+              "import android.os.Handler;",
+              "import android.os.Looper;",
+          ]
+          lines = content.splitlines(keepends=True)
+          insert_at = 1
+          for item in imports:
+              if item not in content:
+                  lines.insert(insert_at, item + "\\n")
+                  insert_at += 1
+          content = "".join(lines)
+          if "kvkPreferMediaAudioMode" not in content:
+              pattern = r"(public class MainActivity extends BridgeActivity\\s*\\{)"
+              members = """
+              private AudioManager kvkAudioManager;
+              private final Handler kvkAudioHandler = new Handler(Looper.getMainLooper());
+              private int kvkPreviousAudioMode = AudioManager.MODE_NORMAL;
+              private boolean kvkActivityResumed = false;
+              private boolean kvkChangedAudioMode = false;
+              private final Runnable kvkPreferMediaAudioMode = new Runnable() {
+                  @Override public void run() {
+                      if (!kvkActivityResumed) return;
+                      // Only try this when KVK HUB entered from normal mode. Do not
+                      // override a communication mode that was already active.
+                      if (kvkAudioManager != null
+                              && kvkPreviousAudioMode == AudioManager.MODE_NORMAL
+                              && kvkAudioManager.getMode() == AudioManager.MODE_IN_COMMUNICATION) {
+                          kvkAudioManager.setMode(AudioManager.MODE_NORMAL);
+                          kvkChangedAudioMode = true;
+                      }
+                      kvkAudioHandler.postDelayed(this, 400);
+                  }
+              };
+
               @Override
               public void onResume() {
                   super.onResume();
-                  // Keep hardware volume keys on Media volume while KVK HUB is foregrounded.
+                  kvkAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+                  kvkPreviousAudioMode = kvkAudioManager.getMode();
+                  kvkChangedAudioMode = false;
                   setVolumeControlStream(AudioManager.STREAM_MUSIC);
+                  kvkActivityResumed = true;
+                  kvkAudioHandler.removeCallbacks(kvkPreferMediaAudioMode);
+                  kvkAudioHandler.postDelayed(kvkPreferMediaAudioMode, 250);
+              }
+
+              @Override
+              public void onPause() {
+                  kvkActivityResumed = false;
+                  kvkAudioHandler.removeCallbacks(kvkPreferMediaAudioMode);
+                  if (kvkChangedAudioMode && kvkAudioManager != null
+                          && kvkAudioManager.getMode() == AudioManager.MODE_NORMAL) {
+                      kvkAudioManager.setMode(kvkPreviousAudioMode);
+                  }
+                  super.onPause();
               }
           """
-              content, count = re.subn(pattern, lambda match: match.group(1) + method, content, count=1)
+              content, count = re.subn(pattern, lambda match: match.group(1) + members, content, count=1)
               if count != 1:
                   raise SystemExit("Could not find MainActivity class declaration")
           path.write_text(content)
-          print(f"Configured Media volume controls in {path}")
+          print(f"Configured experimental Media audio mode in {path}")
           PY
 
       - name: Add Android microphone permissions
