@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
@@ -49,4 +49,22 @@ export async function logoutUser() {
     try { await FirebaseAuthentication.signOut(); } catch (_) {}
   }
   await signOut(auth);
+}
+
+
+export async function registerWithEmail(email, password) {
+  await authReady;
+  const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  return result.user;
+}
+
+export async function loginWithEmail(email, password) {
+  await authReady;
+  const result = await signInWithEmailAndPassword(auth, email.trim(), password);
+  return result.user;
+}
+
+export async function resetEmailPassword(email) {
+  await authReady;
+  return sendPasswordResetEmail(auth, email.trim());
 }
