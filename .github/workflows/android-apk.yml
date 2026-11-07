@@ -41,6 +41,7 @@ jobs:
         run: |
           mkdir -p www
           cp index.html firebase.js noise-processor.js www/
+          npx esbuild firebase.js --bundle --format=esm --outfile=www/firebase.js --external:https://www.gstatic.com/*
 
       - name: Generate Android project
         run: npx cap add android
