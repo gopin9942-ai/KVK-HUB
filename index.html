@@ -763,7 +763,6 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
      if(node.audioEl===el){
       try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}
       try{node.context?.close();}catch(e){}
-      if(remoteSpeakingMeters.get(participant.identity)===node)remoteSpeakingMeters.delete(participant.identity);
       nodes.delete(node);
      }
     }
