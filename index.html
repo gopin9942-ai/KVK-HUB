@@ -234,9 +234,10 @@ async function setRoomMicrophone(room,enabled){
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit",
    processorOptions:{wasmBinary,maxChannels:1}
   });
-  await waitForDenoiserReady(node);
   destination=context.createMediaStreamDestination();
   source.connect(node);node.connect(destination);
+  // The graph must be connected before AudioWorklet.process() receives microphone frames.
+  await waitForDenoiserReady(node);
   const processedTrack=destination.stream.getAudioTracks()[0];
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
