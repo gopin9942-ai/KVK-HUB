@@ -9,6 +9,7 @@ on:
       - 'capacitor.config.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'google-services.json'
       - '.github/workflows/android-apk.yml'
 
 permissions:
@@ -42,6 +43,9 @@ jobs:
 
       - name: Generate Android project
         run: npx cap add android
+
+      - name: Add Firebase Android configuration
+        run: cp google-services.json android/app/google-services.json
 
       - name: Sync web app
         run: npx cap sync android
