@@ -951,8 +951,20 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
    await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,lastSeen:serverTimestamp()},{merge:true});
   };
-  // Start read listeners independently of the initial presence write. On Android
-  // WebView, a failed write must not prevent the room roster from subscribing.
+  // Create this user's presence document before subscribing to the roster.
+  // Firestore rules allow roster reads to existing room participants; subscribing
+  // before this write completes causes a permanent permission-denied listener.
+  try{
+   await updatePresence();
+   presenceTimer=setInterval(()=>updatePresence().catch(error=>{
+    console.error("Presence heartbeat failed:",error);
+    $("voiceMembers").textContent="Presence sync error: "+(error.code||error.message||"Firestore error");
+   }),25000);
+  }catch(presenceError){
+   console.error("Initial presence write failed:",presenceError);
+   $("voiceMembers").textContent="Presence sync failed: "+(presenceError.code||presenceError.message||"Firestore error");
+   status.textContent="Voice connected, but your member presence could not sync. "+(presenceError.code||presenceError.message||"Check Firestore rules.");
+  }
   stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const present=new Set();
    for(const snap of people.docs){
@@ -979,17 +991,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    console.error("Member count listener failed:",err);
    $("voiceMembers").textContent="Member count unavailable: "+(err.code||err.message||"Firestore error");
   });
-  try{
-   await updatePresence();
-   presenceTimer=setInterval(()=>updatePresence().catch(error=>{
-    console.error("Presence heartbeat failed:",error);
-    $("voiceMembers").textContent="Presence sync error: "+(error.code||error.message||"Firestore error");
-   }),25000);
-  }catch(presenceError){
-   console.error("Initial presence write failed:",presenceError);
-   $("voiceMembers").textContent="Presence sync failed: "+(presenceError.code||presenceError.message||"Firestore error");
-   status.textContent="Voice connected, but your member presence could not sync. "+(presenceError.code||presenceError.message||"Check Firestore rules.");
-  }
+
  }catch(e){console.error("Presence setup error:",e);$("voiceMembers").textContent="Member count unavailable: "+(e.code||e.message||"Firestore error");}
  if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected! Share the room code with friends.";
 }
