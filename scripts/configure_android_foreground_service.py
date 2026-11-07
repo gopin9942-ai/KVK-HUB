@@ -170,8 +170,12 @@ public class KvkVoiceService extends Service {
         Notification notification = buildNotification();
         int types = 0;
         if (Build.VERSION.SDK_INT >= 29) {
-            types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
-            if (micEnabled) types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+            // Keep the microphone FGS type for the entire room session, even
+            // while muted. The service was started while the app was visible;
+            // dropping this type on Mute prevents Android 14 from allowing a
+            // background Unmute action to resume microphone capture.
+            types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, types);
         } else {
             startForeground(NOTIFICATION_ID, notification);
@@ -185,28 +189,18 @@ public class KvkVoiceService extends Service {
             PendingIntent.getActivity(this, 1, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        // Launch the Activity directly from the notification action. Android allows
-        // this user-initiated Activity launch; routing through a BroadcastReceiver and
-        // calling startActivity() from its background context can be blocked on Android 10+.
-        Intent muteIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        PendingIntent mutePending = null;
-        if (muteIntent != null) {
-            muteIntent.setAction("com.kvkhub.voice.NOTIFICATION_MUTE");
-            muteIntent.putExtra("kvkNotificationAction", ACTION_MUTE);
-            muteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            mutePending = PendingIntent.getActivity(this, 2, muteIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        }
+        // Send actions to the running app process without opening its Activity.
+        // The foreground service keeps the process alive while the WebView/LiveKit
+        // session remains active; the receiver forwards the command to the JS bridge.
+        Intent muteIntent = new Intent(this, KvkVoiceActionReceiver.class);
+        muteIntent.setAction(ACTION_MUTE);
+        PendingIntent mutePending = PendingIntent.getBroadcast(this, 2, muteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent unmuteIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        PendingIntent unmutePending = null;
-        if (unmuteIntent != null) {
-            unmuteIntent.setAction("com.kvkhub.voice.NOTIFICATION_UNMUTE");
-            unmuteIntent.putExtra("kvkNotificationAction", ACTION_UNMUTE);
-            unmuteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            unmutePending = PendingIntent.getActivity(this, 4, unmuteIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        }
+        Intent unmuteIntent = new Intent(this, KvkVoiceActionReceiver.class);
+        unmuteIntent.setAction(ACTION_UNMUTE);
+        PendingIntent unmutePending = PendingIntent.getBroadcast(this, 4, unmuteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent disconnectIntent = new Intent(this, KvkVoiceActionReceiver.class);
         disconnectIntent.setAction(ACTION_DISCONNECT);
@@ -251,14 +245,12 @@ public class KvkVoiceActionReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
-        if (KvkVoiceService.ACTION_MUTE.equals(action)
-                || KvkVoiceService.ACTION_UNMUTE.equals(action)) {
-            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-            if (launch != null) {
-                launch.putExtra("kvkNotificationAction", action);
-                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                context.startActivity(launch);
-            }
+        if (KvkVoiceService.ACTION_MUTE.equals(action)) {
+            // Do not launch the Activity: forward directly to the live Capacitor
+            // plugin so the existing WebRTC track is muted in the background.
+            KvkCallPlugin.dispatchNotificationAction("MUTE");
+        } else if (KvkVoiceService.ACTION_UNMUTE.equals(action)) {
+            KvkCallPlugin.dispatchNotificationAction("UNMUTE");
         } else if (KvkVoiceService.ACTION_DISCONNECT.equals(action)) {
             KvkCallPlugin.dispatchNotificationAction("DISCONNECT");
         }
