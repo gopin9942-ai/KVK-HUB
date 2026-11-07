@@ -229,7 +229,7 @@ async function startNativeVoiceService(roomName){
    nativeKvkCallListenerReady=true;
    await plugin.addListener("notificationAction",async event=>{
     try{
-     if(event?.action==="MUTE"&&activeRoom&&micEnabled)await changeMicrophoneState(false);
+     if(event?.action==="TOGGLE_MIC"&&activeRoom)await changeMicrophoneState(!micEnabled);
      else if(event?.action==="DISCONNECT"&&activeRoom)await leaveVoiceRoom();
     }catch(error){console.error("Notification action failed:",error);}
    });
