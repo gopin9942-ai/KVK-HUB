@@ -60,6 +60,10 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
+      - name: Report Android signing fingerprints
+        working-directory: android
+        run: ./gradlew signingReport
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
