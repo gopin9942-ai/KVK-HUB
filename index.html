@@ -29,6 +29,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
 .tileAdminDropdown[hidden]{display:none}
 .tileAdminDropdown button{width:100%;margin:0;padding:9px;text-align:left;background:#8f3445;color:#fff;font-size:13px}
+.tileAdminDropdown button.muteToggleAction{background:#303954;color:#fff;margin-bottom:5px}
 .adminMemberRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .adminMemberDetails{min-width:0;overflow-wrap:anywhere}
 .adminMenuWrap{position:relative;flex:0 0 auto}
@@ -145,6 +146,16 @@ async function moderationAction(path,targetIdentity){
  }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;}
 }
 let isRoomAdmin=false;
+const adminMuteState=new Map();
+function identityAudioIsMuted(identity){
+ if(!activeRoom)return false;
+ let participant=null;
+ if(activeRoom.localParticipant?.identity===identity)participant=activeRoom.localParticipant;
+ else participant=[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity)||null;
+ if(!participant)return false;
+ const audioPublications=[...participant.audioTrackPublications.values()];
+ return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
+}
 function setupModeration(roomData){
  isRoomAdmin=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
  $("moderationPanel").style.display=isRoomAdmin?"block":"none";
@@ -554,9 +565,19 @@ function renderParticipants(){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
     const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
     const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
+    const muteButton=document.createElement("button");muteButton.type="button";muteButton.className="muteToggleAction";
     const banButton=document.createElement("button");banButton.type="button";banButton.textContent="Ban user";
-    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const profile=participantProfiles.get(p.uid);const identity=profile?.livekitIdentity||p.livekitIdentity||p.uid;await moderationAction("/ban",identity);};
-    dropdown.append(banButton);
+    const getTargetIdentity=()=>{const profile=participantProfiles.get(p.uid);return profile?.livekitIdentity||p.livekitIdentity||p.uid;};
+    const syncMuteLabel=()=>{const identity=getTargetIdentity();const muted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);muteButton.textContent=muted?"Unmute":"Mute";};
+    syncMuteLabel();
+    muteButton.onclick=async event=>{
+     event.stopPropagation();const identity=getTargetIdentity();const currentlyMuted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);
+     muteButton.disabled=true;
+     try{await moderationAction(currentlyMuted?"/unmute":"/mute",identity);adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}
+     finally{muteButton.disabled=false;}
+    };
+    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();await moderationAction("/ban",identity);};
+    dropdown.append(muteButton,banButton);
     dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
     menuWrap.append(dots,dropdown);tile.append(menuWrap);
    }
@@ -587,7 +608,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
