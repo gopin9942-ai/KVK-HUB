@@ -716,7 +716,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    el.remove();
   });
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
