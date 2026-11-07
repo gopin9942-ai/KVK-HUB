@@ -1,6 +1,5 @@
 import { GtcrnProcessor, loadGtcrnModule } from "https://esm.sh/@sapphi-red/gtcrn-wasm@0.0.3?bundle";
 
-const WASM_URL = "https://cdn.jsdelivr.net/npm/@sapphi-red/gtcrn-wasm@0.0.3/dist/gtcrn.wasm";
 const FRAME_SIZE = 768; // GTCRN 48 kHz mono frame
 const QUANTUM = 128;
 const BLOCKS_PER_FRAME = FRAME_SIZE / QUANTUM;
@@ -9,6 +8,7 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
   constructor() {
     super();
     this.processor = null;
+    this.wasmBinary = options.processorOptions?.wasmBinary;
     this.ready = false;
     this.destroyed = false;
     this.inputFrame = new Float32Array(FRAME_SIZE);
@@ -25,10 +25,11 @@ class KVKGTCRNDenoiser extends AudioWorkletProcessor {
 
   async initialize() {
     try {
-      const response = await fetch(WASM_URL);
-      if (!response.ok) throw new Error("GTCRN model download failed: " + response.status);
-      const wasmBinary = await response.arrayBuffer();
-      const module = await loadGtcrnModule({ wasmBinary });
+      if (!(this.wasmBinary instanceof ArrayBuffer) || this.wasmBinary.byteLength === 0) {
+        throw new Error("GTCRN WASM binary was not provided by the main page.");
+      }
+      const module = await loadGtcrnModule({ wasmBinary: this.wasmBinary });
+      this.wasmBinary = null;
       if (this.destroyed) return;
       this.processor = new GtcrnProcessor(module, { sampleRate: 48000 });
       this.ready = true;
