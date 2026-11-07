@@ -483,7 +483,7 @@ function startMyRooms(){
   // Remove stale My Rooms entries when their Firestore room document no longer exists.
   for(const d of snapshot.docs){
    const room={id:d.id,...d.data()};
-   let roomIsAdmin=false;
+   room.isRoomAdmin=false;
    try{
     const roomSnap=await getDoc(doc(db,"rooms",room.id));
     if(!roomSnap.exists()){
@@ -491,7 +491,7 @@ function startMyRooms(){
      continue;
     }
     const roomData=roomSnap.data()||{};
-    roomIsAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
+    room.isRoomAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
    }catch(checkError){
     console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
    }
@@ -504,20 +504,22 @@ function startMyRooms(){
    const item=document.createElement("div");item.className="roomItem";
    const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
    const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Created by you":"Joined by you");
-   if(roomIsAdmin){
-   const copy=document.createElement("button");copy.className="secondary";copy.textContent="Copy Room Code";copy.onclick=async()=>{
-    try{
-     if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(room.id);}
-     else{
-      const temp=document.createElement("textarea");temp.value=room.id;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
-      const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
-     }
-     status.textContent="Room code copied!";
-    }catch(error){console.error("Copy room code failed:",error);status.textContent="Could not copy room code. Please try again.";}
-   };
-   }
    const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
-   item.append(name,meta,join);if(roomIsAdmin)item.append(copy);list.append(item);
+   item.append(name,meta,join);
+   if(room.isRoomAdmin){
+    const copy=document.createElement("button");copy.className="secondary";copy.textContent="Copy Room Code";copy.onclick=async()=>{
+     try{
+      if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(room.id);}
+      else{
+       const temp=document.createElement("textarea");temp.value=room.id;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+       const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+      }
+      status.textContent="Room code copied!";
+     }catch(error){console.error("Copy room code failed:",error);status.textContent="Could not copy room code. Please try again.";}
+    };
+    item.append(copy);
+   }
+   list.append(item);
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
 }
