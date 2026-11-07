@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .18s ease,box-shadow .18s ease}.participantTile.is-speaking .avatar{outline-color:#36d6a0;box-shadow:0 0 0 5px rgba(54,214,160,.16),0 0 18px rgba(54,214,160,calc(.25 + var(--voice-level,.5)*.45));animation:voicePulse 1.35s ease-in-out infinite}.participantTile.is-speaking .speakingLabel{color:#36d6a0;font-weight:700}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.12),0 0 10px rgba(54,214,160,.28)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.22),0 0 22px rgba(54,214,160,.62)}}.participantName{font-size:13px;margin:8px 0}.speakingLabel{font-size:11px;color:#aab5d0;transition:color .18s ease}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .18s ease,box-shadow .18s ease}.participantTile.is-speaking .avatar{outline-color:#36d6a0;box-shadow:0 0 0 5px rgba(54,214,160,.16),0 0 18px rgba(54,214,160,calc(.25 + var(--voice-level,.5)*.45));animation:voicePulse 1.35s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.12),0 0 10px rgba(54,214,160,.28)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.22),0 0 22px rgba(54,214,160,.62)}}.participantName{font-size:13px;margin:8px 0}
 </style>
 </head>
 <body>
@@ -351,7 +351,6 @@ function renderParticipants(){
    const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
    if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
    const name=document.createElement("div");name.className="participantName";
-   const label=document.createElement("div");label.className="speakingLabel";
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
    const initialAudioIdentity=p.livekitIdentity||p.uid;
@@ -365,7 +364,7 @@ function renderParticipants(){
     volumeValue.textContent=value+"%";
    });
    panel.append(volumeLabel,slider);
-   tile.append(img,fallback,name,label,panel);
+   tile.append(img,fallback,name,panel);
    tile.addEventListener("click",e=>{if(e.target===slider)return;panel.classList.toggle("open");});
    participantTiles.set(p.uid,tile);grid.append(tile);
   }
@@ -374,7 +373,6 @@ function renderParticipants(){
   const isSpeaking=activeSpeakerIds.has(p.livekitIdentity||p.uid);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
-  children[3].textContent=isSpeaking?"Speaking":"Listening";
  }
 }
 function updateParticipantIndicators(){
@@ -383,7 +381,6 @@ function updateParticipantIndicators(){
   const isSpeaking=activeSpeakerIds.has(p.livekitIdentity||id);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
-  tile.children[3].textContent=isSpeaking?"Speaking":"Listening";
  }
 }
 function clearPresence(){
