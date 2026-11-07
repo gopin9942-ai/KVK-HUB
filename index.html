@@ -193,7 +193,7 @@ async function stopLocalMicrophone(room=activeRoom){
  const track=localPublishedMicTrack;localPublishedMicTrack=null;
  if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
  if(track){try{track.stop();}catch(e){}}
- if(localMicNode){try{localMicNode.port.postMessage({type:"destroy"});localMicNode.disconnect();}catch(e){}localMicNode=null;}
+ if(localMicNode){try{localMicNode.port.postMessage("destroy");localMicNode.disconnect();}catch(e){}localMicNode=null;}
  if(localMicSource){try{localMicSource.disconnect();}catch(e){}localMicSource=null;}
  if(localMicDestination){try{localMicDestination.stream.getTracks().forEach(t=>t.stop());}catch(e){}localMicDestination=null;}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
@@ -232,7 +232,6 @@ async function setRoomMicrophone(room,enabled){
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit",
    processorOptions:{wasmBinary,maxChannels:1}
   });
-  await waitForDenoiserReady(node);
   destination=context.createMediaStreamDestination();
   source.connect(node);node.connect(destination);
   const processedTrack=destination.stream.getAudioTracks()[0];
