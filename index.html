@@ -73,6 +73,15 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .profileMenu button:last-child{margin-bottom:0;background:#8f3445}
 #profileTopId{display:block;color:#aab5d0;font-size:11px;overflow-wrap:anywhere;margin-top:4px}
 
+
+.passwordModalOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,18,.78);backdrop-filter:blur(7px)}
+.passwordModal{width:min(100%,420px);padding:22px;background:#1b2239;border:1px solid #46516e;border-radius:18px;box-shadow:0 18px 60px #0009}
+.passwordModal h2{margin:0 0 8px;color:#45d9ff;font-size:21px}
+.passwordModal p{margin:0;color:#aab5d0;font-size:13px;line-height:1.5}
+.passwordModal input{margin-top:16px}
+.passwordModalError{min-height:19px;margin-top:8px!important;color:#ff9aa8!important}
+.passwordModalActions{display:flex;gap:10px;margin-top:8px}
+.passwordModalActions button{flex:1}
 </style>
 </head>
 <body>
@@ -161,6 +170,22 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <button id="leaveBtn">Disconnect</button>
 </div>
 </section>
+
+<div id="passwordModalOverlay" class="passwordModalOverlay" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+ <div class="passwordModal">
+  <h2 id="passwordModalTitle">Room Password</h2>
+  <p id="passwordModalDescription">Enter your room password to continue.</p>
+  <form id="passwordModalForm">
+   <input id="passwordModalInput" type="password" minlength="3" maxlength="128" autocomplete="new-password" placeholder="Enter password" required>
+   <p id="passwordModalError" class="passwordModalError"></p>
+   <div class="passwordModalActions">
+    <button type="button" id="passwordModalCancel" class="secondary">Cancel</button>
+    <button type="submit" id="passwordModalSubmit">Continue</button>
+   </div>
+  </form>
+ </div>
+</div>
+
 <p id="status">Checking login...</p>
 </main>
 <script type="module">
@@ -171,6 +196,31 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
+
+function askRoomPassword({title="Room Password",description="Enter your room password to continue.",confirmText="Continue",minLength=3}={}){
+ return new Promise(resolve=>{
+  const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
+  const error=$("passwordModalError"),submit=$("passwordModalSubmit"),cancel=$("passwordModalCancel");
+  $("passwordModalTitle").textContent=title;
+  $("passwordModalDescription").textContent=description;
+  submit.textContent=confirmText;input.value="";input.minLength=String(minLength);
+  input.placeholder="At least "+minLength+" characters";
+  error.textContent="";overlay.style.display="flex";
+  const finish=value=>{overlay.style.display="none";form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);input.removeEventListener("keydown",onKeyDown);resolve(value);};
+  const onCancel=()=>finish(null);
+  const onKeyDown=event=>{if(event.key==="Escape"){event.preventDefault();finish(null);}};
+  const onSubmit=event=>{
+   event.preventDefault();
+   const value=input.value;
+   if(value.trim().length<minLength){error.textContent="Password must be at least "+minLength+" characters.";input.focus();return;}
+   if(value.length>128){error.textContent="Password must be 128 characters or fewer.";input.focus();return;}
+   finish(value);
+  };
+  form.addEventListener("submit",onSubmit);cancel.addEventListener("click",onCancel);input.addEventListener("keydown",onKeyDown);
+  setTimeout(()=>input.focus(),0);
+ });
+}
+
 async function workerAdminRequest(path,body={}){
  if(!auth.currentUser)throw new Error("Please login first.");
  const idToken=await auth.currentUser.getIdToken();
@@ -670,14 +720,14 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   data=await requestRoomToken(providedPassword||"");
  }catch(error){
   if(error.code!=="PASSWORD_REQUIRED")throw error;
-  let password=providedPassword||prompt("இந்த private room-ல் சேர password உள்ளிடவும்:");
+  let password=providedPassword||await askRoomPassword({title:"Join Private Room",description:"இந்த private room-ல் சேர password உள்ளிடவும்.",confirmText:"Join Room",minLength:3});
   if(password===null||!password.trim())throw new Error("Private room password is required.");
   let attempts=0;
   while(true){
    try{data=await requestRoomToken(password);break;}
    catch(passwordError){
     if(passwordError.code!=="INVALID_PASSWORD"||++attempts>=3)throw passwordError;
-    password=prompt("Password தவறு. மீண்டும் உள்ளிடவும்:");
+    password=await askRoomPassword({title:"Incorrect Password",description:"Password தவறு. மீண்டும் உள்ளிடவும்.",confirmText:"Try Again",minLength:3});
     if(password===null||!password.trim())throw new Error("Private room password is required.");
    }
   }
@@ -1016,9 +1066,8 @@ $("joinBtn").onclick=async()=>{
  try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
 $("createBtn").onclick=async()=>{
- const password=prompt("Create a password for this room (at least 8 characters):");
+ const password=await askRoomPassword({title:"Create Private Room",description:"உங்கள் Room-க்கான password அமைக்கவும். குறைந்தது 3 characters இருக்க வேண்டும்.",confirmText:"Create Room",minLength:3});
  if(password===null)return;
- if(password.length<8){status.textContent="Room password must be at least 8 characters.";return;}
  const code="kvk-room-"+Math.random().toString(36).slice(2,8);
  const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
  let firestoreCreated=false,workerCreated=false;
