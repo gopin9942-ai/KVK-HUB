@@ -199,12 +199,15 @@ const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 
 let nativeKvkCall=null;
 let nativeKvkCallListenerReady=false;
-function getNativeKvkCall(){
- if(!nativeKvkCall)nativeKvkCall=window.Capacitor?.Plugins?.KvkCall||null;
+async function getNativeKvkCall(){
+ if(nativeKvkCall)return nativeKvkCall;
+ if(!window.Capacitor)return null;
+ try{const module=await import("./native-call.js");nativeKvkCall=module.KvkCall||null;}
+ catch(error){console.warn("Could not load native KVK bridge:",error);}
  return nativeKvkCall;
 }
 async function startNativeVoiceService(roomName){
- const plugin=getNativeKvkCall();
+ const plugin=await getNativeKvkCall();
  if(!plugin)return;
  try{
   const permission=await plugin.requestNotificationPermission();
