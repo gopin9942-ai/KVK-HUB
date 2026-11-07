@@ -71,11 +71,11 @@ jobs:
           insert_at = 1
           for item in imports:
               if item not in content:
-                  lines.insert(insert_at, item + "\\n")
+                  lines.insert(insert_at, item + "\n")
                   insert_at += 1
           content = "".join(lines)
           if "kvkPreferMediaAudioMode" not in content:
-              pattern = r"(public class MainActivity extends BridgeActivity\\s*\\{)"
+              pattern = r"(public class MainActivity extends BridgeActivity\s*\{)"
               members = """
               private AudioManager kvkAudioManager;
               private final Handler kvkAudioHandler = new Handler(Looper.getMainLooper());
