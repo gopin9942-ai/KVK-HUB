@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -14,12 +14,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Keep Google login active across refreshes and browser restarts.
+export const authReady = setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 export { onAuthStateChanged };
 
 const provider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
+  await authReady;
   const result = await signInWithPopup(auth, provider);
   return result.user;
 }
