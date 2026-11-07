@@ -68,7 +68,7 @@ jobs:
           path = files[0]
           content = path.read_text()
           if "import android.media.AudioManager;" not in content:
-              content = content.replace("package com.kvkhub.voice;\\n", "package com.kvkhub.voice;\\n\\nimport android.media.AudioManager;\\n", 1)
+              content = content.replace("package com.kvkhub.voice;\n", "package com.kvkhub.voice;\n\nimport android.media.AudioManager;\n", 1)
           if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
               marker = "public class MainActivity extends BridgeActivity {"
               if marker not in content:
