@@ -1,4 +1,4 @@
-import GtcrnProcessor, { loadGtcrnModule } from "https://esm.sh/@sapphi-red/gtcrn-wasm@0.0.3?bundle";
+import { GtcrnProcessor, loadGtcrnModule } from "https://esm.sh/@sapphi-red/gtcrn-wasm@0.0.3?bundle";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@sapphi-red/gtcrn-wasm@0.0.3/dist/gtcrn.wasm";
 const FRAME_SIZE = 768; // GTCRN 48 kHz mono frame
