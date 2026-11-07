@@ -827,7 +827,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
