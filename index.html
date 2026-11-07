@@ -188,20 +188,30 @@ async function refreshModeration(){
   bannedBox.replaceChildren();
   if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned users.";bannedBox.append(e);}
   for(const entry of banned){
-   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||"");
+   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||entry.targetIdentity||"");
    if(!identity)continue;
+   // Ban records may contain profile metadata. If not, try the public user profile
+   // stored under the Firebase UID in users/{uid}.
+   let profileData=typeof entry==="object"?entry:{};
+   const profileUid=profileData.uid||profileData.targetUid||identity;
+   try{
+    const profileSnap=await getDoc(doc(db,"users",profileUid));
+    if(profileSnap.exists())profileData={...profileSnap.data(),...profileData};
+   }catch(profileError){console.warn("Could not load banned member profile:",profileError);}
+   const memberName=profileData.displayName||profileData.name||"Banned member";
+   const memberPhoto=profileData.photoDataUrl||profileData.photoURL||profileData.photoUrl||"";
+   const publicId=profileData.publicId||profileData.kvkUserId||"";
    const row=document.createElement("div");row.className="roomItem adminMemberRow";
-   const details=document.createElement("div");details.className="adminMemberDetails";
-   const label=document.createElement("strong");
-   label.textContent=typeof entry==="object"?(entry.name||"Banned member"):"Banned member";
+   const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
+   if(memberPhoto){avatar.src=memberPhoto;avatar.onerror=()=>{avatar.style.display="none";};}
+   else{avatar.style.display="none";}
+   const details=document.createElement("div");details.className="adminMemberDetails";details.style.flex="1";
+   const label=document.createElement("strong");label.textContent=memberName;
+   const userId=document.createElement("div");userId.className="roomMeta";userId.textContent=publicId?"@"+publicId:"User ID: "+profileUid;
    const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
-   details.append(label,sub);
-   if(typeof entry==="object"&&entry.photoURL){
-    const avatar=document.createElement("img");avatar.src=entry.photoURL;avatar.alt="";avatar.style.cssText="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 auto";
-    row.append(avatar);
-   }
+   details.append(label,userId,sub);
    const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=()=>moderationAction("/unban",identity);
-   row.append(details,unban);bannedBox.append(row);
+   row.append(avatar,details,unban);bannedBox.append(row);
   }
  }catch(error){
   console.error("Banned users refresh failed:",error);
@@ -750,7 +760,7 @@ function renderParticipants(){
      try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
      finally{muteButton.disabled=false;}
     };
-    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;await moderationAction("/ban",identity,{targetName:profile.name||"User",targetPhotoURL:profile.photoURL||""});};
+    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;await moderationAction("/ban",identity,{targetUid:profile.uid||p.uid,targetName:profile.name||"User",targetPhotoURL:profile.photoURL||""});};
     dropdown.append(muteButton,banButton);
     dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
     menuWrap.append(dots,dropdown);tile.append(menuWrap);
