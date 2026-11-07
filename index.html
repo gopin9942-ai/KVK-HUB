@@ -143,7 +143,8 @@ async function moderationAction(path,targetIdentity){
   await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity});
   status.textContent="Moderation action completed.";
   await refreshModeration();
- }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;}
+  return true;
+ }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;return false;}
 }
 let isRoomAdmin=false;
 const adminMuteState=new Map();
@@ -573,7 +574,7 @@ function renderParticipants(){
     muteButton.onclick=async event=>{
      event.stopPropagation();const identity=getTargetIdentity();const currentlyMuted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);
      muteButton.disabled=true;
-     try{await moderationAction(currentlyMuted?"/unmute":"/mute",identity);adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}
+     try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
      finally{muteButton.disabled=false;}
     };
     banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();await moderationAction("/ban",identity);};
