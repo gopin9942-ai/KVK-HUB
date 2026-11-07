@@ -64,6 +64,14 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .profileEditor label{display:block;color:#aab5d0;font-size:13px;margin-top:10px}
 .profileEditor input{margin-top:6px}
 .profileUid{font-size:12px;color:#aab5d0;overflow-wrap:anywhere;background:#101321;padding:10px;border-radius:8px;margin-top:8px}
+.profileTop{cursor:default}
+.profileMenuWrap{position:relative;flex:0 0 auto}
+.profileMenuButton{width:40px;height:40px;padding:0;margin:0;background:#303954;color:#fff;font-size:20px}
+.profileMenu{position:absolute;right:0;top:46px;z-index:40;min-width:155px;padding:7px;background:#202943;border:1px solid #46516e;border-radius:10px;box-shadow:0 8px 24px #0008}
+.profileMenu[hidden]{display:none}
+.profileMenu button{width:100%;margin:0 0 5px;padding:10px;text-align:left;background:#303954;color:#fff;font-size:13px}
+.profileMenu button:last-child{margin-bottom:0;background:#8f3445}
+#profileTopId{display:block;color:#aab5d0;font-size:11px;overflow-wrap:anywhere;margin-top:4px}
 
 </style>
 </head>
@@ -76,21 +84,28 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 </section>
 <section id="homePage">
 <div class="card"><h2>Welcome!</h2><p id="userName"></p>
-<div class="profileTop" id="profileOpen" role="button" tabindex="0">
+<div class="profileTop">
  <img id="profileTopPhoto" alt="Profile photo" src="">
- <div class="profileText"><strong id="profileTopName">Your Profile</strong><small>View Profile & Settings</small></div><span>›</span>
+ <div class="profileText"><strong id="profileTopName">Your Profile</strong><small id="profileTopId"></small></div>
+ <div class="profileMenuWrap">
+  <button type="button" class="profileMenuButton" id="profileMenuButton" aria-label="Profile menu">⚙</button>
+  <div class="profileMenu" id="profileMenu" hidden>
+   <button type="button" id="openUserSettingsBtn">User Settings</button>
+   <button type="button" id="logoutBtn">Logout</button>
+  </div>
+ </div>
 </div>
 <div class="profileEditor" id="profileEditor">
- <div class="settingsHeading">Profile Settings</div>
+ <div class="settingsHeading">User Settings</div>
  <img id="profilePreview" alt="Profile preview" src="">
  <label>Profile Photo<input id="profilePhotoInput" type="file" accept="image/*"></label>
  <label>Name<input id="profileNameInput" maxlength="40" placeholder="Your name"></label>
- <div class="settingsSubheading">Unique User ID</div><div class="profileUid" id="profileUid"></div>
- <p class="small">User ID is permanent. Only name and profile photo can be changed.</p>
+ <label>KVK User ID<input id="profileNameIdInput" maxlength="24" placeholder="Choose your KVK ID"></label>
+ <div class="settingsSubheading">Permanent Account ID</div><div class="profileUid" id="profileUid"></div>
+ <p class="small">KVK User ID is your editable profile ID. Permanent Account ID is issued by Google/Firebase and cannot be changed.</p>
  <button id="saveProfileBtn">Save Profile</button>
  <button class="secondary" id="closeProfileBtn">Close</button>
-</div>
-<button class="secondary" id="logoutBtn">Logout</button></div>
+</div></div>
 <div class="card">
 <h2>🌍 Public Rooms</h2>
 <p class="small">Public rooms created by users appear here. Online count updates while members are connected.</p>
@@ -338,9 +353,12 @@ async function loadUserProfile(user){
   const data=snap.exists()?snap.data():{};
   const name=(typeof data.displayName==="string"&&data.displayName.trim())?data.displayName.trim():googleName;
   const customPhoto=(typeof data.photoDataUrl==="string"&&data.photoDataUrl.startsWith("data:image/"))?data.photoDataUrl:"";
+  const publicId=(typeof data.publicId==="string"&&data.publicId.trim())?data.publicId.trim():"";
   const photo=profileAvatar(user,customPhoto);
   $("profileTopName").textContent=name;
   $("profileNameInput").value=name;
+  $("profileNameIdInput").value=publicId;
+  $("profileTopId").textContent=publicId?"@"+publicId:"";
   $("profileTopPhoto").src=photo||profilePlaceholder(name);
   $("profilePreview").src=$("profileTopPhoto").src;
   $("userName").textContent="Hello, "+name;
@@ -354,10 +372,12 @@ async function loadUserProfile(user){
 async function saveProfile(){
  const user=auth.currentUser;if(!user)return;
  const name=$("profileNameInput").value.trim();
+ const publicId=$("profileNameIdInput").value.trim().replace(/^@/,"");
  if(!name){status.textContent="Please enter your name.";return;}
+ if(publicId&&!/^[a-zA-Z0-9_]{3,24}$/.test(publicId)){status.textContent="KVK User ID must be 3–24 letters, numbers or underscores.";return;}
  const button=$("saveProfileBtn");button.disabled=true;
  try{
-  await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
+  await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,publicId,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
   await loadUserProfile(user);
   $("profileEditor").style.display="none";
   $("userName").textContent="Hello, "+name;
@@ -365,9 +385,17 @@ async function saveProfile(){
  }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
  finally{button.disabled=false;}
 }
-$("profileOpen").onclick=()=>{$("profileEditor").style.display=$("profileEditor").style.display==="block"?"none":"block";};
-$("profileOpen").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("profileOpen").click();}};
+$("profileMenuButton").onclick=()=>{
+ const menu=$("profileMenu");menu.hidden=!menu.hidden;
+};
+$("openUserSettingsBtn").onclick=()=>{
+ $("profileMenu").hidden=true;
+ $("profileEditor").style.display="block";
+};
 $("closeProfileBtn").onclick=()=>{$("profileEditor").style.display="none";};
+document.addEventListener("click",event=>{
+ if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton"))$("profileMenu").hidden=true;
+});
 $("saveProfileBtn").onclick=saveProfile;
 $("profilePhotoInput").onchange=async event=>{
  const file=event.target.files?.[0];if(!file)return;
