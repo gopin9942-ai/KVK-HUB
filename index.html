@@ -175,7 +175,12 @@ async function workerAdminRequest(path,body={}){
  const idToken=await auth.currentUser.getIdToken();
  const response=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},body:JSON.stringify(body)});
  const data=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(data.error||("Moderation request failed ("+response.status+")"));
+ if(!response.ok){
+  const error=new Error(data.error||("Moderation request failed ("+response.status+")"));
+  error.code=data.code||null;
+  error.status=response.status;
+  throw error;
+ }
  return data;
 }
 function moderationArray(data,keys){
@@ -600,23 +605,45 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const roomSnap=await getDoc(roomRef);
  if(!roomSnap.exists())throw new Error("Room not found. Ask the host to check the Room ID.");
  const roomDetails=roomSnap.data();
- let roomPassword=providedPassword;
- if(roomDetails.isPublic!==true&&!roomPassword){
-  roomPassword=prompt("This is a private room. Enter its password:");
-  if(roomPassword===null||!roomPassword.trim())throw new Error("Private room password is required.");
- }
+ if(roomDetails.isPublic!==false)throw new Error("Public rooms are disabled. Use a password-protected room.");
  if(activeRoom)await leaveVoiceRoom();
- // Every fresh room join starts each participant's local playback at normal volume.
+ // Authorization is remembered by the Worker for this Firebase UID.
+ // Password is requested only when the Worker has no saved room access.
  remoteAudioGains.clear();
  status.textContent="Connecting to voice room...";
- const idToken=await auth.currentUser.getIdToken();
- const response=await fetch(WORKER_URL+"/token",{
-  method:"POST",
-  headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},
-  body:JSON.stringify({roomName,...(roomDetails.isPublic===true?{}:{password:roomPassword})})
- });
- const data=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
+ const requestRoomToken=async password=>{
+  const idToken=await auth.currentUser.getIdToken();
+  const response=await fetch(WORKER_URL+"/token",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},
+   body:JSON.stringify({roomName,...(password?{password}:{})})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){
+   const error=new Error(data.error||"Token request failed ("+response.status+")");
+   error.code=data.code||null;
+   error.status=response.status;
+   throw error;
+  }
+  return data;
+ };
+ let data;
+ try{
+  data=await requestRoomToken(providedPassword||"");
+ }catch(error){
+  if(error.code!=="PASSWORD_REQUIRED")throw error;
+  let password=providedPassword||prompt("இந்த private room-ல் சேர password உள்ளிடவும்:");
+  if(password===null||!password.trim())throw new Error("Private room password is required.");
+  let attempts=0;
+  while(true){
+   try{data=await requestRoomToken(password);break;}
+   catch(passwordError){
+    if(passwordError.code!=="INVALID_PASSWORD"||++attempts>=3)throw passwordError;
+    password=prompt("Password தவறு. மீண்டும் உள்ளிடவும்:");
+    if(password===null||!password.trim())throw new Error("Private room password is required.");
+   }
+  }
+ }
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
  // LiveKit reports room-wide active speakers and participant-level speaking changes.
