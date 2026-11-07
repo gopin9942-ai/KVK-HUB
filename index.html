@@ -56,7 +56,6 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p class="small" id="voiceMembers">Connecting member count...</p>
 <h3>People in this room</h3>
 <div id="participantGrid" class="participantGrid"></div>
-<p id="speakerDebug" class="small" style="font-size:11px;overflow-wrap:anywhere;margin:6px 0">Speaker diagnostics: waiting for LiveKit...</p>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
@@ -496,11 +495,6 @@ function updateParticipantIndicators(){
   tile.dataset.speaking=isSpeaking?"yes":"no";
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
- }
- const debug=$("speakerDebug");
- if(debug&&activeRoom){
-  const profiles=[...participantProfiles.values()].map(p=>p.uid+(p.uid===auth.currentUser?.uid?" (you)":"")+": "+(p.livekitIdentity||p.uid));
-  debug.textContent="Speaker IDs: "+[...activeSpeakerIds].join(", ")+" | Profiles: "+profiles.join(" | ");
  }
 }
 function clearPresence(){
