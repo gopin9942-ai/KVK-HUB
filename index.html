@@ -297,6 +297,7 @@ const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const speakingParticipants=new WeakSet();
 const participantTiles=new Map();
+
 function bindParticipantSpeaking(participant){
  if(!participant||speakingParticipants.has(participant))return;
  speakingParticipants.add(participant);
@@ -495,7 +496,8 @@ function startMyRooms(){
   rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
-  for(const room of rooms){   const item=document.createElement("div");item.className="roomItem";
+  for(const room of rooms){
+   const item=document.createElement("div");item.className="roomItem";
    const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
    const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Created by you":"Joined by you");
    const copy=document.createElement("button");copy.className="secondary";copy.textContent="Copy Room Code";copy.onclick=async()=>{
@@ -906,3 +908,167 @@ onAuthStateChanged(auth,async user=>{
   catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
  }
 });
+$("refreshRoomsBtn").onclick=()=>{startMyRooms();status.textContent="Refreshing My Rooms...";};
+function stopDeleteCountdown(){
+ if(deleteCountdownTimer){clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;}
+ deleteCountdownRemaining=0;
+ $("deleteConfirmBox").style.display="none";
+ $("confirmDeleteChannelBtn").disabled=true;
+ $("confirmDeleteChannelBtn").textContent="Confirm Delete";
+ $("deleteChannelBtn").disabled=false;
+}
+$("roomSettingsBtn").onclick=()=>{
+ const panel=$("roomSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ if(!opening){
+  stopDeleteCountdown();
+  $("unbanSettingsPanel").style.display="none";
+  $("unbanSettingsBtn").textContent="Unban Settings";
+ }
+};
+$("unbanSettingsBtn").onclick=()=>{
+ const panel=$("unbanSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("unbanSettingsBtn").textContent=opening?"Hide Unban Settings":"Unban Settings";
+ if(opening)refreshModeration();
+};
+$("deleteChannelBtn").onclick=()=>{
+ if(!isRoomAdmin||!currentRoomCode)return;
+ stopDeleteCountdown();
+ $("deleteConfirmBox").style.display="block";
+ $("deleteCountdownText").textContent="Accidental delete protection: wait 5 seconds before confirming.";
+ const confirmButton=$("confirmDeleteChannelBtn");
+ confirmButton.disabled=true;
+ deleteCountdownRemaining=5;
+ $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+ deleteCountdownTimer=setInterval(()=>{
+  deleteCountdownRemaining--;
+  if(deleteCountdownRemaining>0){
+   $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+  }else{
+   clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;
+   $("deleteCountdownText").textContent="Please check carefully. You can now confirm deleting this channel.";
+   confirmButton.disabled=false;
+  }
+ },1000);
+};
+$("cancelDeleteChannelBtn").onclick=stopDeleteCountdown;
+$("confirmDeleteChannelBtn").onclick=async()=>{
+ if(!isRoomAdmin||!currentRoomCode||deleteCountdownRemaining>0||$("confirmDeleteChannelBtn").disabled)return;
+ const roomToDelete=currentRoomCode;
+ const button=$("confirmDeleteChannelBtn");
+ button.disabled=true;button.textContent="Deleting...";
+ $("deleteChannelBtn").disabled=true;
+ try{
+  await workerAdminRequest("/delete-room",{roomName:roomToDelete});
+  await deleteDoc(doc(db,"rooms",roomToDelete));
+  await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToDelete));
+  stopDeleteCountdown();
+  await leaveVoiceRoom();
+  status.textContent="Channel deleted.";
+ }catch(error){
+  console.error("Delete channel failed:",error);
+  status.textContent="Could not delete channel: "+error.message;
+  stopDeleteCountdown();
+ }finally{
+  button.textContent="Confirm Delete";
+  $("deleteChannelBtn").disabled=false;
+ }
+};
+$("joinBtn").onclick=async()=>{
+ const code=$("roomCode").value.trim();
+ if(!code){status.textContent="Enter a room ID!";return;}
+ if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
+ try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
+};
+$("createBtn").onclick=async()=>{
+ const password=prompt("Create a password for this room (at least 8 characters):");
+ if(password===null)return;
+ if(password.length<8){status.textContent="Room password must be at least 8 characters.";return;}
+ const code="kvk-room-"+Math.random().toString(36).slice(2,8);
+ const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
+ let firestoreCreated=false,workerCreated=false;
+ try{
+  await setDoc(doc(db,"rooms",code),{
+   name:(auth.currentUser.displayName||"User")+"'s room",
+   isPublic:false,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,
+   createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()
+  });
+  firestoreCreated=true;
+  await workerAdminRequest("/create-private-room",{roomName:code,password});
+  workerCreated=true;
+  await setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",code),{
+   roomName:code,name:(auth.currentUser.displayName||"User")+"'s room",
+   role:"created",updatedAt:serverTimestamp()
+  },{merge:true});
+  $("roomCode").value=code;
+  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
+  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Room created. Invite link copied! Share the password separately.";}
+  catch(copyError){status.textContent="Room created. Invite link: "+inviteUrl.toString()+" — share the password separately.";}
+  await connectVoiceRoom(code,false,password);
+ }catch(e){
+  console.error("Create room failed:",e);status.textContent="CREATE ROOM ERROR: "+e.message;
+  if(firestoreCreated&&!activeRoom){
+   try{if(workerCreated)await workerAdminRequest("/delete-room",{roomName:code});}catch(cleanupError){console.error(cleanupError);}
+   try{await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
+  }
+ }finally{button.disabled=false;}
+};
+$("muteBtn").onclick=async()=>{
+ if(!activeRoom)return;
+ const nextEnabled=!micEnabled;
+ try{
+  await setRoomMicrophone(activeRoom,nextEnabled);
+  micEnabled=nextEnabled;
+  localStorage.setItem("kvkMicEnabled",String(micEnabled));
+  $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
+ }catch(e){
+  console.error(e);status.textContent="Microphone Error: "+e.message;
+  micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
+  $("muteBtn").textContent="Unmute Microphone";
+ }
+};
+$("noiseSuppressionToggle").addEventListener("change",async()=>{
+ noiseCancellationEnabled=$("noiseSuppressionToggle").checked;
+ localStorage.setItem("kvkNoiseSuppression",String(noiseCancellationEnabled));
+ if(activeRoom&&micEnabled){
+  status.textContent=noiseCancellationEnabled?"Turning AI Noise Cancellation ON...":"Turning Noise Cancellation OFF...";
+  try{await setRoomMicrophone(activeRoom,true);}
+  catch(e){console.error(e);status.textContent="Noise Cancellation change failed: "+e.message;}
+ }else{
+  status.textContent=noiseCancellationEnabled?"AI Noise Cancellation will be ON when you unmute.":"Noise Cancellation will stay OFF when you unmute.";
+ }
+});
+$("copyRoomCodeBtn").onclick=async()=>{
+ const code=currentRoomCode;
+ if(!code)return;
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code);}
+  else{
+   const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+   const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+  }
+  status.textContent="Room code copied! Now you can send it to your friends.";
+ }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
+};
+$("leaveBtn").onclick=async()=>{
+ try{await leaveVoiceRoom();status.textContent="Disconnected. Your room access is saved.";}
+ catch(error){console.error("Disconnect failed:",error);status.textContent="Could not disconnect: "+error.message;}
+};
+$("leaveRoomSettingsBtn").onclick=async()=>{
+ if(!currentRoomCode||!auth.currentUser)return;
+ const roomToLeave=currentRoomCode;
+ if(!confirm("Leave this room? You will need the room password next time."))return;
+ const button=$("leaveRoomSettingsBtn");button.disabled=true;button.textContent="Leaving...";
+ try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToLeave));await leaveVoiceRoom();status.textContent="You left the room. It was removed from My Rooms. Password required next time."; }
+ catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
+ finally{button.disabled=false;button.textContent="Leave Room";}
+};
+window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
+window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
+window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
+</script>
+</body>
+</html>
