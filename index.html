@@ -202,8 +202,20 @@ let nativeKvkCallListenerReady=false;
 async function getNativeKvkCall(){
  if(nativeKvkCall)return nativeKvkCall;
  if(!window.Capacitor)return null;
- try{const module=await import("./native-call.js");nativeKvkCall=module.KvkCall||null;}
- catch(error){console.warn("Could not load native KVK bridge:",error);}
+ try{
+  const module=await import("./native-call.js");
+  const nativePlugin=module.KvkCall;
+  if(!nativePlugin)return null;
+  // Capacitor plugin proxies behave like thenables. Never return the proxy
+  // itself from an async function: Promise resolution would call plugin.then().
+  nativeKvkCall={
+   requestNotificationPermission:(...args)=>nativePlugin.requestNotificationPermission(...args),
+   start:(...args)=>nativePlugin.start(...args),
+   update:(...args)=>nativePlugin.update(...args),
+   stop:(...args)=>nativePlugin.stop(...args),
+   addListener:(...args)=>nativePlugin.addListener(...args)
+  };
+ }catch(error){console.warn("Could not load native KVK bridge:",error);}
  return nativeKvkCall;
 }
 async function startNativeVoiceService(roomName){
@@ -225,13 +237,13 @@ async function startNativeVoiceService(roomName){
  }catch(error){console.warn("Native foreground voice service unavailable:",error);status.textContent="Voice connected, but Android background service could not start: "+(error.message||error);}
 }
 async function updateNativeVoiceService(){
- const plugin=getNativeKvkCall();
+ const plugin=await getNativeKvkCall();
  if(!plugin||!activeRoom)return;
  try{await plugin.update({roomName:currentRoomCode||"Voice Room",micEnabled});}
  catch(error){console.warn("Could not update KVK notification:",error);}
 }
 async function stopNativeVoiceService(){
- const plugin=getNativeKvkCall();
+ const plugin=await getNativeKvkCall();
  if(!plugin)return;
  try{await plugin.stop();}catch(error){console.warn("Could not stop KVK foreground service:",error);}
 }
