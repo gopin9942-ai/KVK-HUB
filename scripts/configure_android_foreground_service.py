@@ -87,15 +87,18 @@ public class KvkCallPlugin extends Plugin {
     @Override
     public void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
-        if (intent != null) {
-            String action = intent.getStringExtra("kvkNotificationAction");
-            if ("com.kvkhub.voice.action.MUTE".equals(action)) {
-                dispatchNotificationAction("MUTE");
-                intent.removeExtra("kvkNotificationAction");
-            } else if ("com.kvkhub.voice.action.UNMUTE".equals(action)) {
-                dispatchNotificationAction("UNMUTE");
-                intent.removeExtra("kvkNotificationAction");
-            }
+        handleNotificationIntent(intent);
+    }
+
+    static void handleNotificationIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getStringExtra("kvkNotificationAction");
+        if ("com.kvkhub.voice.action.MUTE".equals(action)) {
+            dispatchNotificationAction("MUTE");
+            intent.removeExtra("kvkNotificationAction");
+        } else if ("com.kvkhub.voice.action.UNMUTE".equals(action)) {
+            dispatchNotificationAction("UNMUTE");
+            intent.removeExtra("kvkNotificationAction");
         }
     }
 
@@ -287,10 +290,19 @@ if "KvkCallPlugin" not in source:
     source = source[:package_end + 1] + "\nimport com.kvkhub.voice.KvkCallPlugin;\n" + source[package_end + 1:]
     source, count = re.subn(
         r"(public class MainActivity extends BridgeActivity\s*\{)",
-        r'\1\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(KvkCallPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n',
+        r'\1\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(KvkCallPlugin.class);\n        super.onCreate(savedInstanceState);\n        KvkCallPlugin.handleNotificationIntent(getIntent());\n    }\n',
         source, count=1)
     if count != 1:
         raise SystemExit("Could not register KvkCallPlugin in MainActivity")
-    activity.write_text(source)
+if "onNewIntent(android.content.Intent intent)" not in source:
+    source = source.replace(
+        "    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {",
+        "    @Override\n    public void onNewIntent(android.content.Intent intent) {\n        super.onNewIntent(intent);\n        setIntent(intent);\n        KvkCallPlugin.handleNotificationIntent(intent);\n    }\n\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {"
+    )
+    if "onNewIntent(android.content.Intent intent)" not in source:
+        raise SystemExit("Could not add MainActivity onNewIntent handler")
+    if "KvkCallPlugin.handleNotificationIntent(getIntent());" not in source:
+        source=source.replace("super.onCreate(savedInstanceState);","super.onCreate(savedInstanceState);\n        KvkCallPlugin.handleNotificationIntent(getIntent());",1)
+activity.write_text(source)
 
 print("Added KVK HUB Android foreground voice service, notification actions, and Capacitor bridge.")
