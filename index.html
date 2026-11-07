@@ -89,7 +89,21 @@ $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
+const speakingParticipants=new WeakSet();
 const participantTiles=new Map();
+
+function bindParticipantSpeaking(participant){
+ if(!participant||speakingParticipants.has(participant))return;
+ speakingParticipants.add(participant);
+ participant.on("isSpeakingChanged",speaking=>{
+  const identity=participant.identity;
+  if(speaking)activeSpeakerIds.add(identity);
+  else activeSpeakerIds.delete(identity);
+  const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
+  if(profile)profile.level=speaking?(Number(participant.audioLevel)||0):0;
+  updateParticipantIndicators();
+ });
+}
 const remoteAudioGains=new Map();
 const remoteAudioNodes=new Map();
 const roomPresenceStops=new Map();
@@ -312,8 +326,8 @@ async function connectVoiceRoom(roomName){
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
  const room=new Room();
- // LiveKit owns remote-speaker state. Keep its active speaker identities intact;
- // the local microphone analyser below only adds/removes the local user's identity.
+ // LiveKit reports room-wide active speakers and participant-level speaking changes.
+ // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
   activeSpeakerIds=new Set(speakers.map(p=>p.identity));
   for(const participant of speakers){
@@ -322,6 +336,7 @@ async function connectVoiceRoom(roomName){
   }
   updateParticipantIndicators();
  });
+ room.on(RoomEvent.ParticipantConnected,participant=>bindParticipantSpeaking(participant));
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
@@ -344,26 +359,16 @@ async function connectVoiceRoom(roomName){
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
+ // Bind speaking-change listeners for participants who were already in the room
+ // before this client finished connecting.
+ for(const participant of room.remoteParticipants.values())bindParticipantSpeaking(participant);
  // Poll LiveKit's real per-participant audio level so the speaking glow updates continuously.
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Reconcile every remote participant from LiveKit's current state as well as
-  // ActiveSpeakersChanged. This prevents a missed/stale event from leaving remote
-  // speaking indicators out of sync on other clients.
-  for(const participant of room.remoteParticipants.values()){
-   const identity=participant.identity;
-   const level=Number(participant.audioLevel)||0;
-   const speaking=!!participant.isSpeaking||level>=0.025;
-   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
-   if(speaking){
-    activeSpeakerIds.add(identity);
-    if(profile)profile.level=level;
-   }else{
-    activeSpeakerIds.delete(identity);
-    if(profile)profile.level=0;
-   }
-  }
+  // Remote speaking is driven only by LiveKit events. Polling remote
+  // audioLevel/isSpeaking here can overwrite a fresh ActiveSpeakersChanged event
+  // with stale zero values and immediately switch the remote glow off.
   // The local microphone analyser is intentionally isolated to this client's tile.
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
