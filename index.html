@@ -54,6 +54,16 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .deleteConfirmButtons button{width:auto;flex:1;margin-top:8px}
 .confirmDeleteAction{background:#8f3445;color:#fff}
 .cancelDeleteAction{background:#303954;color:#fff}
+.profileTop{display:flex;align-items:center;gap:12px;cursor:pointer;background:#151d31;border:1px solid #35415f;border-radius:14px;padding:12px;margin-top:12px}
+.profileTop img,.profilePlaceholder{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#303954;display:flex;align-items:center;justify-content:center;font-size:22px}
+.profileTop .profileText{flex:1;min-width:0}
+.profileTop strong{display:block}
+.profileTop small{color:#aab5d0;overflow-wrap:anywhere}
+.profileEditor{display:none;background:#151d31;border:1px solid #35415f;border-radius:14px;padding:14px;margin-top:10px}
+.profileEditor img{width:88px;height:88px;border-radius:50%;object-fit:cover;display:block;margin:8px auto}
+.profileEditor label{display:block;color:#aab5d0;font-size:13px;margin-top:10px}
+.profileEditor input{margin-top:6px}
+.profileUid{font-size:12px;color:#aab5d0;overflow-wrap:anywhere;background:#101321;padding:10px;border-radius:8px;margin-top:8px}
 
 </style>
 </head>
@@ -65,7 +75,22 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <button id="loginBtn">Continue with Google</button>
 </section>
 <section id="homePage">
-<div class="card"><h2>Welcome!</h2><p id="userName"></p><button class="secondary" id="logoutBtn">Logout</button></div>
+<div class="card"><h2>Welcome!</h2><p id="userName"></p>
+<div class="profileTop" id="profileOpen" role="button" tabindex="0">
+ <img id="profileTopPhoto" alt="Profile photo" src="">
+ <div class="profileText"><strong id="profileTopName">Your Profile</strong><small>View Profile & Settings</small></div><span>›</span>
+</div>
+<div class="profileEditor" id="profileEditor">
+ <div class="settingsHeading">Profile Settings</div>
+ <img id="profilePreview" alt="Profile preview" src="">
+ <label>Profile Photo<input id="profilePhotoInput" type="file" accept="image/*"></label>
+ <label>Name<input id="profileNameInput" maxlength="40" placeholder="Your name"></label>
+ <div class="settingsSubheading">Unique User ID</div><div class="profileUid" id="profileUid"></div>
+ <p class="small">User ID is permanent. Only name and profile photo can be changed.</p>
+ <button id="saveProfileBtn">Save Profile</button>
+ <button class="secondary" id="closeProfileBtn">Close</button>
+</div>
+<button class="secondary" id="logoutBtn">Logout</button></div>
 <div class="card">
 <h2>🌍 Public Rooms</h2>
 <p class="small">Public rooms created by users appear here. Online count updates while members are connected.</p>
@@ -291,9 +316,57 @@ function attachRemoteAudio(track,identity){
  audioEl.play().catch(()=>{});
 }
 
+let selectedProfilePhoto=null;
+function profileAvatar(user,photo){return photo||user.photoURL||"";}
+async function loadUserProfile(user){
+ const ref=doc(db,"users",user.uid);
+ const snap=await getDoc(ref);
+ const data=snap.exists()?snap.data():{};
+ const name=data.displayName||user.displayName||"User";
+ const photo=profileAvatar(user,data.photoDataUrl);
+ $("profileTopName").textContent=name;
+ $("profileTopPhoto").src=photo||"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88"><rect width="100%" height="100%" fill="#303954"/><text x="50%" y="58%" text-anchor="middle" font-size="42" fill="white">☺</text></svg>');
+ $("profilePreview").src=$("profileTopPhoto").src;
+ $("profileNameInput").value=name;
+ $("profileUid").textContent=user.uid;
+ selectedProfilePhoto=data.photoDataUrl||null;
+}
+async function saveProfile(){
+ const user=auth.currentUser;if(!user)return;
+ const name=$("profileNameInput").value.trim();
+ if(!name){status.textContent="Please enter your name.";return;}
+ const button=$("saveProfileBtn");button.disabled=true;
+ try{
+  await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
+  await loadUserProfile(user);
+  $("profileEditor").style.display="none";
+  $("userName").textContent="Hello, "+name;
+  status.textContent="Profile saved successfully.";
+ }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
+ finally{button.disabled=false;}
+}
+$("profileOpen").onclick=()=>{$("profileEditor").style.display=$("profileEditor").style.display==="block"?"none":"block";};
+$("profileOpen").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("profileOpen").click();}};
+$("closeProfileBtn").onclick=()=>{$("profileEditor").style.display="none";};
+$("saveProfileBtn").onclick=saveProfile;
+$("profilePhotoInput").onchange=async event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ if(!file.type.startsWith("image/")){status.textContent="Choose an image file.";return;}
+ if(file.size>8*1024*1024){status.textContent="Choose an image smaller than 8 MB.";return;}
+ try{
+  const image=await createImageBitmap(file);
+  const canvas=document.createElement("canvas");const scale=Math.min(1,512/Math.max(image.width,image.height));
+  canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
+  canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
+  selectedProfilePhoto=canvas.toDataURL("image/jpeg",0.78);
+  $("profilePreview").src=selectedProfilePhoto;
+  status.textContent="Photo selected. Press Save Profile.";
+ }catch(error){status.textContent="Could not read that image.";console.error(error);}
+};
 function showHome(user){
  loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
  $("userName").textContent="Hello, "+(user.displayName||"User");
+ loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
  status.textContent="You are logged in!";
  startPublicRooms();
 }
