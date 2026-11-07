@@ -188,19 +188,20 @@ async function refreshModeration(){
   bannedBox.replaceChildren();
   if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned users.";bannedBox.append(e);}
   for(const entry of banned){
-   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||entry.targetIdentity||"");
+   const identity=typeof entry==="string"?entry:(entry.identity||entry.targetIdentity||entry.uid||"");
    if(!identity)continue;
-   // Ban records may contain profile metadata. If not, try the public user profile
-   // stored under the Firebase UID in users/{uid}.
+   // The Worker uses the Firebase UID as the LiveKit identity for room tokens.
+   // Older /banned-users responses contain only that identity string.
    let profileData=typeof entry==="object"?entry:{};
-   let profileUid=profileData.targetUid||profileData.firebaseUid||profileData.profileUid||"";
+   let profileUid=profileData.targetUid||profileData.firebaseUid||profileData.profileUid||profileData.uid||identity;
+   profileData={...profileData,displayName:profileData.displayName||profileData.targetName||profileData.name||"",photoDataUrl:profileData.photoDataUrl||profileData.targetPhotoURL||"",publicId:profileData.publicId||profileData.targetPublicId||profileData.kvkUserId||""};
    let presenceData={};
    try{
     // Durable profile snapshot written when the member is banned.
     const savedBanProfile=await getDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));
     if(savedBanProfile.exists())profileData={...profileData,...savedBanProfile.data()};
     // Resolve the Firebase UID from current presence only when no durable UID exists.
-    if(!profileUid){
+    if(!profileUid||profileUid===identity){
      const peopleSnap=await getDocs(collection(db,"rooms",currentRoomCode,"participants"));
      const matched=peopleSnap.docs.find(person=>{
       const personData=person.data();
