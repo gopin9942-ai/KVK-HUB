@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline-color:#6fffd0;box-shadow:0 0 0 4px rgba(54,214,160,.22),0 0 0 8px rgba(54,214,160,.10),0 0 24px rgba(54,214,160,.72);filter:drop-shadow(0 0 7px rgba(54,214,160,.55));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}
 </style>
 </head>
 <body>
@@ -83,6 +83,7 @@ const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),sta
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
 let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
+let localSpeakingContext=null,localSpeakingAnalyser=null,localSpeakingSamples=null;
 $("noiseSuppressionToggle").checked=noiseCancellationEnabled;
 $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
@@ -191,7 +192,32 @@ async function waitForDenoiserReady(node,timeoutMs=25000){
   };
  });
 }
+function stopLocalSpeakingMeter(){
+ if(localSpeakingContext){const ctx=localSpeakingContext;localSpeakingContext=null;localSpeakingAnalyser=null;localSpeakingSamples=null;try{if(ctx.state!=="closed")ctx.close();}catch(e){}}
+}
+function startLocalSpeakingMeter(){
+ stopLocalSpeakingMeter();
+ if(!localMicStream||!micEnabled)return;
+ try{
+  const context=new AudioContext({latencyHint:"interactive"});
+  const source=context.createMediaStreamSource(localMicStream);
+  const analyser=context.createAnalyser();
+  analyser.fftSize=512;
+  analyser.smoothingTimeConstant=0.35;
+  source.connect(analyser);
+  context.resume().catch(()=>{});
+  localSpeakingContext=context;localSpeakingAnalyser=analyser;localSpeakingSamples=new Float32Array(analyser.fftSize);
+ }catch(error){console.warn("Local speaking meter unavailable:",error);}
+}
+function getLocalMicLevel(){
+ if(!localSpeakingAnalyser||!localSpeakingSamples)return 0;
+ localSpeakingAnalyser.getFloatTimeDomainData(localSpeakingSamples);
+ let sum=0;
+ for(const sample of localSpeakingSamples)sum+=sample*sample;
+ return Math.sqrt(sum/localSpeakingSamples.length);
+}
 async function stopLocalMicrophone(room=activeRoom){
+ stopLocalSpeakingMeter();
  const track=localPublishedMicTrack;localPublishedMicTrack=null;
  if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
  if(track){try{track.stop();}catch(e){}}
@@ -212,7 +238,7 @@ async function setRoomMicrophone(room,enabled){
   const stream=await getStream(false);
   const track=stream.getAudioTracks()[0];
   if(!track){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
-  try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;}
+  try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;startLocalSpeakingMeter();}
   catch(e){stream.getTracks().forEach(t=>t.stop());throw e;}
   status.textContent="Noise Cancellation OFF.";
   return;
@@ -247,7 +273,7 @@ async function setRoomMicrophone(room,enabled){
   const processedTrack=destination.stream.getAudioTracks()[0];
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
-  localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;
+  localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;startLocalSpeakingMeter();
   status.textContent="AI Noise Cancellation ON (GTCRN — processing confirmed).";
  }catch(error){
   try{node?.port.postMessage("destroy");node?.disconnect();}catch(e){}
@@ -259,7 +285,7 @@ async function setRoomMicrophone(room,enabled){
   stream=await getStream(true);
   const fallbackTrack=stream.getAudioTracks()[0];
   if(!fallbackTrack){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
-  try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;}
+  try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;startLocalSpeakingMeter();}
   catch(publishError){stream.getTracks().forEach(t=>t.stop());throw publishError;}
   const reason=(error?.message||String(error)).replace(/\s+/g," ").slice(0,180);
   status.textContent="GTCRN unavailable ("+reason+"). Browser Noise Cancellation fallback is ON.";
@@ -317,9 +343,12 @@ async function connectVoiceRoom(roomName){
    const identity=profile.livekitIdentity||profile.uid;
    const participant=liveParticipants.find(p=>p.identity===identity);
    const level=participant?Number(participant.audioLevel)||0:0;
-   // LiveKit's isSpeaking gate prevents room noise from animating a silent participant.
-   const speaking=!!participant?.isSpeaking && level>=0.025;
-   if(speaking){activeSpeakerIds.add(identity);profile.level=level;}
+   // Measure this device's actual microphone waveform directly. LocalParticipant.isSpeaking
+   // is not consistently populated by every LiveKit/browser combination.
+   const isLocal=participant===room.localParticipant;
+   const localLevel=isLocal?getLocalMicLevel():0;
+   const speaking=isLocal?(micEnabled&&localLevel>=0.018):(!!participant?.isSpeaking&&level>=0.025);
+   if(speaking){activeSpeakerIds.add(identity);profile.level=isLocal?localLevel:level;}
    else profile.level=0;
   }
   updateParticipantIndicators();
