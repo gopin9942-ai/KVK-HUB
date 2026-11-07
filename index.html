@@ -52,7 +52,8 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div class="card">
 <h2>🎙️ Voice Room</h2>
 <p class="small">You are connected to this voice room.</p>
-<p id="roomInfo"></p>
+<p id="roomInfo" class="small">Room connected</p>
+<button id="copyRoomCodeBtn" class="secondary">Copy Room Code</button>
 <p class="small" id="voiceMembers">Connecting member count...</p>
 <h3>People in this room</h3>
 <div id="participantGrid" class="participantGrid"></div>
@@ -200,10 +201,9 @@ function startPublicRooms(){
   for(const room of rooms){
    const item=document.createElement("div");item.className="roomItem";
    const name=document.createElement("strong");name.textContent=room.name||room.id;
-   const code=document.createElement("div");code.className="roomMeta";code.textContent="Room code: "+room.id;
    const count=document.createElement("div");count.className="roomMeta";count.textContent="Checking online members...";
    const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
-   item.append(name,code,count,join);list.append(item);
+   item.append(name,count,join);list.append(item);
    if(!roomPresenceStops.has(room.id)){
     const stop=onSnapshot(collection(db,"rooms",room.id,"participants"),people=>{
      const now=Date.now();
@@ -432,7 +432,7 @@ async function connectVoiceRoom(roomName){
  }
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;
- $("roomInfo").textContent="Connected: "+roomName;
+ $("roomInfo").textContent="Room connected";
  $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
  homePage.style.display="none";roomPage.style.display="block";
  try{
@@ -529,7 +529,7 @@ $("createBtn").onclick=async()=>{
   await setDoc(doc(db,"rooms",code),{name:(auth.currentUser.displayName||"User")+"'s room",isPublic:true,createdBy:auth.currentUser.uid,createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()});
   $("roomCode").value=code;
   await connectVoiceRoom(code);
-  status.textContent="Room created! Share code: "+code;
+  status.textContent="Room created! Tap “Copy Room Code” to share it privately.";
  }catch(e){
   console.error("Create room failed:",e);
   status.textContent="ROOM ERROR: "+e.message;
@@ -561,6 +561,18 @@ $("noiseSuppressionToggle").addEventListener("change",async()=>{
   status.textContent=noiseCancellationEnabled?"AI Noise Cancellation will be ON when you unmute.":"Noise Cancellation will stay OFF when you unmute.";
  }
 });
+$("copyRoomCodeBtn").onclick=async()=>{
+ const code=currentRoomCode;
+ if(!code)return;
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code);}
+  else{
+   const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+   const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+  }
+  status.textContent="Room code copied! Now you can send it to your friends.";
+ }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
+};
 $("leaveBtn").onclick=leaveVoiceRoom;
 window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
 window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
