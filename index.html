@@ -76,7 +76,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
-const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/gtcrn-wasm@0.0.3/dist/gtcrn.wasm";
+const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
+const GTCRN_WORKLET_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn/workletProcessor.js";
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")!=="false",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
@@ -220,16 +221,16 @@ async function setRoomMicrophone(room,enabled){
   context=new AudioContext({sampleRate:48000,latencyHint:"interactive"});
   if(context.sampleRate!==48000)throw new Error("This device does not provide 48 kHz audio required by the AI noise model.");
   await context.resume();
-  await context.audioWorklet.addModule("./noise-processor.js");
+  await context.audioWorklet.addModule(GTCRN_WORKLET_URL);
   // Fetch the model on the main thread; AudioWorkletGlobalScope may not expose fetch().
   const wasmResponse=await fetch(GTCRN_WASM_URL,{cache:"force-cache"});
   if(!wasmResponse.ok)throw new Error("GTCRN model download failed: HTTP "+wasmResponse.status);
   const wasmBinary=await wasmResponse.arrayBuffer();
   if(!wasmBinary.byteLength)throw new Error("GTCRN model download returned an empty WASM file.");
   source=context.createMediaStreamSource(stream);
-  node=new AudioWorkletNode(context,"kvk-gtcrn-denoiser",{
+  node=new AudioWorkletNode(context,"@sapphi-red/web-noise-suppressor/gtcrn",{
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit",
-   processorOptions:{wasmBinary}
+   processorOptions:{wasmBinary,maxChannels:1}
   });
   await waitForDenoiserReady(node);
   destination=context.createMediaStreamDestination();
