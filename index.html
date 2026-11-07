@@ -180,12 +180,14 @@ function startPublicRooms(){
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load rooms. Check Firestore security rules.</div>';status.textContent="ROOM LIST ERROR: "+error.message;});
 }
-async function waitForDenoiserReady(node,timeoutMs=20000){
+async function waitForDenoiserReady(node,timeoutMs=25000){
  return new Promise((resolve,reject)=>{
-  const timeout=setTimeout(()=>{node.port.onmessage=null;reject(new Error("AI noise model timed out while loading."));},timeoutMs);
+  let initialized=false;
+  const timeout=setTimeout(()=>{node.port.onmessage=null;reject(new Error("GTCRN did not initialize and process audio within 25 seconds."));},timeoutMs);
   node.port.onmessage=event=>{
-   if(event.data?.type==="ready"){clearTimeout(timeout);node.port.onmessage=null;resolve();}
-   if(event.data?.type==="error"){clearTimeout(timeout);node.port.onmessage=null;reject(new Error(event.data.message||"AI noise model failed to load."));}
+   if(event.data?.type==="ready")initialized=true;
+   if(event.data?.type==="processed"&&initialized){clearTimeout(timeout);node.port.onmessage=null;resolve();}
+   if(event.data?.type==="error"){clearTimeout(timeout);node.port.onmessage=null;reject(new Error(event.data.message||"AI noise model failed."));}
   };
  });
 }
@@ -221,26 +223,27 @@ async function setRoomMicrophone(room,enabled){
   context=new AudioContext({sampleRate:48000,latencyHint:"interactive"});
   if(context.sampleRate!==48000)throw new Error("This device does not provide 48 kHz audio required by the AI noise model.");
   await context.resume();
-  await context.audioWorklet.addModule(GTCRN_WORKLET_URL);
+  await context.audioWorklet.addModule("./noise-processor.js");
   // Fetch the model on the main thread; AudioWorkletGlobalScope may not expose fetch().
   const wasmResponse=await fetch(GTCRN_WASM_URL,{cache:"force-cache"});
   if(!wasmResponse.ok)throw new Error("GTCRN model download failed: HTTP "+wasmResponse.status);
   const wasmBinary=await wasmResponse.arrayBuffer();
   if(!wasmBinary.byteLength)throw new Error("GTCRN model download returned an empty WASM file.");
   source=context.createMediaStreamSource(stream);
-  node=new AudioWorkletNode(context,"@sapphi-red/web-noise-suppressor/gtcrn",{
+  node=new AudioWorkletNode(context,"kvk-gtcrn-denoiser",{
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:"explicit",
    processorOptions:{wasmBinary,maxChannels:1}
   });
+  await waitForDenoiserReady(node);
   destination=context.createMediaStreamDestination();
   source.connect(node);node.connect(destination);
   const processedTrack=destination.stream.getAudioTracks()[0];
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
   localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;
-  status.textContent="AI Noise Cancellation ON (GTCRN).";
+  status.textContent="AI Noise Cancellation ON (GTCRN — processing confirmed).";
  }catch(error){
-  try{node?.port.postMessage({type:"destroy"});node?.disconnect();}catch(e){}
+  try{node?.port.postMessage("destroy");node?.disconnect();}catch(e){}
   try{source?.disconnect();}catch(e){}
   try{destination?.stream.getTracks().forEach(t=>t.stop());}catch(e){}
   try{if(context&&context.state!=="closed")await context.close();}catch(e){}
