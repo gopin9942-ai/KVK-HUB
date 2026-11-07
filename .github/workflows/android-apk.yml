@@ -51,6 +51,32 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
+      - name: Prefer Android Media volume keys
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path("android/app/src/main/java")
+          files = list(root.rglob("MainActivity.java"))
+          if len(files) != 1:
+              raise SystemExit(f"Expected one MainActivity.java, found {len(files)}")
+          path = files[0]
+          content = path.read_text()
+          if "import android.media.AudioManager;" not in content:
+              content = content.replace("\\n", "\\n", 1)
+              lines = content.splitlines(keepends=True)
+              lines.insert(1, "import android.media.AudioManager;\\n")
+              content = "".join(lines)
+          if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
+              pattern = r"(public class MainActivity extends BridgeActivity\\s*\\{)"
+              method = """\\n    @Override\\n    public void onResume() {\\n        super.onResume();\\n        // Keep hardware volume keys on Media volume while KVK HUB is foregrounded.\\n        setVolumeControlStream(AudioManager.STREAM_MUSIC);\\n    }\\n"""
+              content, count = re.subn(pattern, lambda match: match.group(1) + method, content, count=1)
+              if count != 1:
+                  raise SystemExit("Could not find MainActivity class declaration")
+          path.write_text(content)
+          print(f"Configured Media volume controls in {path}")
+          PY
+
       - name: Add Android microphone permissions
         run: |
           python3 - <<'PY'
