@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:none}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
 .tileAdminMenu{position:absolute;top:6px;right:6px;z-index:30}
 .tileAdminDots{width:30px;height:30px;margin:0;padding:0;border-radius:8px;background:#303954;color:#fff;font-size:21px;line-height:1}
 .tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
@@ -162,9 +162,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="moderationPanel" style="display:none"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" style="width:auto;margin:0"> AI Noise Cancellation (ON by default — turn OFF if needed)</label>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" style="width:auto;margin:0"> AI Noise Cancellation (OFF by default — turn ON if needed)</label>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
- <p class="small" style="margin:8px 0 0">AI Noise Cancellation is ON by default. You can turn it OFF anytime from this setting.</p>
+ <p class="small" style="margin:8px 0 0">Low-CPU device noise suppression is used by default. Turn AI Noise Cancellation ON only if you need stronger filtering; it uses more CPU.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect</button>
@@ -416,11 +416,10 @@ const GTCRN_WORKLET_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-supp
 const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 // Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
-let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
-// Noise cancellation defaults ON; only an explicit user choice of "false" disables it.
-let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
+let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+// Prefer device/browser noise suppression by default; GTCRN is an opt-in high-CPU mode.
+let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")==="true";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
-let localSpeakingContext=null,localSpeakingAnalyser=null,localSpeakingSamples=null;
 $("noiseSuppressionToggle").checked=noiseCancellationEnabled;
 $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
@@ -442,8 +441,6 @@ function bindParticipantSpeaking(participant){
  });
 }
 const remoteAudioGains=new Map();
-const remoteAudioNodes=new Map();
-const remoteSpeakingMeters=new Map();
 const roomPresenceStops=new Map();
 // 100 on the slider is capped at 50% media-element volume.
 // This is a software limit, not a calibrated dB safety guarantee.
@@ -483,27 +480,7 @@ function attachRemoteAudio(track,identity){
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
  document.body.appendChild(audioEl);
- const nodeRecord={audioEl};
- // Analyse each incoming participant track locally. This reliably drives the
- // speaking glow on every listener, independent of room-wide speaker events.
- try{
-  const context=new AudioContext({latencyHint:"interactive"});
-  const source=context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
-  const analyser=context.createAnalyser();
-  const silentGain=context.createGain();
-  analyser.fftSize=512;
-  analyser.smoothingTimeConstant=0.35;
-  silentGain.gain.value=0;
-  source.connect(analyser);
-  analyser.connect(silentGain);
-  silentGain.connect(context.destination);
-  context.resume().catch(()=>{});
-  nodeRecord.source=source;nodeRecord.analyser=analyser;nodeRecord.gain=silentGain;
-  nodeRecord.context=context;nodeRecord.samples=new Float32Array(analyser.fftSize);
-  remoteSpeakingMeters.set(identity,nodeRecord);
- }catch(error){console.warn("Remote speaking meter unavailable:",error);}
- if(!remoteAudioNodes.has(identity))remoteAudioNodes.set(identity,new Set());
- remoteAudioNodes.get(identity).add(nodeRecord);
+ // LiveKit speaker events drive speaking indicators without another AudioContext.
  audioEl.play().catch(()=>{});
 }
 
@@ -681,34 +658,7 @@ async function waitForDenoiserReady(node,timeoutMs=25000){
   };
  });
 }
-function stopLocalSpeakingMeter(){
- if(localSpeakingContext){const ctx=localSpeakingContext;localSpeakingContext=null;localSpeakingAnalyser=null;localSpeakingSamples=null;try{if(ctx.state!=="closed")ctx.close();}catch(e){}}
-}
-function startLocalSpeakingMeter(){
- stopLocalSpeakingMeter();
- if(!localMicStream)return;
- try{
-  const context=new AudioContext({latencyHint:"interactive"});
-  const source=context.createMediaStreamSource(localMicStream);
-  const analyser=context.createAnalyser();
-  analyser.fftSize=512;
-  analyser.smoothingTimeConstant=0.35;
-  source.connect(analyser);
-  context.resume().catch(()=>{});
-  localSpeakingContext=context;localSpeakingAnalyser=analyser;localSpeakingSamples=new Float32Array(analyser.fftSize);
- }catch(error){console.warn("Local speaking meter unavailable:",error);}
-}
-function getLocalMicLevel(){
- if(!localSpeakingAnalyser||!localSpeakingSamples)return 0;
- // Some mobile browsers suspend secondary AudioContexts after async permission prompts.
- if(localSpeakingContext?.state==="suspended")localSpeakingContext.resume().catch(()=>{});
- localSpeakingAnalyser.getFloatTimeDomainData(localSpeakingSamples);
- let sum=0;
- for(const sample of localSpeakingSamples)sum+=sample*sample;
- return Math.sqrt(sum/localSpeakingSamples.length);
-}
 async function stopLocalMicrophone(room=activeRoom){
- stopLocalSpeakingMeter();
  const track=localPublishedMicTrack;localPublishedMicTrack=null;
  if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
  if(track){try{track.stop();}catch(e){}}
@@ -726,10 +676,10 @@ async function setRoomMicrophone(room,enabled){
   video:false
  });
  if(!noiseCancellationEnabled){
-  const stream=await getStream(false);
+  const stream=await getStream(true);
   const track=stream.getAudioTracks()[0];
   if(!track){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
-  try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;startLocalSpeakingMeter();}
+  try{await room.localParticipant.publishTrack(track,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=track;}
   catch(e){stream.getTracks().forEach(t=>t.stop());throw e;}
   status.textContent="Noise Cancellation OFF.";
   return;
@@ -764,7 +714,7 @@ async function setRoomMicrophone(room,enabled){
   const processedTrack=destination.stream.getAudioTracks()[0];
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
-  localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;startLocalSpeakingMeter();
+  localMicStream=stream;localMicContext=context;localMicSource=source;localMicNode=node;localMicDestination=destination;localPublishedMicTrack=processedTrack;
   status.textContent="AI Noise Cancellation ON (GTCRN — processing confirmed).";
  }catch(error){
   try{node?.port.postMessage("destroy");node?.disconnect();}catch(e){}
@@ -776,7 +726,7 @@ async function setRoomMicrophone(room,enabled){
   stream=await getStream(true);
   const fallbackTrack=stream.getAudioTracks()[0];
   if(!fallbackTrack){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
-  try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;startLocalSpeakingMeter();}
+  try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;}
   catch(publishError){stream.getTracks().forEach(t=>t.stop());throw publishError;}
   const reason=(error?.message||String(error)).replace(/\s+/g," ").slice(0,180);
   status.textContent="GTCRN unavailable ("+reason+"). Browser Noise Cancellation fallback is ON.";
@@ -844,27 +794,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
- room.on(RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
-  track.detach().forEach(el=>{
-   const nodes=remoteAudioNodes.get(participant.identity);
-   if(nodes){
-    for(const node of [...nodes]){
-     if(node.audioEl===el){
-      try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}
-      try{node.context?.close();}catch(e){}
-      nodes.delete(node);
-     }
-    }
-    if(!nodes.size)remoteAudioNodes.delete(participant.identity);
-   }
-   const meter=remoteSpeakingMeters.get(participant.identity);
-   if(meter?.audioEl===el){
-    try{meter.source?.disconnect();meter.analyser?.disconnect();meter.gain?.disconnect();}catch(e){}
-    try{meter.context?.close();}catch(e){}
-    remoteSpeakingMeters.delete(participant.identity);
-   }
-   el.remove();
-  });
+ room.on(RoomEvent.TrackUnsubscribed,track=>{
+  track.detach().forEach(el=>el.remove());
  });
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
@@ -873,41 +804,13 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  // Bind speaking-change listeners for participants who were already in the room
  // before this client finished connecting.
  for(const participant of room.remoteParticipants.values())bindParticipantSpeaking(participant);
- // Poll LiveKit's real per-participant audio level so the speaking glow updates continuously.
- if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
- speakerMeterTimer=setInterval(()=>{
-  if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Measure actual incoming audio locally. This works even if LiveKit's
-  // ActiveSpeakersChanged event is inconsistent across clients.
-  if(document.hidden)return;
-  for(const [identity,meter] of remoteSpeakingMeters){
-   if(meter.context?.state==="suspended")meter.context.resume().catch(()=>{});
-   let sum=0;
-   meter.analyser.getFloatTimeDomainData(meter.samples);
-   for(const sample of meter.samples)sum+=sample*sample;
-   const level=Math.sqrt(sum/meter.samples.length);
-   const speaking=level>=0.012;
-   if(speaking)activeSpeakerIds.add(identity);else activeSpeakerIds.delete(identity);
-   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
-   if(profile)profile.level=speaking?level:0;
-  }
-  const localProfile=participantProfiles.get(auth.currentUser?.uid);
-  if(localProfile){
-   const identity=room.localParticipant.identity;
-   const localLevel=getLocalMicLevel();
-   const speaking=micEnabled&&localLevel>=0.008;
-   if(speaking){activeSpeakerIds.add(identity);localProfile.level=localLevel;}
-   else{activeSpeakerIds.delete(identity);localProfile.level=0;}
-  }
-  updateParticipantIndicators();
- },250);
+ bindParticipantSpeaking(room.localParticipant);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
  const unlockRoomAudio=()=>{
   if(activeRoom!==room)return;
   room.startAudio().then(()=>{
-   for(const meter of remoteSpeakingMeters.values())meter.context?.resume().catch(()=>{});
    Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
    document.removeEventListener("pointerdown",unlockRoomAudio);
    document.removeEventListener("keydown",unlockRoomAudio);
@@ -1096,11 +999,10 @@ function updateParticipantIndicators(){
  }
 }
 function clearPresence(){
- if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
@@ -1236,7 +1138,17 @@ $("createBtn").onclick=async()=>{
 async function changeMicrophoneState(nextEnabled){
  if(!activeRoom)return;
  try{
-  await setRoomMicrophone(activeRoom,nextEnabled);
+  if(localPublishedMicTrack){
+   // Preserve the already-authorized capture session so background notification
+   // Unmute does not need a new getUserMedia permission/capture request.
+   if(localMicStream){
+    for(const inputTrack of localMicStream.getAudioTracks())inputTrack.enabled=nextEnabled;
+   }
+   localPublishedMicTrack.enabled=nextEnabled;
+  }else if(nextEnabled){
+   // First-time microphone permission/capture still needs a visible user action.
+   await setRoomMicrophone(activeRoom,true);
+  }
   micEnabled=nextEnabled;
   localStorage.setItem("kvkMicEnabled",String(micEnabled));
   $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
