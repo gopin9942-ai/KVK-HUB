@@ -238,6 +238,12 @@ async function setRoomMicrophone(room,enabled){
   source.connect(node);node.connect(destination);
   // The graph must be connected before AudioWorklet.process() receives microphone frames.
   await waitForDenoiserReady(node);
+  node.port.onmessage=event=>{
+   if(event.data?.type==="error"){
+    status.textContent="GTCRN processing stopped: "+(event.data.message||"unknown processing error");
+    console.error("GTCRN runtime error:",event.data.message);
+   }
+  };
   const processedTrack=destination.stream.getAudioTracks()[0];
   if(!processedTrack)throw new Error("AI processor did not create an audio track.");
   await room.localParticipant.publishTrack(processedTrack,{name:"microphone"});
