@@ -197,6 +197,43 @@ import {
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 
+let nativeKvkCall=null;
+let nativeKvkCallListenerReady=false;
+function getNativeKvkCall(){
+ if(!nativeKvkCall)nativeKvkCall=window.Capacitor?.Plugins?.KvkCall||null;
+ return nativeKvkCall;
+}
+async function startNativeVoiceService(roomName){
+ const plugin=getNativeKvkCall();
+ if(!plugin)return;
+ try{
+  const permission=await plugin.requestNotificationPermission();
+  if(permission?.granted===false)status.textContent="Notification permission is off. KVK HUB will try to keep the room active in background.";
+  await plugin.start({roomName,micEnabled});
+  if(!nativeKvkCallListenerReady){
+   nativeKvkCallListenerReady=true;
+   await plugin.addListener("notificationAction",async event=>{
+    try{
+     if(event?.action==="MUTE"&&activeRoom&&micEnabled)await changeMicrophoneState(false);
+     else if(event?.action==="DISCONNECT"&&activeRoom)await leaveVoiceRoom();
+    }catch(error){console.error("Notification action failed:",error);}
+   });
+  }
+ }catch(error){console.warn("Native foreground voice service unavailable:",error);status.textContent="Voice connected, but Android background service could not start: "+(error.message||error);}
+}
+async function updateNativeVoiceService(){
+ const plugin=getNativeKvkCall();
+ if(!plugin||!activeRoom)return;
+ try{await plugin.update({roomName:currentRoomCode||"Voice Room",micEnabled});}
+ catch(error){console.warn("Could not update KVK notification:",error);}
+}
+async function stopNativeVoiceService(){
+ const plugin=getNativeKvkCall();
+ if(!plugin)return;
+ try{await plugin.stop();}catch(error){console.warn("Could not stop KVK foreground service:",error);}
+}
+
+
 function askRoomConfirmation({title="Please Confirm",description="Are you sure?",confirmText="Confirm",cancelText="Cancel"}={}){
  return new Promise(resolve=>{
   const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
@@ -813,7 +850,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    el.remove();
   });
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
@@ -891,6 +928,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  setupModeration(roomSnap.data());
  $("muteBtn").textContent=data.muted?"Muted by Admin — tap after admin unmute":(micEnabled?"Mute Microphone":"Unmute Microphone");
  homePage.style.display="none";roomPage.style.display="block";
+ await startNativeVoiceService(roomName);
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
   const updatePresence=async()=>{
@@ -1018,6 +1056,7 @@ function clearPresence(){
  }
 }
 async function leaveVoiceRoom(){
+ await stopNativeVoiceService();
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
@@ -1144,20 +1183,22 @@ $("createBtn").onclick=async()=>{
   }
  }finally{button.disabled=false;}
 };
-$("muteBtn").onclick=async()=>{
+async function changeMicrophoneState(nextEnabled){
  if(!activeRoom)return;
- const nextEnabled=!micEnabled;
  try{
   await setRoomMicrophone(activeRoom,nextEnabled);
   micEnabled=nextEnabled;
   localStorage.setItem("kvkMicEnabled",String(micEnabled));
   $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
+  await updateNativeVoiceService();
  }catch(e){
   console.error(e);status.textContent="Microphone Error: "+e.message;
   micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
   $("muteBtn").textContent="Unmute Microphone";
+  await updateNativeVoiceService();
  }
-};
+}
+$("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("noiseSuppressionToggle").addEventListener("change",async()=>{
  noiseCancellationEnabled=$("noiseSuppressionToggle").checked;
  localStorage.setItem("kvkNoiseSuppression",String(noiseCancellationEnabled));
