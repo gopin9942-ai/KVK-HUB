@@ -244,7 +244,7 @@ async function setRoomMicrophone(room,enabled){
   if(!fallbackTrack){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
   try{await room.localParticipant.publishTrack(fallbackTrack,{name:"microphone"});localMicStream=stream;localPublishedMicTrack=fallbackTrack;}
   catch(publishError){stream.getTracks().forEach(t=>t.stop());throw publishError;}
-  status.textContent="AI model unavailable; browser Noise Cancellation fallback is ON.";
+  const reason=(error?.message||String(error)).replace(/\s+/g," ").slice(0,180);\n  status.textContent="GTCRN unavailable ("+reason+"). Browser Noise Cancellation fallback is ON.";
  }
 }
 async function connectVoiceRoom(roomName){
