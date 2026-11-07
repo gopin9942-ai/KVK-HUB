@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "232069395880",
+    "firebase_url": "https://kvk-voice-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "kvk-voice-app",
+    "storage_bucket": "kvk-voice-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:232069395880:android:7c94c8857a5367f470d99d",
+        "android_client_info": {
+          "package_name": "com.kvkhub.voice"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "232069395880-nrnvhhukuuvsrfqv1on4lbe76v0u780r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5-JtOhmucWpNDR6oRMVg6MgDn16ZAcdw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "232069395880-nrnvhhukuuvsrfqv1on4lbe76v0u780r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
