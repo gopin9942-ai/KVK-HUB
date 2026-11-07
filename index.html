@@ -348,9 +348,23 @@ async function connectVoiceRoom(roomName){
  if(speakerMeterTimer){clearInterval(speakerMeterTimer);speakerMeterTimer=null;}
  speakerMeterTimer=setInterval(()=>{
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
-  // Do not clear remote identities here: ActiveSpeakersChanged is the
-  // authoritative LiveKit signal and fires when remote participants start/stop talking.
-  // This timer is responsible only for the local user's microphone waveform.
+  // Reconcile every remote participant from LiveKit's current state as well as
+  // ActiveSpeakersChanged. This prevents a missed/stale event from leaving remote
+  // speaking indicators out of sync on other clients.
+  for(const participant of room.remoteParticipants.values()){
+   const identity=participant.identity;
+   const level=Number(participant.audioLevel)||0;
+   const speaking=!!participant.isSpeaking||level>=0.025;
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
+   if(speaking){
+    activeSpeakerIds.add(identity);
+    if(profile)profile.level=level;
+   }else{
+    activeSpeakerIds.delete(identity);
+    if(profile)profile.level=0;
+   }
+  }
+  // The local microphone analyser is intentionally isolated to this client's tile.
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
    const identity=room.localParticipant.identity;
