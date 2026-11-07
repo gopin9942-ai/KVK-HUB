@@ -61,6 +61,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/kvk-hub-debug.jks
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
@@ -86,9 +87,7 @@ jobs:
               }
           }
           EOF
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/kvk-hub-debug.jks
-
+      
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
