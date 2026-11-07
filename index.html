@@ -57,6 +57,13 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <p class="small" id="voiceMembers">Connecting member count...</p>
 <h3>People in this room</h3>
 <div id="participantGrid" class="participantGrid"></div>
+<div id="moderationPanel" class="card" style="display:none;margin:12px 0;padding:14px;border:1px solid #45d9ff">
+ <h3 style="margin:0 0 8px">🛡️ Room Admin</h3>
+ <p class="small">Only this room's creator can moderate members.</p>
+ <button id="refreshModerationBtn" class="secondary">Refresh Members / Banned List</button>
+ <h4>Room Members</h4><div id="adminParticipants"><div class="empty">Loading...</div></div>
+ <h4>Banned Members</h4><div id="adminBanned"><div class="empty">Loading...</div></div>
+</div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
@@ -77,6 +84,75 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
+async function workerAdminRequest(path,body={}){
+ if(!auth.currentUser)throw new Error("Please login first.");
+ const idToken=await auth.currentUser.getIdToken();
+ const response=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},body:JSON.stringify(body)});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||("Moderation request failed ("+response.status+")"));
+ return data;
+}
+function moderationArray(data,keys){
+ for(const key of keys)if(Array.isArray(data?.[key]))return data[key];
+ if(Array.isArray(data?.data))return data.data;
+ return [];
+}
+async function refreshModeration(){
+ if(!currentRoomCode||!auth.currentUser)return;
+ const participantsBox=$("adminParticipants"),bannedBox=$("adminBanned");
+ participantsBox.textContent="Loading members...";bannedBox.textContent="Loading banned members...";
+ try{
+  const [peopleData,bannedData]=await Promise.all([
+   workerAdminRequest("/participants",{roomName:currentRoomCode}),
+   workerAdminRequest("/banned-users",{roomName:currentRoomCode})
+  ]);
+  const people=moderationArray(peopleData,["participants","items"]);
+  const banned=moderationArray(bannedData,["bannedUsers","banned","users","items"]);
+  participantsBox.replaceChildren();
+  if(!people.length){const e=document.createElement("div");e.className="empty";e.textContent="No other members currently in the room.";participantsBox.append(e);}
+  for(const person of people){
+   const identity=person.identity||person.sid||person.uid;
+   if(!identity||identity===auth.currentUser.uid)continue;
+   const row=document.createElement("div");row.className="roomItem";
+   const label=document.createElement("strong");label.textContent=person.name||person.metadata?.name||identity;
+   const sub=document.createElement("div");sub.className="roomMeta";sub.textContent=identity;
+   const actions=document.createElement("div");
+   const mute=document.createElement("button");mute.className="secondary";mute.textContent="Mute";mute.onclick=()=>moderationAction("/mute",identity);
+   const unmute=document.createElement("button");unmute.className="secondary";unmute.textContent="Unmute";unmute.onclick=()=>moderationAction("/unmute",identity);
+   const kick=document.createElement("button");kick.className="secondary";kick.textContent="Kick";kick.onclick=()=>moderationAction("/kick",identity);
+   const ban=document.createElement("button");ban.textContent="Ban";ban.onclick=()=>moderationAction("/ban",identity);
+   actions.append(mute,unmute,kick,ban);row.append(label,sub,actions);participantsBox.append(row);
+  }
+  bannedBox.replaceChildren();
+  if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned members.";bannedBox.append(e);}
+  for(const entry of banned){
+   const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||entry.name||"");
+   if(!identity)continue;
+   const row=document.createElement("div");row.className="roomItem";
+   const label=document.createElement("strong");label.textContent=identity;
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.onclick=()=>moderationAction("/unban",identity);
+   row.append(label,unban);bannedBox.append(row);
+  }
+ }catch(error){
+  console.error("Moderation refresh failed:",error);
+  participantsBox.textContent="Could not load members: "+error.message;
+  bannedBox.textContent="Could not load banned list: "+error.message;
+ }
+}
+async function moderationAction(path,targetIdentity){
+ if(!currentRoomCode)return;
+ try{
+  await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity});
+  status.textContent="Moderation action completed.";
+  await refreshModeration();
+ }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;}
+}
+function setupModeration(roomData){
+ const isOwner=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
+ $("moderationPanel").style.display=isOwner?"block":"none";
+ if(isOwner)refreshModeration();
+}
+
 const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
 const GTCRN_WORKLET_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn/workletProcessor.js";
 const $=id=>document.getElementById(id);
@@ -433,6 +509,7 @@ async function connectVoiceRoom(roomName){
  catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;
  $("roomInfo").textContent="Room connected";
+ setupModeration(roomSnap.data());
  $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
  homePage.style.display="none";roomPage.style.display="block";
  try{
@@ -516,6 +593,7 @@ $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent=
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
 onAuthStateChanged(auth,user=>{if(user)showHome(user);else showLogin();});
 $("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
+$("refreshModerationBtn").onclick=refreshModeration;
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
  if(!code){status.textContent="Enter a room code!";return;}
@@ -526,7 +604,8 @@ $("createBtn").onclick=async()=>{
  const code="kvk-"+Math.random().toString(36).slice(2,8);
  $("createBtn").disabled=true;status.textContent="Creating public room...";
  try{
-  await setDoc(doc(db,"rooms",code),{name:(auth.currentUser.displayName||"User")+"'s room",isPublic:true,createdBy:auth.currentUser.uid,createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()});
+  await setDoc(doc(db,"rooms",code),{name:(auth.currentUser.displayName||"User")+"'s room",isPublic:true,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()});
+  await workerAdminRequest("/register-room",{roomName:code});
   $("roomCode").value=code;
   await connectVoiceRoom(code);
   status.textContent="Room created! Tap “Copy Room Code” to share it privately.";
