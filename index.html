@@ -107,18 +107,17 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
  <button class="secondary" id="closeProfileBtn">Close</button>
 </div></div>
 <div class="card"><h2>🔒 Create / Join Room</h2>
-<p class="small">Create a public room or enter a room code shared by a friend.</p>
+<p class="small">Create a password-protected room or join a room using its Room ID.</p>
 <input id="roomCode" placeholder="Enter Room ID" maxlength="40">
 <button id="joinBtn">Join Room</button>
-<button class="secondary" id="createBtn">Create Public Room</button>
-<button class="secondary" id="createPrivateBtn">Create Private Room</button>
-<p class="small">Private rooms are hidden from Public Rooms. Share the invite link and password only with people you trust.</p>
+<button class="secondary" id="createBtn">Create Room (Password Protected)</button>
+<p class="small">Create a room, then share its invite link and password with your friends.</p>
 </div>
 <div class="card">
-<h2>🌍 Public Rooms</h2>
-<p class="small">Public rooms created by users appear here. Online count updates while members are connected.</p>
-<button id="refreshRoomsBtn" class="secondary">Refresh Rooms</button>
-<div id="publicRoomList"><div class="empty">Loading public rooms...</div></div>
+<h2>📁 My Rooms</h2>
+<p class="small">Rooms you created and rooms you joined are saved here.</p>
+<button id="refreshRoomsBtn" class="secondary">Refresh My Rooms</button>
+<div id="myRoomList"><div class="empty">Loading your rooms...</div></div>
 </div>
 
 </section>
@@ -453,45 +452,35 @@ function showHome(user){
  $("userName").textContent="Hello, "+(user.displayName||"User");
  loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
  status.textContent="You are logged in!";
- startPublicRooms();
+ startMyRooms();
 }
 function showLogin(){
- stopPublicRooms();
+ stopMyRooms();
  loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";
  status.textContent="Please login to continue.";
 }
-function stopPublicRooms(){
+function stopMyRooms(){
  if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
- for(const stop of roomPresenceStops.values())stop();
- roomPresenceStops.clear();
 }
-function startPublicRooms(){
- stopPublicRooms();
- const list=$("publicRoomList");
- list.innerHTML='<div class="empty">Loading public rooms...</div>';
- stopRoomsListener=onSnapshot(query(collection(db,"rooms"),where("isPublic","==",true)),snapshot=>{
-  const rooms=snapshot.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.isPublic===true);
-  rooms.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-  for(const stop of roomPresenceStops.values())stop();
-  roomPresenceStops.clear();
+function startMyRooms(){
+ stopMyRooms();
+ const list=$("myRoomList");
+ list.innerHTML='<div class="empty">Loading your rooms...</div>';
+ const uid=auth.currentUser?.uid;
+ if(!uid){list.textContent="Please login to view your rooms.";return;}
+ stopRoomsListener=onSnapshot(collection(db,"users",uid,"myRooms"),snapshot=>{
+  const rooms=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+  rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
-  if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No public rooms yet. Create the first room!";list.append(empty);return;}
+  if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
   for(const room of rooms){
    const item=document.createElement("div");item.className="roomItem";
-   const name=document.createElement("strong");name.textContent=room.name||room.id;
-   const count=document.createElement("div");count.className="roomMeta";count.textContent="Checking online members...";
+   const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
+   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Created by you":"Joined by you")+" · Room ID: "+room.id;
    const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
-   item.append(name,count,join);list.append(item);
-   if(!roomPresenceStops.has(room.id)){
-    const stop=onSnapshot(collection(db,"rooms",room.id,"participants"),people=>{
-     const now=Date.now();
-     const online=people.docs.filter(p=>{const seen=p.data().lastSeen?.toMillis?.()||0;return now-seen<90000;}).length;
-     count.textContent=online+" online";
-    },err=>{count.textContent="Member count unavailable";console.error(err);});
-    roomPresenceStops.set(room.id,stop);
-   }
+   item.append(name,meta,join);list.append(item);
   }
- },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load rooms. Check Firestore security rules.</div>';status.textContent="ROOM LIST ERROR: "+error.message;});
+ },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
 }
 async function waitForDenoiserReady(node,timeoutMs=25000){
  return new Promise((resolve,reject)=>{
@@ -732,6 +721,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   }
  }
  activeRoom=room;currentRoomCode=roomName;
+ // Save created and joined rooms in the user's My Rooms list.
+ setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomName),{roomName,name:roomSnap.data().name||roomName,role:roomSnap.data().creatorUid===auth.currentUser.uid?"created":"joined",updatedAt:serverTimestamp()},{merge:true}).catch(error=>{console.error("Could not save room to My Rooms:",error);status.textContent="Connected, but My Rooms could not be updated. Check Firestore rules.";});
  // Remember the room for this signed-in user so a refresh can restore it.
  localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
  $("roomInfo").textContent="Room connected";
@@ -860,7 +851,7 @@ onAuthStateChanged(auth,async user=>{
   catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
  }
 });
-$("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
+$("refreshRoomsBtn").onclick=()=>{startMyRooms();status.textContent="Refreshing My Rooms...";};
 function stopDeleteCountdown(){
  if(deleteCountdownTimer){clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;}
  deleteCountdownRemaining=0;
@@ -970,19 +961,37 @@ $("createPrivateBtn").onclick=async()=>{
  }finally{button.disabled=false;$("createBtn").disabled=false;}
 };
 $("createBtn").onclick=async()=>{
- const code="kvk-"+Math.random().toString(36).slice(2,8);
- $("createBtn").disabled=true;status.textContent="Creating public room...";
+ const password=prompt("Create a password for this room (at least 8 characters):");
+ if(password===null)return;
+ if(password.length<8){status.textContent="Room password must be at least 8 characters.";return;}
+ const code="kvk-room-"+Math.random().toString(36).slice(2,8);
+ const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
+ let firestoreCreated=false,workerCreated=false;
  try{
-  await setDoc(doc(db,"rooms",code),{name:(auth.currentUser.displayName||"User")+"'s room",isPublic:true,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()});
-  await workerAdminRequest("/register-room",{roomName:code});
+  await setDoc(doc(db,"rooms",code),{
+   name:(auth.currentUser.displayName||"User")+"'s room",
+   isPublic:false,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,
+   createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()
+  });
+  firestoreCreated=true;
+  await workerAdminRequest("/create-private-room",{roomName:code,password});
+  workerCreated=true;
+  await setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",code),{
+   roomName:code,name:(auth.currentUser.displayName||"User")+"'s room",
+   role:"created",updatedAt:serverTimestamp()
+  },{merge:true});
   $("roomCode").value=code;
-  await connectVoiceRoom(code);
-  status.textContent="Room created! Tap “Copy Room Code” to share it privately.";
+  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
+  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Room created. Invite link copied! Share the password separately.";}
+  catch(copyError){status.textContent="Room created. Invite link: "+inviteUrl.toString()+" — share the password separately.";}
+  await connectVoiceRoom(code,false,password);
  }catch(e){
-  console.error("Create room failed:",e);
-  status.textContent="ROOM ERROR: "+e.message;
-  try{if(!activeRoom)await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
- }finally{$("createBtn").disabled=false;}
+  console.error("Create room failed:",e);status.textContent="CREATE ROOM ERROR: "+e.message;
+  if(firestoreCreated&&!activeRoom){
+   try{if(workerCreated)await workerAdminRequest("/delete-room",{roomName:code});}catch(cleanupError){console.error(cleanupError);}
+   try{await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
+  }
+ }finally{button.disabled=false;}
 };
 $("muteBtn").onclick=async()=>{
  if(!activeRoom)return;
