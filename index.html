@@ -513,14 +513,25 @@ async function connectVoiceRoom(roomName){
  };
  document.addEventListener("pointerdown",unlockRoomAudio);
  document.addEventListener("keydown",unlockRoomAudio);
- try{
-  await setRoomMicrophone(room,micEnabled);
+ // A server-side admin mute must not prevent joining the room.
+ // Join first with the restricted token; only try to publish a microphone
+ // when the Worker says this participant is not locked.
+ if(data.muted){
+  micEnabled=false;
+  localStorage.setItem("kvkMicEnabled","false");
+  status.textContent="You joined successfully. Your microphone is locked by the room admin.";
+ }else{
+  try{
+   await setRoomMicrophone(room,micEnabled);
+  }catch(e){
+   await room.disconnect();
+   throw new Error("Microphone permission/device error: "+e.message);
+  }
  }
- catch(e){await room.disconnect();throw new Error("Microphone permission/device error: "+e.message);}
  activeRoom=room;currentRoomCode=roomName;
  $("roomInfo").textContent="Room connected";
  setupModeration(roomSnap.data());
- $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
+ $("muteBtn").textContent=data.muted?"Muted by Admin — tap after admin unmute":(micEnabled?"Mute Microphone":"Unmute Microphone");
  homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
