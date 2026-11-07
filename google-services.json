@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "232069395880-kg09qtfmf1e1gqqn7gdmvq1e5ermt5sg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kvkhub.voice",
+            "certificate_hash": "2629fa9037a0a491fa3a571d133971cea11b42a9"
+          }
+        },
+        {
           "client_id": "232069395880-kg7ihn9v75f8tee028qmloa6m71q3q0a.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
