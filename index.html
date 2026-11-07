@@ -227,11 +227,12 @@ async function refreshModeration(){
    const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
    if(memberPhoto){avatar.src=memberPhoto;avatar.onerror=()=>{avatar.style.display="none";};}
    else{avatar.style.display="none";}
-   metaLine.append(userId,avatar);
+   metaLine.append(userId);
    const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
    details.append(label,metaLine,sub);
    const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=async()=>{const ok=await moderationAction("/unban",identity);if(ok){try{await deleteDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));}catch(e){console.warn("Could not clear saved ban profile:",e);}}};
-   row.append(details,unban);bannedBox.append(row);
+   row.style.cssText="display:flex;align-items:center;gap:12px";
+   row.append(avatar,details,unban);bannedBox.append(row);
   }
  }catch(error){
   console.error("Banned users refresh failed:",error);
