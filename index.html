@@ -844,6 +844,8 @@ onAuthStateChanged(auth,async user=>{
  try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
  if(!user){showLogin();return;}
  showHome(user);
+ const inviteRoom=new URLSearchParams(location.search).get("room");
+ if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom))$("roomCode").value=inviteRoom;
  const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
  if(savedRoom){
   status.textContent="Restoring your previous room...";
