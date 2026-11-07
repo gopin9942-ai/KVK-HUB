@@ -84,6 +84,16 @@ public class KvkCallPlugin extends Plugin {
         call.resolve();
     }
 
+    @Override
+    public void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        if (intent != null && "com.kvkhub.voice.NOTIFICATION_UNMUTE".equals(
+            intent.getStringExtra("kvkNotificationAction"))) {
+            dispatchNotificationAction("UNMUTE");
+            intent.removeExtra("kvkNotificationAction");
+        }
+    }
+
     static void dispatchNotificationAction(String action) {
         KvkCallPlugin plugin = instance;
         if (plugin == null) return;
@@ -112,6 +122,8 @@ public class KvkVoiceService extends Service {
     static final String ACTION_START = "com.kvkhub.voice.action.START";
     static final String ACTION_UPDATE = "com.kvkhub.voice.action.UPDATE";
     static final String ACTION_TOGGLE_MIC = "com.kvkhub.voice.action.TOGGLE_MIC";
+    static final String ACTION_MUTE = "com.kvkhub.voice.action.MUTE";
+    static final String ACTION_UNMUTE = "com.kvkhub.voice.action.UNMUTE";
     static final String ACTION_DISCONNECT = "com.kvkhub.voice.action.DISCONNECT";
     private static final String CHANNEL_ID = "kvk_voice_session";
     private static final int NOTIFICATION_ID = 7401;
@@ -166,7 +178,7 @@ public class KvkVoiceService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent toggleMicIntent = new Intent(this, KvkVoiceActionReceiver.class);
-        toggleMicIntent.setAction(ACTION_TOGGLE_MIC);
+        toggleMicIntent.setAction(micEnabled ? ACTION_MUTE : ACTION_UNMUTE);
         PendingIntent toggleMicPending = PendingIntent.getBroadcast(this, 2, toggleMicIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
@@ -212,8 +224,15 @@ public class KvkVoiceActionReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
-        if (KvkVoiceService.ACTION_TOGGLE_MIC.equals(action)) {
-            KvkCallPlugin.dispatchNotificationAction("TOGGLE_MIC");
+        if (KvkVoiceService.ACTION_MUTE.equals(action)) {
+            KvkCallPlugin.dispatchNotificationAction("MUTE");
+        } else if (KvkVoiceService.ACTION_UNMUTE.equals(action)) {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch != null) {
+                launch.putExtra("kvkNotificationAction", "com.kvkhub.voice.NOTIFICATION_UNMUTE");
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                context.startActivity(launch);
+            }
         } else if (KvkVoiceService.ACTION_DISCONNECT.equals(action)) {
             KvkCallPlugin.dispatchNotificationAction("DISCONNECT");
         }
