@@ -193,11 +193,13 @@ async function refreshModeration(){
    // Ban records may contain profile metadata. If not, try the public user profile
    // stored under the Firebase UID in users/{uid}.
    let profileData=typeof entry==="object"?entry:{};
-   let profileUid=profileData.uid||profileData.targetUid||profileData.firebaseUid||"";
+   let profileUid=profileData.targetUid||profileData.firebaseUid||profileData.profileUid||"";
    let presenceData={};
    try{
-    // The ban list often contains only a LiveKit identity, not the Firebase UID.
-    // Resolve that identity through this room's participant records first.
+    // Durable profile snapshot written when the member is banned.
+    const savedBanProfile=await getDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));
+    if(savedBanProfile.exists())profileData={...profileData,...savedBanProfile.data()};
+    // Resolve the Firebase UID from current presence only when no durable UID exists.
     if(!profileUid){
      const peopleSnap=await getDocs(collection(db,"rooms",currentRoomCode,"participants"));
      const matched=peopleSnap.docs.find(person=>{
@@ -206,25 +208,29 @@ async function refreshModeration(){
      });
      if(matched){profileUid=matched.id;presenceData=matched.data();}
     }
-    if(!profileUid)profileUid=identity;
-    const profileSnap=await getDoc(doc(db,"users",profileUid));
-    if(profileSnap.exists())profileData={...profileData,...profileSnap.data()};
+    if(profileUid){
+     const profileSnap=await getDoc(doc(db,"users",profileUid));
+     if(profileSnap.exists())profileData={...profileData,...profileSnap.data()};
+    }
    }catch(profileError){console.warn("Could not load banned member profile:",profileError);}
    const memberName=profileData.displayName||profileData.name||presenceData.name||"Member";
    const memberPhoto=profileData.photoDataUrl||profileData.photoURL||profileData.photoUrl||presenceData.photoURL||"";
    const publicId=profileData.publicId||profileData.kvkUserId||profileUid||identity;
    const row=document.createElement("div");row.className="roomItem adminMemberRow";
-   const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
+   const details=document.createElement("div");details.className="adminMemberDetails";details.style.cssText="flex:1;min-width:0";
+   const label=document.createElement("strong");label.textContent=memberName;
+   label.style.cssText="display:block;font-size:13px;line-height:1.3";
+   const metaLine=document.createElement("div");metaLine.style.cssText="display:flex;align-items:center;gap:8px;margin-top:4px;min-width:0";
+   const userId=document.createElement("div");userId.className="roomMeta";userId.style.cssText="margin:0;overflow-wrap:anywhere";
+   userId.textContent=publicId?(String(publicId).startsWith("@")?publicId:"@"+publicId):"User ID: "+identity;
+   const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
    if(memberPhoto){avatar.src=memberPhoto;avatar.onerror=()=>{avatar.style.display="none";};}
    else{avatar.style.display="none";}
-   const details=document.createElement("div");details.className="adminMemberDetails";details.style.flex="1";
-   const label=document.createElement("strong");label.textContent=memberName;
-   label.style.fontSize="13px";
-   const userId=document.createElement("div");userId.className="roomMeta";userId.textContent=publicId?(String(publicId).startsWith("@")?publicId:"@"+publicId):"User ID: "+identity;
+   metaLine.append(userId,avatar);
    const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
-   details.append(label,userId,sub);
-   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=()=>moderationAction("/unban",identity);
-   row.append(avatar,details,unban);bannedBox.append(row);
+   details.append(label,metaLine,sub);
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=async()=>{const ok=await moderationAction("/unban",identity);if(ok){try{await deleteDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));}catch(e){console.warn("Could not clear saved ban profile:",e);}}};
+   row.append(details,unban);bannedBox.append(row);
   }
  }catch(error){
   console.error("Banned users refresh failed:",error);
@@ -720,9 +726,13 @@ async function connectVoiceRoom(roomName,restoreMode=false){
  homePage.style.display="none";roomPage.style.display="block";
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
-  const updatePresence=()=>setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",lastSeen:serverTimestamp()},{merge:true});
+  const updatePresence=async()=>{
+   let profile={displayName:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",publicId:""};
+   try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
+   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,lastSeen:serverTimestamp()},{merge:true});
+  };
   await updatePresence();
-  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{const present=new Set();for(const snap of people.docs){const d=snap.data();const seen=d.lastSeen?.toMillis?.()||0;if(Date.now()-seen<90000){present.add(snap.id);const prior=participantProfiles.get(snap.id);participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});}}for(const id of [...participantProfiles.keys()])if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}renderParticipants();},err=>{console.error(err);$("participantGrid").textContent="Participant list unavailable";});
   presenceTimer=setInterval(()=>updatePresence().catch(console.error),25000);
   stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const now=Date.now();const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
@@ -773,7 +783,14 @@ function renderParticipants(){
      try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
      finally{muteButton.disabled=false;}
     };
-    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;await moderationAction("/ban",identity,{targetUid:profile.uid||p.uid,targetName:profile.name||"User",targetPhotoURL:profile.photoURL||""});};
+    banButton.onclick=async event=>{
+     event.stopPropagation();dropdown.hidden=true;
+     const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;
+     let savedProfile={uid:profile.uid||p.uid,displayName:profile.name||"User",photoURL:profile.photoURL||"",publicId:profile.publicId||""};
+     try{const snap=await getDoc(doc(db,"users",savedProfile.uid));if(snap.exists())savedProfile={...savedProfile,...snap.data()};}catch(e){console.warn("Could not read member profile before ban:",e);}
+     const ok=await moderationAction("/ban",identity,{targetUid:savedProfile.uid,targetName:savedProfile.displayName,targetPhotoURL:savedProfile.photoDataUrl||savedProfile.photoURL||"",targetPublicId:savedProfile.publicId||""});
+     if(ok){try{await setDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity),{uid:savedProfile.uid,displayName:savedProfile.displayName||"Member",photoDataUrl:savedProfile.photoDataUrl||null,photoURL:savedProfile.photoURL||"",publicId:savedProfile.publicId||"",livekitIdentity:identity,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.error("Could not save banned profile snapshot:",e);status.textContent="User banned, but profile details could not be saved. Check Firestore rules.";}}
+    };
     dropdown.append(muteButton,banButton);
     dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
     menuWrap.append(dots,dropdown);tile.append(menuWrap);
