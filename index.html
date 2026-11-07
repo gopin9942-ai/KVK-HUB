@@ -197,6 +197,29 @@ import {
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 
+function askRoomConfirmation({title="Please Confirm",description="Are you sure?",confirmText="Confirm",cancelText="Cancel"}={}){
+ return new Promise(resolve=>{
+  const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
+  const error=$("passwordModalError"),submit=$("passwordModalSubmit"),cancel=$("passwordModalCancel");
+  $("passwordModalTitle").textContent=title;
+  $("passwordModalDescription").textContent=description;
+  input.style.display="none";input.required=false;input.value="";
+  error.style.display="none";cancel.textContent=cancelText;submit.textContent=confirmText;
+  overlay.style.display="flex";
+  const finish=value=>{
+   overlay.style.display="none";input.style.display="";input.required=true;error.style.display="";
+   cancel.textContent="Cancel";submit.textContent="Continue";
+   form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);
+   input.removeEventListener("keydown",onKeyDown);resolve(value);
+  };
+  const onCancel=()=>finish(false);
+  const onKeyDown=event=>{if(event.key==="Escape"){event.preventDefault();finish(false);}};
+  const onSubmit=event=>{event.preventDefault();finish(true);};
+  form.addEventListener("submit",onSubmit);cancel.addEventListener("click",onCancel);input.addEventListener("keydown",onKeyDown);
+  submit.focus();
+ });
+}
+
 function askRoomPassword({title="Room Password",description="Enter your room password to continue.",confirmText="Continue",minLength=3}={}){
  return new Promise(resolve=>{
   const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
@@ -913,7 +936,8 @@ function renderParticipants(){
      const identity=getTargetIdentity();
      const profile=participantProfiles.get(p.uid)||p;
      const memberName=profile.name||"this member";
-     if(!confirm("Kick "+memberName+" from this room? They can rejoin with the same room password."))return;
+     const confirmed=await askRoomConfirmation({title:"Kick Member",description:"Kick "+memberName+" from this room? They can rejoin later without entering the room password again.",confirmText:"Kick User"});
+     if(!confirmed)return;
      kickButton.disabled=true;kickButton.textContent="Kicking...";
      try{
       const succeeded=await moderationAction("/kick",identity);
