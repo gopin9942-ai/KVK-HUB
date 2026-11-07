@@ -23,7 +23,62 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:none}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:none}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}
+header{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 15px;background:linear-gradient(135deg,#191f35,#202b49);border-bottom:1px solid #303954}
+.brandMark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#35c9f4,#2876a8);box-shadow:0 0 22px #35c9f455;font-size:25px}
+.brandCopy{text-align:left}.brandCopy h1{font-size:25px;letter-spacing:1.4px}.brandCopy p{margin:4px 0 0;font-size:10px;font-weight:800;letter-spacing:2px;color:#aab5d0}
+@media(max-width:600px){
+ html,body{width:100%;height:100%;min-height:100%;overflow:hidden}
+ body{min-height:100dvh;display:flex;flex-direction:column}
+ header{flex:0 0 auto;padding:9px 12px;gap:9px}
+ .brandMark{width:39px;height:39px;border-radius:12px;font-size:21px}
+ .brandCopy h1{font-size:21px}.brandCopy p{font-size:9px;letter-spacing:1.5px}
+ main{width:100%;max-width:520px;flex:1;min-height:0;display:flex;flex-direction:column;padding:9px 10px 5px}
+ #homePage{flex:1;min-height:0;display:none;grid-template-rows:auto auto minmax(0,1fr);gap:8px;overflow:hidden}
+ #homePage>.card{min-height:0;margin:0;padding:11px 12px;border-radius:13px}
+ #homePage>.card:first-child h2{font-size:18px;margin:0 0 3px}
+ #homePage>.card:first-child>#userName{font-size:12px;margin:3px 0}
+ #homePage .profileTop{margin-top:7px;padding:8px;gap:9px;border-radius:11px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:43px;height:43px}
+ #homePage .profileTop strong{font-size:13px}
+ #homePage .profileTop small{font-size:10px}
+ #homePage .profileMenuButton{width:34px;height:34px}
+ #homePage>.card:nth-child(2) h2{font-size:16px;margin:0 0 4px}
+ #homePage>.card:nth-child(2) p{font-size:11px;line-height:1.3;margin:3px 0}
+ #homePage>.card:nth-child(2) input{padding:10px;margin-top:7px;font-size:14px}
+ #homePage>.card:nth-child(2) button{padding:10px;margin-top:7px;font-size:13px}
+ #homePage>.card:nth-child(2) .small:last-child{display:none}
+ #homePage>.card:nth-child(3){display:flex;flex-direction:column;overflow:hidden}
+ #homePage>.card:nth-child(3) h2{font-size:16px;margin:0 0 3px}
+ #homePage>.card:nth-child(3)>p{font-size:11px;line-height:1.25;margin:2px 0 5px}
+ #refreshRoomsBtn{width:auto;align-self:flex-start;padding:7px 10px;margin:2px 0 5px;font-size:11px}
+ #myRoomList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #myRoomList .roomItem{padding:8px 9px;margin-top:6px}
+ #myRoomList .roomMeta{font-size:11px;margin-top:3px}
+ #myRoomList .roomItem button{padding:8px;margin-top:6px;font-size:12px}
+ #myRoomList .empty{padding:8px;font-size:12px}
+ #status{flex:0 0 auto;margin:3px 0 0;min-height:18px;font-size:11px;line-height:1.3}
+ #loginPage{margin:0;padding:18px}
+ #loginPage h2{font-size:20px}
+ #loginPage p{font-size:13px}
+ #loginPage button{padding:12px}
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.card{margin:0;padding:13px}
+}
+@media(max-width:600px) and (max-height:680px){
+ header{padding:6px 10px}
+ .brandMark{width:34px;height:34px;font-size:18px}
+ .brandCopy h1{font-size:19px}
+ main{padding:6px 8px 3px}
+ #homePage{gap:6px}
+ #homePage>.card{padding:8px 10px}
+ #homePage>.card:first-child h2{font-size:16px}
+ #homePage .profileTop{margin-top:4px;padding:6px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:37px;height:37px}
+ #homePage>.card:nth-child(2) input{padding:8px;margin-top:5px}
+ #homePage>.card:nth-child(2) button{padding:8px;margin-top:5px}
+ #status{font-size:10px}
+}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
 .tileAdminMenu{position:absolute;top:6px;right:6px;z-index:30}
 .tileAdminDots{width:30px;height:30px;margin:0;padding:0;border-radius:8px;background:#303954;color:#fff;font-size:21px;line-height:1}
 .tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
@@ -85,7 +140,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 </style>
 </head>
 <body>
-<header><h1>KVK HUB</h1><p>Connect • Talk • Enjoy</p></header>
+<header><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
 <main>
 <section id="loginPage" class="card">
 <h2>Welcome to KVK HUB 🎙️</h2><p>Sign in to connect with your friends.</p>
