@@ -67,20 +67,21 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div class="card">
 <h2>🎙️ Voice Room</h2>
 <p class="small">You are connected to this voice room.</p>
-<p id="roomInfo" class="small">Room connected</p>
+<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+ <p id="roomInfo" class="small" style="margin:8px 0;min-width:0;overflow-wrap:anywhere">Room connected</p>
+ <button id="roomSettingsBtn" class="secondary" style="width:auto;flex:0 0 auto;margin:0;padding:9px 12px;display:none">⚙️ Settings</button>
+</div>
+<div id="roomSettingsPanel" class="card" style="display:none;margin:10px 0;padding:14px">
+ <h3 style="margin:0 0 10px">⚙️ Room Settings</h3>
+ <h4 style="margin:8px 0">Banned Users</h4>
+ <div id="adminBanned"><div class="empty">Open settings to load banned users.</div></div>
+ <button id="deleteChannelBtn" style="display:none;background:#8f3445;color:white">Delete Channel</button>
+</div>
 <button id="copyRoomCodeBtn" class="secondary">Copy Room Code</button>
 <p class="small" id="voiceMembers">Connecting member count...</p>
 <h3>People in this room</h3>
 <div id="participantGrid" class="participantGrid"></div>
-<div id="moderationPanel" class="card" style="display:none;margin:12px 0;padding:14px;border:1px solid #45d9ff">
- <h3 style="margin:0 0 8px">🛡️ Room Admin</h3>
- <p class="small">Only this room's creator can moderate members.</p>
- <details class="roomSettings" style="margin-top:14px;background:#10182b;border:1px solid #35415f;border-radius:10px;padding:12px">
-  <summary style="cursor:pointer;font-weight:bold">⚙️ Room Settings</summary>
-  <button id="refreshModerationBtn" class="secondary">Refresh Banned Users</button>
-  <h4>Banned Users</h4><div id="adminBanned"><div class="empty">Loading...</div></div>
- </details>
-</div>
+<div id="moderationPanel" style="display:none"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" checked style="width:auto;margin:0"> AI Noise Cancellation (Default ON)</label>
@@ -127,20 +128,27 @@ async function refreshModeration(){
    const identity=typeof entry==="string"?entry:(entry.uid||entry.identity||"");
    if(!identity)continue;
    const row=document.createElement("div");row.className="roomItem adminMemberRow";
-   const label=document.createElement("strong");label.textContent="Banned member";
-   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";
-   unban.onclick=()=>moderationAction("/unban",identity);
-   row.append(label,unban);bannedBox.append(row);
+   const details=document.createElement("div");details.className="adminMemberDetails";
+   const label=document.createElement("strong");
+   label.textContent=typeof entry==="object"?(entry.name||"Banned member"):"Banned member";
+   const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
+   details.append(label,sub);
+   if(typeof entry==="object"&&entry.photoURL){
+    const avatar=document.createElement("img");avatar.src=entry.photoURL;avatar.alt="";avatar.style.cssText="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 auto";
+    row.append(avatar);
+   }
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=()=>moderationAction("/unban",identity);
+   row.append(details,unban);bannedBox.append(row);
   }
  }catch(error){
   console.error("Banned users refresh failed:",error);
   bannedBox.textContent="Could not load banned list: "+error.message;
  }
 }
-async function moderationAction(path,targetIdentity){
+async function moderationAction(path,targetIdentity,extra={}){
  if(!currentRoomCode)return;
  try{
-  await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity});
+  await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity,...extra});
   status.textContent="Moderation action completed.";
   await refreshModeration();
   return true;
@@ -159,8 +167,9 @@ function identityAudioIsMuted(identity){
 }
 function setupModeration(roomData){
  isRoomAdmin=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
- $("moderationPanel").style.display=isRoomAdmin?"block":"none";
- if(isRoomAdmin)refreshModeration();
+ $("moderationPanel").style.display="none";
+ $("roomSettingsBtn").style.display=isRoomAdmin?"block":"none";
+ $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
 }
 
 const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
@@ -588,7 +597,7 @@ function renderParticipants(){
      try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
      finally{muteButton.disabled=false;}
     };
-    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();await moderationAction("/ban",identity);};
+    banButton.onclick=async event=>{event.stopPropagation();dropdown.hidden=true;const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;await moderationAction("/ban",identity,{targetName:profile.name||"User",targetPhotoURL:profile.photoURL||""});};
     dropdown.append(muteButton,banButton);
     dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
     menuWrap.append(dots,dropdown);tile.append(menuWrap);
@@ -634,7 +643,27 @@ $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent=
 $("logoutBtn").onclick=async()=>{ $("logoutBtn").disabled=true;try{await leaveVoiceRoom();await logoutUser();}catch(e){console.error(e);status.textContent="Logout Error: "+e.message;}finally{$("logoutBtn").disabled=false;}};
 onAuthStateChanged(auth,user=>{if(user)showHome(user);else showLogin();});
 $("refreshRoomsBtn").onclick=()=>{startPublicRooms();status.textContent="Refreshing public rooms...";};
-$("refreshModerationBtn").onclick=refreshModeration;
+$("roomSettingsBtn").onclick=()=>{
+ const panel=$("roomSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ if(opening)refreshModeration();
+};
+$("deleteChannelBtn").onclick=async()=>{
+ if(!isRoomAdmin||!currentRoomCode)return;
+ const roomToDelete=currentRoomCode;
+ if(!confirm("Delete this channel permanently? All members will be disconnected and the room will be removed."))return;
+ const button=$("deleteChannelBtn");button.disabled=true;
+ try{
+  await workerAdminRequest("/delete-room",{roomName:roomToDelete});
+  await deleteDoc(doc(db,"rooms",roomToDelete));
+  await leaveVoiceRoom();
+  status.textContent="Channel deleted.";
+ }catch(error){
+  console.error("Delete channel failed:",error);
+  status.textContent="Could not delete channel: "+error.message;
+ }finally{button.disabled=false;}
+};
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
  if(!code){status.textContent="Enter a room code!";return;}
