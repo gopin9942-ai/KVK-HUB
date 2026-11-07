@@ -804,6 +804,12 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
     }
     if(!nodes.size)remoteAudioNodes.delete(participant.identity);
    }
+   const meter=remoteSpeakingMeters.get(participant.identity);
+   if(meter?.audioEl===el){
+    try{meter.source?.disconnect();meter.analyser?.disconnect();meter.gain?.disconnect();}catch(e){}
+    try{meter.context?.close();}catch(e){}
+    remoteSpeakingMeters.delete(participant.identity);
+   }
    el.remove();
   });
  });
