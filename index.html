@@ -108,8 +108,11 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 </div></div>
 <div class="card"><h2>🔒 Create / Join Room</h2>
 <p class="small">Create a public room or enter a room code shared by a friend.</p>
-<input id="roomCode" placeholder="Enter Room Code" maxlength="40">
-<button id="joinBtn">Join Room</button><button class="secondary" id="createBtn">Create Public Room</button>
+<input id="roomCode" placeholder="Enter Room ID" maxlength="40">
+<button id="joinBtn">Join Room</button>
+<button class="secondary" id="createBtn">Create Public Room</button>
+<button class="secondary" id="createPrivateBtn">Create Private Room</button>
+<p class="small">Private rooms are hidden from Public Rooms. Share the invite link and password only with people you trust.</p>
 </div>
 <div class="card">
 <h2>🌍 Public Rooms</h2>
@@ -602,11 +605,17 @@ async function setRoomMicrophone(room,enabled){
   status.textContent="GTCRN unavailable ("+reason+"). Browser Noise Cancellation fallback is ON.";
  }
 }
-async function connectVoiceRoom(roomName,restoreMode=false){
+async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(!auth.currentUser)throw new Error("Please login first.");
  const roomRef=doc(db,"rooms",roomName);
  const roomSnap=await getDoc(roomRef);
- if(!roomSnap.exists())throw new Error("Room not found. Ask the host to create a new public room.");
+ if(!roomSnap.exists())throw new Error("Room not found. Ask the host to check the Room ID.");
+ const roomDetails=roomSnap.data();
+ let roomPassword=providedPassword;
+ if(roomDetails.isPublic!==true&&!roomPassword){
+  roomPassword=prompt("This is a private room. Enter its password:");
+  if(roomPassword===null||!roomPassword.trim())throw new Error("Private room password is required.");
+ }
  if(activeRoom)await leaveVoiceRoom();
  // Every fresh room join starts each participant's local playback at normal volume.
  remoteAudioGains.clear();
@@ -615,7 +624,7 @@ async function connectVoiceRoom(roomName,restoreMode=false){
  const response=await fetch(WORKER_URL+"/token",{
   method:"POST",
   headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},
-  body:JSON.stringify({roomName})
+  body:JSON.stringify({roomName,...(roomDetails.isPublic===true?{}:{password:roomPassword})})
  });
  const data=await response.json().catch(()=>({}));
  if(!response.ok)throw new Error(data.error||"Token request failed ("+response.status+")");
@@ -921,16 +930,45 @@ $("confirmDeleteChannelBtn").onclick=async()=>{
 };
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
- if(!code){status.textContent="Enter a room code!";return;}
+ if(!code){status.textContent="Enter a room ID!";return;}
  if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
  try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
-const createPrivateBtn=$("createPrivateBtn");
-if(createPrivateBtn){
- createPrivateBtn.onclick=()=>{
-  status.textContent="Private Room: Invite Code and Room ID + Password access are being prepared. Secure Cloudflare Worker verification is required before creation can be enabled.";
- };
-}
+$("createPrivateBtn").onclick=async()=>{
+ const button=$("createPrivateBtn");
+ const password=prompt("Create a password for this private room (at least 8 characters):");
+ if(password===null)return;
+ if(password.length<8){status.textContent="Private room password must be at least 8 characters.";return;}
+ const code="kvk-private-"+Math.random().toString(36).slice(2,8);
+ button.disabled=true;$("createBtn").disabled=true;
+ status.textContent="Creating your private room...";
+ let firestoreCreated=false,workerCreated=false;
+ try{
+  await setDoc(doc(db,"rooms",code),{
+   name:(auth.currentUser.displayName||"User")+"'s private room",
+   isPublic:false,
+   createdBy:auth.currentUser.uid,
+   creatorUid:auth.currentUser.uid,
+   createdByName:auth.currentUser.displayName||"User",
+   createdAt:serverTimestamp()
+  });
+  firestoreCreated=true;
+  await workerAdminRequest("/create-private-room",{roomName:code,password});
+  workerCreated=true;
+  $("roomCode").value=code;
+  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
+  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Private room created. Invite link copied! Share it together with the password."; }
+  catch(copyError){status.textContent="Private room created. Invite link: "+inviteUrl.toString()+" | Share the password separately.";}
+  await connectVoiceRoom(code,false,password);
+ }catch(e){
+  console.error("Create private room failed:",e);
+  status.textContent="PRIVATE ROOM ERROR: "+e.message;
+  if(firestoreCreated&&!activeRoom){
+   try{if(workerCreated)await workerAdminRequest("/delete-room",{roomName:code});}catch(cleanupError){console.error("Private room Worker cleanup failed:",cleanupError);}
+   try{await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error("Private room Firestore cleanup failed:",cleanupError);}
+  }
+ }finally{button.disabled=false;$("createBtn").disabled=false;}
+};
 $("createBtn").onclick=async()=>{
  const code="kvk-"+Math.random().toString(36).slice(2,8);
  $("createBtn").disabled=true;status.textContent="Creating public room...";
