@@ -331,7 +331,7 @@ function setupModeration(roomData){
  $("roomSettingsBtn").style.display="block";
  $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
- $("leaveRoomSettingsBtn").style.display="block";
+ $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
  $("copyRoomCodeBtn").style.display=isRoomAdmin?"block":"none";
 }
 
