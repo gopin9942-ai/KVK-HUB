@@ -927,41 +927,6 @@ $("joinBtn").onclick=async()=>{
  if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
  try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
 };
-$("createPrivateBtn").onclick=async()=>{
- const button=$("createPrivateBtn");
- const password=prompt("Create a password for this private room (at least 8 characters):");
- if(password===null)return;
- if(password.length<8){status.textContent="Private room password must be at least 8 characters.";return;}
- const code="kvk-private-"+Math.random().toString(36).slice(2,8);
- button.disabled=true;$("createBtn").disabled=true;
- status.textContent="Creating your private room...";
- let firestoreCreated=false,workerCreated=false;
- try{
-  await setDoc(doc(db,"rooms",code),{
-   name:(auth.currentUser.displayName||"User")+"'s private room",
-   isPublic:false,
-   createdBy:auth.currentUser.uid,
-   creatorUid:auth.currentUser.uid,
-   createdByName:auth.currentUser.displayName||"User",
-   createdAt:serverTimestamp()
-  });
-  firestoreCreated=true;
-  await workerAdminRequest("/create-private-room",{roomName:code,password});
-  workerCreated=true;
-  $("roomCode").value=code;
-  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
-  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Private room created. Invite link copied! Share it together with the password."; }
-  catch(copyError){status.textContent="Private room created. Invite link: "+inviteUrl.toString()+" | Share the password separately.";}
-  await connectVoiceRoom(code,false,password);
- }catch(e){
-  console.error("Create private room failed:",e);
-  status.textContent="PRIVATE ROOM ERROR: "+e.message;
-  if(firestoreCreated&&!activeRoom){
-   try{if(workerCreated)await workerAdminRequest("/delete-room",{roomName:code});}catch(cleanupError){console.error("Private room Worker cleanup failed:",cleanupError);}
-   try{await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error("Private room Firestore cleanup failed:",cleanupError);}
-  }
- }finally{button.disabled=false;$("createBtn").disabled=false;}
-};
 $("createBtn").onclick=async()=>{
  const password=prompt("Create a password for this room (at least 8 characters):");
  if(password===null)return;
