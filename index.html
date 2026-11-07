@@ -162,9 +162,9 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 <div id="moderationPanel" style="display:none"></div>
 <div class="card" style="margin:12px 0;padding:14px">
  <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" style="width:auto;margin:0"> AI Noise Cancellation (Optional — uses more CPU)</label>
+ <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="noiseSuppressionToggle" type="checkbox" style="width:auto;margin:0"> AI Noise Cancellation (ON by default — turn OFF if needed)</label>
  <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
- <p class="small" style="margin:8px 0 0">Lightweight mode is the default for smoother gaming and lower CPU/RAM use. Turn AI Noise Cancellation ON only if you need extra noise filtering.</p>
+ <p class="small" style="margin:8px 0 0">AI Noise Cancellation is ON by default. You can turn it OFF anytime from this setting.</p>
 </div>
 <button id="muteBtn" class="secondary">Mute Microphone</button>
 <button id="leaveBtn">Disconnect</button>
@@ -364,7 +364,8 @@ const $=id=>document.getElementById(id);
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 // Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null,speakerMeterTimer=null;
-let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")==="true";
+// Noise cancellation defaults ON; only an explicit user choice of "false" disables it.
+let noiseCancellationEnabled=localStorage.getItem("kvkNoiseSuppression")!=="false";
 let localMicStream=null,localMicContext=null,localMicSource=null,localMicNode=null,localMicDestination=null,localPublishedMicTrack=null;
 let localSpeakingContext=null,localSpeakingAnalyser=null,localSpeakingSamples=null;
 $("noiseSuppressionToggle").checked=noiseCancellationEnabled;
@@ -802,6 +803,22 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   if(activeRoom!==room){clearInterval(speakerMeterTimer);speakerMeterTimer=null;return;}
   // Speaking indicators are visual only; skip their work while backgrounded.
   if(document.hidden)return;
+  // Poll every remote participant as well as listening for LiveKit's speaker events.
+  // This keeps the glow reliable in both the browser and Android WebView.
+  for(const participant of room.remoteParticipants.values()){
+   bindParticipantSpeaking(participant);
+   const identity=participant.identity;
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===identity);
+   const level=Number(participant.audioLevel)||0;
+   const speaking=participant.isSpeaking===true||level>=0.01;
+   if(speaking){
+    activeSpeakerIds.add(identity);
+    if(profile)profile.level=level;
+   }else{
+    activeSpeakerIds.delete(identity);
+    if(profile)profile.level=0;
+   }
+  }
   const localProfile=participantProfiles.get(auth.currentUser?.uid);
   if(localProfile){
    const identity=room.localParticipant.identity;
