@@ -280,6 +280,7 @@ function setupModeration(roomData){
  $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display="block";
+ $("copyRoomCodeBtn").style.display=isRoomAdmin?"block":"none";
 }
 
 const GTCRN_WASM_URL="https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.1/dist/gtcrn.wasm";
@@ -482,12 +483,15 @@ function startMyRooms(){
   // Remove stale My Rooms entries when their Firestore room document no longer exists.
   for(const d of snapshot.docs){
    const room={id:d.id,...d.data()};
+   let roomIsAdmin=false;
    try{
     const roomSnap=await getDoc(doc(db,"rooms",room.id));
     if(!roomSnap.exists()){
      await deleteDoc(doc(db,"users",uid,"myRooms",room.id));
      continue;
     }
+    const roomData=roomSnap.data()||{};
+    roomIsAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
    }catch(checkError){
     console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
    }
@@ -500,6 +504,7 @@ function startMyRooms(){
    const item=document.createElement("div");item.className="roomItem";
    const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
    const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Created by you":"Joined by you");
+   if(roomIsAdmin){
    const copy=document.createElement("button");copy.className="secondary";copy.textContent="Copy Room Code";copy.onclick=async()=>{
     try{
      if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(room.id);}
@@ -510,8 +515,9 @@ function startMyRooms(){
      status.textContent="Room code copied!";
     }catch(error){console.error("Copy room code failed:",error);status.textContent="Could not copy room code. Please try again.";}
    };
+   }
    const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
-   item.append(name,meta,copy,join);list.append(item);
+   item.append(name,meta,join);if(roomIsAdmin)item.append(copy);list.append(item);
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
 }
