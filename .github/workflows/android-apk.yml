@@ -6,7 +6,7 @@ on:
     paths:
       - 'index.html'
       - 'firebase.js'
-      - 'capacitor.config.ts'
+      - 'capacitor.config.json'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/android-apk.yml'
