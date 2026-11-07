@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:voicePulse 1.15s ease-in-out infinite}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
 .tileAdminMenu{position:absolute;top:6px;right:6px;z-index:30}
 .tileAdminDots{width:30px;height:30px;margin:0;padding:0;border-radius:8px;background:#303954;color:#fff;font-size:21px;line-height:1}
 .tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
@@ -260,6 +260,7 @@ async function moderationAction(path,targetIdentity,extra={}){
  }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;return false;}
 }
 let isRoomAdmin=false;
+let roomOwnerUid=null;
 let deleteCountdownTimer=null;
 let deleteCountdownRemaining=0;
 const adminMuteState=new Map();
@@ -273,7 +274,8 @@ function identityAudioIsMuted(identity){
  return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
 }
 function setupModeration(roomData){
- isRoomAdmin=!!auth.currentUser&&(roomData?.creatorUid===auth.currentUser.uid||roomData?.createdBy===auth.currentUser.uid);
+ roomOwnerUid=roomData?.creatorUid||roomData?.createdBy||null;
+ isRoomAdmin=!!auth.currentUser&&roomOwnerUid===auth.currentUser.uid;
  $("moderationPanel").style.display="none";
  // Room Settings is available to every participant; admin-only actions stay hidden.
  $("roomSettingsBtn").style.display="block";
@@ -836,7 +838,11 @@ function renderParticipants(){
    });
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,panel);
-   if(isRoomAdmin){
+   if(roomOwnerUid&&p.uid===roomOwnerUid){
+    const adminBadge=document.createElement("div");adminBadge.className="participantAdminBadge";adminBadge.textContent="👑 ADMIN";adminBadge.setAttribute("aria-label","Room admin");
+    tile.append(adminBadge);
+   }
+   if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
     const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
     const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
@@ -890,7 +896,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();for(const nodes of remoteAudioNodes.values()){for(const node of nodes){try{node.source?.disconnect();node.gain?.disconnect();}catch(e){}try{node.context?.close();}catch(e){}}}remoteAudioNodes.clear();remoteSpeakingMeters.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
