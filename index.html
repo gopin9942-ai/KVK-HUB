@@ -220,7 +220,7 @@ async function setRoomMicrophone(room,enabled){
   context=new AudioContext({sampleRate:48000,latencyHint:"interactive"});
   if(context.sampleRate!==48000)throw new Error("This device does not provide 48 kHz audio required by the AI noise model.");
   await context.resume();
-  await context.audioWorklet.addModule(new URL("./noise-processor.js",import.meta.url).href);
+  await context.audioWorklet.addModule("./noise-processor.js");
   // Fetch the model on the main thread; AudioWorkletGlobalScope may not expose fetch().
   const wasmResponse=await fetch(GTCRN_WASM_URL,{cache:"force-cache"});
   if(!wasmResponse.ok)throw new Error("GTCRN model download failed: HTTP "+wasmResponse.status);
