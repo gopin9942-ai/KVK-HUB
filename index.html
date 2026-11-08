@@ -258,7 +258,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
 .participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#263b58;border:1px solid #526784;color:#c8d8ee;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
-.participantRoleBadge:has([data-admin]){background:#174b3b;border-color:#48d6a0;color:#8fffd0}
+.participantRoleBadge.is-admin{background:#174b3b;border-color:#48d6a0;color:#8fffd0}
 .participantSpeakingStatus{display:none;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px;border-radius:999px;background:#123c36;border:1px solid #42d6a4;color:#70f0c3;font-size:8px;font-weight:800;letter-spacing:.04em;line-height:1.4}
 .participantTile.is-speaking .participantSpeakingStatus{display:block}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
@@ -1480,7 +1480,7 @@ function renderParticipants(){
    function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
-   const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge";roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
+   const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge"+(roomOwnerUid&&p.uid===roomOwnerUid?" is-admin":"");roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
    const speakingStatus=document.createElement("div");speakingStatus.className="participantSpeakingStatus";speakingStatus.textContent="◖)) SPEAKING";speakingStatus.setAttribute("aria-label","Currently speaking");
    tile.append(img,fallback,name,roleBadge,speakingStatus,panel);
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
