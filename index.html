@@ -604,6 +604,9 @@ let currentAppScreen="login";
 const appScreenStack=[];
 function setAppScreen(name){
  currentAppScreen=name;
+ // Profile speaking analysis runs only while the actual room screen is open.
+ if(name==="room"&&activeRoom&&activeRoom.state==="connected")syncVoiceMetersForRoom();
+ else if(name!=="room"){stopAllVoiceMeters();activeSpeakerIds.clear();}
  const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",userSettings:"userSettingsPage"};
  for(const [screen,id] of Object.entries(ids)){const el=$(id);if(el)el.style.display=screen===name?"block":"none";}
  document.body.classList.toggle("room-speaking-active",name==="room"&&!!activeRoom&&activeRoom.state==="connected");
@@ -1569,7 +1572,24 @@ function stopAllVoiceMeters(){
  for(const identity of [...audioMeters.keys()])stopVoiceMeter(identity);
  audioMeterSpeakingIds.clear();
 }
+function syncVoiceMetersForRoom(){
+ if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return;
+ activeSpeakerIds.clear();
+ const local=activeRoom.localParticipant;
+ for(const publication of local?.trackPublications?.values?.()||[]){
+  const track=publication.track;
+  if(track?.kind==="audio"&&track.mediaStreamTrack)startVoiceMeter(track.mediaStreamTrack,local.identity);
+ }
+ for(const participant of activeRoom.remoteParticipants?.values?.()||[]){
+  for(const publication of participant.trackPublications?.values?.()||[]){
+   const track=publication.track;
+   if(track?.kind==="audio"&&track.mediaStreamTrack)startVoiceMeter(track.mediaStreamTrack,participant.identity);
+  }
+ }
+ updateParticipantIndicators();
+}
 function startVoiceMeter(mediaTrack,identity){
+ if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return;
  if(!mediaTrack||!identity||mediaTrack.readyState==="ended")return;
  stopVoiceMeter(identity);
  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
