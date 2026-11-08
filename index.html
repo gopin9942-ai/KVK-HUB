@@ -636,7 +636,7 @@ async function refreshModeration(){
    metaLine.append(userId);
    const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
    details.append(label,metaLine,sub);
-   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=async()=>{unban.disabled=true;unban.textContent="Unbanning...";const roomAtClick=currentRoomCode;try{const ok=await moderationAction("/unban",identity);if(ok){try{await deleteDoc(doc(db,"rooms",roomAtClick,"bannedProfiles",identity));}catch(e){console.warn("Could not clear saved ban profile:",e);}if(currentRoomCode===roomAtClick){row.remove();if(!bannedBox.querySelector(".adminMemberRow")){const empty=document.createElement("div");empty.className="empty";empty.textContent="No banned users.";bannedBox.replaceChildren(empty);}}}}finally{if(unban.isConnected){unban.disabled=false;unban.textContent="Unban";}}};
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=async()=>{unban.disabled=true;unban.textContent="Unbanning...";const roomAtClick=currentRoomCode;try{const ok=await moderationAction("/unban",identity,{},false);if(ok){try{await deleteDoc(doc(db,"rooms",roomAtClick,"bannedProfiles",identity));}catch(e){console.warn("Could not clear saved ban profile:",e);}if(currentRoomCode===roomAtClick){row.remove();if(!bannedBox.querySelector(".adminMemberRow")){const empty=document.createElement("div");empty.className="empty";empty.textContent="No banned users.";bannedBox.replaceChildren(empty);}}}}finally{if(unban.isConnected){unban.disabled=false;unban.textContent="Unban";}}};
    row.style.cssText="display:flex;align-items:center;gap:12px";
    row.append(avatar,details,unban);bannedBox.append(row);
   }
@@ -645,12 +645,12 @@ async function refreshModeration(){
   bannedBox.textContent="Could not load banned list: "+error.message;
  }
 }
-async function moderationAction(path,targetIdentity,extra={}){
+async function moderationAction(path,targetIdentity,extra={},refreshList=true){
  if(!currentRoomCode)return;
  try{
   await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity,...extra});
   status.textContent="Moderation action completed.";
-  await refreshModeration();
+  if(refreshList)await refreshModeration();
   return true;
  }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;return false;}
 }
