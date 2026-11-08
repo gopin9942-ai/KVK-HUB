@@ -416,7 +416,8 @@ header{position:relative}
    <div class="settingsSubheading">Banned Users</div>
    <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
   </div>
-  <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
+  <button id="copyVoiceDiagnosticsBtn" class="secondary settingsMenuButton" type="button">Copy Voice Diagnostics</button>
+   <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
   <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
   <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
    <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
@@ -506,11 +507,13 @@ async function startNativeVoiceService(roomName){
   if(permission?.granted===false)status.textContent="Notification permission is off. KVK HUB will try to keep the room active in background.";
   if(!nativeKvkCallListenerReady){
    await plugin.addListener("notificationAction",async event=>{
+    kvkDiag("notification-action-received",{action:event?.action,roomActive:!!activeRoom,micEnabled});
     try{
      if(event?.action==="MUTE"&&activeRoom&&micEnabled)await changeMicrophoneState(false);
      else if(event?.action==="UNMUTE"&&activeRoom&&!micEnabled)await changeMicrophoneState(true);
      else if(event?.action==="DISCONNECT"&&activeRoom)await leaveVoiceRoom();
-    }catch(error){console.error("Notification action failed:",error);}
+     kvkDiag("notification-action-handled",{action:event?.action,roomActive:!!activeRoom,micEnabled});
+    }catch(error){kvkDiag("notification-action-error",{action:event?.action,message:error?.message||String(error)});console.error("Notification action failed:",error);}
    });
    nativeKvkCallListenerReady=true;
   }
@@ -759,6 +762,21 @@ function setupModeration(roomData){
 }
 
 const $=id=>document.getElementById(id);
+// Local-only diagnostics: no room codes, names, tokens, or audio data are stored.
+const KVK_DIAG_KEY="kvkVoiceDiagnosticsV1";
+function kvkDiag(event,details={}){
+ try{const a=JSON.parse(localStorage.getItem(KVK_DIAG_KEY)||"[]");a.push({at:new Date().toISOString(),event,visibility:document.visibilityState,details});localStorage.setItem(KVK_DIAG_KEY,JSON.stringify(a.slice(-160)));}catch(e){console.warn("Voice diagnostics storage failed:",e);}
+}
+["visibilitychange","freeze","resume"].forEach(n=>document.addEventListener(n,()=>kvkDiag("document-"+n)));
+["pagehide","pageshow"].forEach(n=>window.addEventListener(n,()=>kvkDiag("window-"+n)));
+document.addEventListener("memorypressure",()=>kvkDiag("memorypressure-event"));
+function copyVoiceDiagnostics(){
+ const a=JSON.parse(localStorage.getItem(KVK_DIAG_KEY)||"[]");
+ const report=JSON.stringify({app:"KVK HUB",version:1,userAgent:navigator.userAgent,createdAt:new Date().toISOString(),entries:a},null,2);
+ const el=document.createElement("textarea");el.value=report;el.style.cssText="position:fixed;left:-9999px;top:0";document.body.appendChild(el);el.select();let ok=false;try{ok=document.execCommand("copy");}catch(_){}el.remove();
+ status.textContent=ok?"Voice diagnostics copied. Paste the report here.":"Could not copy diagnostics. Please try again.";
+}
+
 prepareSeparateScreens();
 initializeAppNavigation();
 initializeNativeBackButton();
@@ -1671,6 +1689,7 @@ async function changeMicrophoneState(nextEnabled){
  }
 }
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
+$("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
 $("copyRoomCodeBtn").onclick=async()=>{
  const code=currentRoomCode;
@@ -1698,8 +1717,8 @@ $("leaveRoomSettingsBtn").onclick=async()=>{
  finally{button.disabled=false;button.textContent="Leave Room";}
 };
 window.addEventListener("pagehide",()=>{ /* Do not clear room presence on a navigation-only page transition. */ });
-window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
-window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
+window.addEventListener("error",e=>{kvkDiag("window-error",{message:e.message||"Unknown JavaScript error"});status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
+window.addEventListener("unhandledrejection",e=>{kvkDiag("unhandled-rejection",{message:e.reason?.message||String(e.reason||"Unknown promise error")});status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
 </script>
 </body>
 </html>
