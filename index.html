@@ -272,6 +272,7 @@ header{position:relative}
 .appSubScreenTop{display:flex;align-items:center;gap:10px;margin:0 0 12px}
 .appSubScreenTop h2{font-size:18px;margin:0;color:var(--cyan)}
 .appSubScreenBack{width:auto;min-height:36px;margin:0;padding:7px 11px;background:#263650;color:#eef8ff;box-shadow:none}
+#resumeActiveRoomBtn{width:100%;min-height:42px;padding:10px 13px;border:1px solid #54dcff55;border-radius:12px;background:linear-gradient(135deg,#174b5d,#203b5b);color:#e8fbff;box-shadow:0 6px 18px #35c9f422;text-align:center}
 #appBackBtn{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:auto;min-height:34px;margin:0;padding:7px 10px;border:1px solid #ffffff24;border-radius:9px;background:#263650;color:#eef8ff;font-size:12px;box-shadow:none}
 @media(max-width:600px){#appBackBtn{left:8px;padding:7px 8px;font-size:11px}}
 @keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
@@ -380,7 +381,9 @@ header{position:relative}
  <p class="small">KVK User ID is your editable profile ID. Permanent Account ID is issued by Google/Firebase and cannot be changed.</p>
  <button id="saveProfileBtn">Save Profile</button>
  <button class="secondary" id="closeProfileBtn">Close</button>
-</div></div>
+</div>
+<button type="button" id="resumeActiveRoomBtn" class="secondary" style="display:none;margin-top:10px">🎙 Return to Room</button>
+</div>
 <div class="card roomHubCard"><div class="sectionEyebrow">YOUR VOICE SPACE</div><h2>Rooms</h2><p class="small roomHint">Jump into a room or start your own.</p>
 <label class="roomInputLabel" for="roomCode">ROOM ID</label><input id="roomCode" placeholder="Enter room ID" maxlength="40" autocomplete="off">
 <div class="roomActions"><button id="joinBtn"><span class="actionIcon">↗</span> Join Room</button><button class="secondary" id="createBtn"><span class="actionIcon">＋</span> Create Room</button></div>
@@ -537,6 +540,7 @@ function setAppScreen(name){
  const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",userSettings:"userSettingsPage"};
  for(const [screen,id] of Object.entries(ids)){const el=$(id);if(el)el.style.display=screen===name?"block":"none";}
  updateAppBackButton();
+ syncActiveRoomShortcut();
 }
 function navigateAppScreen(name){if(name===currentAppScreen)return;appScreenStack.push(currentAppScreen);setAppScreen(name);pushAppNav();}
 function prepareSeparateScreens(){
@@ -564,8 +568,9 @@ function handleAppBack(){
  if($("passwordModalOverlay").style.display==="flex"){$("passwordModalCancel").click();return;}
  if(!$("profileMenu").hidden){$("profileMenu").hidden=true;updateAppBackButton();return;}
  if(currentAppScreen!=="home"&&currentAppScreen!=="login"){
-  const previous=appScreenStack.pop()|| (activeRoom?"home":"home");
+  const previous=appScreenStack.pop()||"home";
   setAppScreen(previous);
+  if(previous==="home"&&activeRoom)status.textContent="Voice Room is still connected. Tap “Return to Room” to continue.";
   return;
  }
  updateAppBackButton();
@@ -956,6 +961,18 @@ $("profilePhotoInput").onchange=async event=>{
   status.textContent="Photo selected. Press Save Profile.";
  }catch(error){status.textContent="Could not read that image.";console.error(error);}
 };
+function syncActiveRoomShortcut(){
+ const button=$("resumeActiveRoomBtn");
+ if(!button)return;
+ const connected=!!activeRoom&&activeRoom.state==="connected";
+ button.style.display=connected&&currentAppScreen==="home"?"block":"none";
+ button.textContent=connected?"🎙 Return to Room · "+(currentRoomCode||"Active Room"):"";
+}
+$("resumeActiveRoomBtn").onclick=()=>{
+ if(!activeRoom||activeRoom.state!=="connected"){status.textContent="The voice room is no longer connected. Please join again.";syncActiveRoomShortcut();return;}
+ navigateAppScreen("room");
+ status.textContent="Returned to your active Voice Room. Connection is still live.";
+};
 function showHome(user){
  resetAppNav();appScreenStack.length=0;setAppScreen("home");
  $("userName").textContent="Hello, "+(user.displayName||"User");
@@ -1191,7 +1208,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.TrackUnsubscribed,track=>{
   track.detach().forEach(el=>el.remove());
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
@@ -1422,7 +1439,7 @@ async function leaveVoiceRoom(){
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
- currentRoomCode=null;setAppScreen("home");
+ currentRoomCode=null;setAppScreen("home");syncActiveRoomShortcut();
  // Reattach the Quick Access listener after every disconnect so the home list refreshes immediately.
  if(auth.currentUser)startMyRooms();
  status.textContent="You left the room. Quick Access refreshed.";
