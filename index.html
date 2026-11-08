@@ -395,8 +395,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
   <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
-   <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Browser microphone noise reduction (if supported)</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
-   <p class="audioSupportNote" id="audioSupportNote">Only Noise Suppression is requested. Echo Cancellation and Auto Gain Control are disabled for this test.</p>
+   <p class="audioSupportNote" id="audioSupportNote">Microphone filters are OFF. Join a room to inspect the actual microphone sample rate, channel count, and device processing settings.</p>
   </div>
   <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
   <div id="unbanSettingsPanel" style="display:none">
@@ -928,27 +927,19 @@ async function stopLocalMicrophone(room=activeRoom){
  if(track){try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
-const audioPreferenceDefaults={noiseSuppression:true};
-const audioPreferences={};
-for(const [key,defaultValue] of Object.entries(audioPreferenceDefaults)){
- const stored=localStorage.getItem("kvkAudio:"+key);
- audioPreferences[key]=stored===null?defaultValue:stored==="true";
-}
-function syncAudioPreferenceControls(){
- const map={noiseSuppression:"noiseSuppressionToggle"};
- for(const [key,id] of Object.entries(map)){const control=$(id);if(control)control.checked=!!audioPreferences[key];}
-}
-syncAudioPreferenceControls();
+// Raw microphone baseline: all browser voice filters disabled.
+const audioPreferences={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
 async function setRoomMicrophone(room,enabled){
  await stopLocalMicrophone(room);
  if(!enabled)return;
- // Ask the browser/device for its selected built-in voice processing; constraints are best-effort.
+ // Raw microphone baseline: filters OFF; request 48 kHz mono (best-effort).
  const stream=await navigator.mediaDevices.getUserMedia({
   audio:{
    echoCancellation:false,
-   noiseSuppression:true,
+   noiseSuppression:false,
    autoGainControl:false,
-   channelCount:{ideal:1}
+   channelCount:{ideal:1},
+   sampleRate:{ideal:48000}
   },
   video:false
  });
@@ -958,17 +949,14 @@ async function setRoomMicrophone(room,enabled){
   await room.localParticipant.publishTrack(track,{name:"microphone"});
   localMicStream=stream;localPublishedMicTrack=track;
   const settings=track.getSettings?.()||{};
-  console.info("KVK HUB microphone processing settings:",settings);
-  const labels={noiseSuppression:"Noise suppression"};
-  const activeFilters=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]===true).map(key=>labels[key]);
-  const unsupported=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]!==true).map(key=>labels[key]);
+  console.info("KVK HUB raw microphone diagnostics:",settings);
+  const rate=settings.sampleRate?Math.round(settings.sampleRate/1000)+" kHz":"not reported";
+  const channels=settings.channelCount??"not reported";
+  const filterState=["echoCancellation","noiseSuppression","autoGainControl"]
+   .map(key=>key+"="+(settings[key]===undefined?"unknown":settings[key]?"ON":"OFF")).join(" · ");
   const supportNote=$("audioSupportNote");
-  if(supportNote)supportNote.textContent=activeFilters.length
-   ? "Device reports active: "+activeFilters.join(", ")+(unsupported.length?". Not confirmed: "+unsupported.join(", "):".")
-   : "The device did not confirm the selected processing options. Support varies by browser, Android version and microphone.";
-  status.textContent=activeFilters.length
-   ? "Microphone connected. Active device processing: "+activeFilters.join(", ")+"."
-   : "Microphone connected. Device processing was not confirmed; check Audio Settings.";
+  if(supportNote)supportNote.textContent="Requested: filters OFF, 48 kHz mono. Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
+  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · browser filters requested OFF.";
  }catch(error){
   stream.getTracks().forEach(t=>t.stop());
   throw error;
@@ -1099,7 +1087,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
  $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
- syncAudioPreferenceControls();
+ // Audio diagnostics appear after microphone connection.
  homePage.style.display="none";roomPage.style.display="block";
  await startNativeVoiceService(roomName);
  try{
@@ -1320,78 +1308,6 @@ $("audioSettingsBtn").onclick=()=>{
  $("audioSettingsChevron").textContent=opening?"−":"＋";
  syncAudioPreferenceControls();
 };
-for(const [key,id] of [["noiseSuppression","noiseSuppressionToggle"],["echoCancellation","echoCancellationToggle"],["autoGainControl","autoGainControlToggle"]]){
- const control=$(id);
- control.onchange=async()=>{
-  const previous=audioPreferences[key];
-  audioPreferences[key]=control.checked;
-  localStorage.setItem("kvkAudio:"+key,String(control.checked));
-  if(localPublishedMicTrack&&typeof localPublishedMicTrack.applyConstraints==="function"){
-   try{
-    await localPublishedMicTrack.applyConstraints({[key]:control.checked});
-    const actual=localPublishedMicTrack.getSettings?.()||{};
-    const confirmed=actual[key]===control.checked;
-    $("audioSupportNote").textContent=confirmed
-     ? (control.checked?"Enabled and confirmed by device: ":"Disabled and confirmed by device: ")+key+"."
-     : "The browser accepted the request but did not confirm the selected value. Device support may vary.";
-   }catch(error){
-    audioPreferences[key]=previous;control.checked=previous;localStorage.setItem("kvkAudio:"+key,String(previous));
-    $("audioSupportNote").textContent="This device/browser could not apply that option: "+(error.message||"unsupported");
-   }
-  }else{
-   $("audioSupportNote").textContent="Saved. This option will be requested next time you enable your microphone; device support will then be checked.";
-  }
- };
-}
-$("unbanSettingsBtn").onclick=()=>{
- const panel=$("unbanSettingsPanel");
- const opening=panel.style.display==="none";
- panel.style.display=opening?"block":"none";
- $("unbanSettingsBtn").textContent=opening?"Hide Unban Settings":"Unban Settings";
- if(opening)refreshModeration();
-};
-$("deleteChannelBtn").onclick=()=>{
- if(!isRoomAdmin||!currentRoomCode)return;
- stopDeleteCountdown();
- $("deleteConfirmBox").style.display="block";
- $("deleteCountdownText").textContent="Accidental delete protection: wait 5 seconds before confirming.";
- const confirmButton=$("confirmDeleteChannelBtn");
- confirmButton.disabled=true;
- deleteCountdownRemaining=5;
- $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
- deleteCountdownTimer=setInterval(()=>{
-  deleteCountdownRemaining--;
-  if(deleteCountdownRemaining>0){
-   $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
-  }else{
-   clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;
-   $("deleteCountdownText").textContent="Please check carefully. You can now confirm deleting this channel.";
-   confirmButton.disabled=false;
-  }
- },1000);
-};
-$("cancelDeleteChannelBtn").onclick=stopDeleteCountdown;
-$("confirmDeleteChannelBtn").onclick=async()=>{
- if(!isRoomAdmin||!currentRoomCode||deleteCountdownRemaining>0||$("confirmDeleteChannelBtn").disabled)return;
- const roomToDelete=currentRoomCode;
- const button=$("confirmDeleteChannelBtn");
- button.disabled=true;button.textContent="Deleting...";
- $("deleteChannelBtn").disabled=true;
- try{
-  await workerAdminRequest("/delete-room",{roomName:roomToDelete});
-  await deleteDoc(doc(db,"rooms",roomToDelete));
-  await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToDelete));
-  stopDeleteCountdown();
-  await leaveVoiceRoom();
-  status.textContent="Channel deleted.";
- }catch(error){
-  console.error("Delete channel failed:",error);
-  status.textContent="Could not delete channel: "+error.message;
-  stopDeleteCountdown();
- }finally{
-  button.textContent="Confirm Delete";
-  $("deleteChannelBtn").disabled=false;
- }
 };
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
