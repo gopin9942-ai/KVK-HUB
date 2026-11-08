@@ -353,6 +353,7 @@ header{position:relative}
  .callControlBar{position:sticky;bottom:5px;margin-top:10px;padding:9px 14px}
 }
 @media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.youtubePromoRow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 2px;padding:10px 12px;border:1px solid rgba(255,65,85,.28);border-radius:13px;background:linear-gradient(105deg,rgba(255,55,75,.13),rgba(23,35,58,.78) 65%)}.youtubePromoCopy{display:flex;flex-direction:column;gap:3px;min-width:0}.youtubePromoCopy strong{font-size:11px;letter-spacing:.14em;color:#fff}.youtubePromoCopy small{font-size:10px;color:#aebbd3}.youtubePromoRow .youtubeChannelLink{min-height:36px;padding:0 12px;background:#e62135;border-color:#ff5262;color:#fff;font-size:11px;box-shadow:0 5px 15px rgba(230,33,53,.2)}.youtubePromoRow .youtubeChannelLink svg{color:#fff;width:17px;height:17px}@media(max-width:600px){.youtubePromoRow{margin:6px 0 1px;padding:7px 9px;gap:7px}.youtubePromoCopy strong{font-size:9px}.youtubePromoCopy small{font-size:9px}.youtubePromoRow .youtubeChannelLink{min-height:32px;padding:0 9px;font-size:10px}.youtubePromoRow .youtubeChannelLink svg{width:15px;height:15px}}
 </style>
 </head>
 <body>
@@ -365,6 +366,7 @@ header{position:relative}
 </section>
 <section id="homePage">
 <div class="card"><h2>Welcome!</h2><p id="userName"></p>
+<div class="youtubePromoRow"><div class="youtubePromoCopy"><strong>KVK GLADIATOR</strong><small>Subscribe to our YouTube channel</small></div><a class="youtubeChannelLink" href="https://www.youtube.com/@kvkgladiator" target="_blank" rel="noopener noreferrer" aria-label="Open KVK Gladiator YouTube channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z"/></svg><span>Visit Channel</span></a></div>
 <div class="profileTop">
  <img id="profileTopPhoto" alt="Profile photo" src="">
  <div class="profileText"><strong id="profileTopName">Your Profile</strong><small id="profileTopId"></small></div>
@@ -375,10 +377,7 @@ header{position:relative}
    <button type="button" id="logoutBtn">Logout</button>
   </div>
  </div>
- <a class="youtubeChannelLink" href="https://www.youtube.com/@kvkgladiator" target="_blank" rel="noopener noreferrer" aria-label="KVK Gladiator YouTube channel">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z"/></svg>
-  <span>KVK Gladiator</span>
- </a>
+
 </div>
 <div class="profileEditor" id="profileEditor">
  <div class="settingsHeading">User Settings</div>
