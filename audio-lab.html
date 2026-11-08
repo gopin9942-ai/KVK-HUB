@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1222">
+<title>KVK HUB · Audio Quality Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1222;--panel:#15223a;--line:#2c4262;--cyan:#63ddf4;--muted:#a9bad2;--green:#70e4b2;--red:#ff9eaa}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#25466a 0%,#111d33 42%,var(--bg) 100%);color:#f4f8ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100% - 28px,680px);margin:0 auto;padding:28px 0 48px}
+header{display:flex;align-items:center;gap:13px;margin-bottom:22px}
+.logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#70e8ff,#3485c9);color:#092039;font-size:24px;font-weight:900;box-shadow:0 8px 30px #35c9f455}
+h1{font-size:22px;margin:0;letter-spacing:.08em}
+header p{margin:4px 0 0;color:var(--muted);font-size:11px;letter-spacing:.16em;font-weight:700}
+.card{background:linear-gradient(145deg,#1a2b46f2,#101b30f5);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 14px 36px #0003}
+h2{font-size:17px;margin:0 0 8px}
+p{line-height:1.55}
+.note{font-size:13px;color:var(--muted);margin:6px 0}
+button{border:0;border-radius:11px;padding:12px 15px;background:linear-gradient(135deg,#6be3f7,#3ba9dc);color:#071729;font-weight:800;font-size:14px;cursor:pointer;min-height:44px}
+button.secondary{background:#263b59;color:#edf6ff;border:1px solid #405a7d}
+button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.actions button{flex:1;min-width:130px}
+.status{padding:12px;border-radius:12px;background:#0b1729;border:1px solid #2c4262;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.status.good{border-color:#32785f;color:#b4f7d8}
+.status.warn{border-color:#8c6241;color:#ffd7a9}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.metric{padding:11px;border-radius:12px;background:#0c182b;border:1px solid #293d5b}
+.metric small{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.metric strong{display:block;font-size:14px;margin-top:5px;overflow-wrap:anywhere}
+.recording{margin-top:12px;padding:12px;background:#0c182b;border:1px solid #293d5b;border-radius:12px}
+.recording strong{display:block;margin-bottom:8px;font-size:13px}
+audio{width:100%;height:38px}
+footer{text-align:center;color:#8295b1;font-size:11px;margin-top:22px}
+a{color:var(--cyan)}
+@media(max-width:460px){main{padding-top:18px}.card{padding:14px}.grid{grid-template-columns:1fr 1fr}h1{font-size:18px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+ <div class="logo">K</div>
+ <div><h1>KVK HUB</h1><p>VOICE QUALITY LAB</p></div>
+</header>
+<section class="card">
+ <h2>AI Noise Cancellation Test</h2>
+ <p class="note">இந்தப் பக்கம் உங்கள் microphone audio-வை உங்கள் device-லேயே process செய்து A/B comparison record செய்யும். Audio எதுவும் upload செய்யப்படாது. Recording playback-க்கு headphones பயன்படுத்தவும்.</p>
+ <div id="status" class="status">முதலில் Start Microphone அழுத்தவும். AI filter load ஆக சில நொடிகள் ஆகலாம்; முதல் முறை சுமார் 25 MB வரை model/WASM download ஆகலாம்.</div>
+ <div class="actions">
+  <button id="startBtn">Start Microphone</button>
+  <button id="stopBtn" class="secondary" disabled>Stop Microphone</button>
+ </div>
+ <div class="grid">
+  <div class="metric"><small>Noise Filter</small><strong id="filterState">Not started</strong></div>
+  <div class="metric"><small>Processing Load</small><strong id="loadState">Waiting</strong></div>
+  <div class="metric"><small>Audio Context</small><strong id="contextState">Closed</strong></div>
+  <div class="metric"><small>Fallback</small><strong id="fallbackState">Not used</strong></div>
+ </div>
+</section>
+<section class="card">
+ <h2>Record a fair comparison</h2>
+ <p class="note">ஒரே நேரத்தில் raw microphone மற்றும் AI-filtered audio இரண்டையும் 12 seconds record செய்கிறோம். Record செய்யும்போது fan / bird / dog background sound ஒரே மாதிரி இருக்கட்டும். பேசும் தூரத்தையும் மாற்ற வேண்டாம்.</p>
+ <div class="actions"><button id="recordBtn" disabled>Record A/B · 12 sec</button></div>
+ <p id="recordStatus" class="note">Microphone start ஆன பிறகு comparison record செய்யலாம்.</p>
+ <div id="rawRecording" class="recording" hidden><strong>RAW microphone</strong><audio id="rawPlayer" controls></audio></div>
+ <div id="cleanRecording" class="recording" hidden><strong>AI noise-cancelled</strong><audio id="cleanPlayer" controls></audio></div>
+</section>
+<section class="card">
+ <h2>How to test</h2>
+ <ol class="note">
+  <li>Phone-ஐ வாயிலிருந்து சுமார் 25–35 cm தூரத்தில் வைக்கவும்.</li>
+  <li>Fan / birds / dog போன்ற background sound இருக்கும்போது 12-second A/B record செய்யவும்.</li>
+  <li>Headphones-ல் RAW மற்றும் AI noise-cancelled recording-ஐ ஒப்பிடவும்.</li>
+  <li>Voice மெல்லியதாக, metallic-ஆக, அல்லது துண்டித்துண்டியாக இருந்தால் அதைச் சொல்லவும்.</li>
+ </ol>
+ <p class="note">இந்த test DeepFilterNet3-ஐ AudioWorklet + WebAssembly மூலம் தனி audio thread-ல் இயக்குகிறது. Device load அதிகமானால் audio glitch வராமல் raw mic + browser noise suppression-க்கு fallback செய்யும்.</p>
+</section>
+<footer><a href="./">Back to KVK HUB</a> · Local microphone test only</footer>
+</main>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+let micStream = null;
+let audioContext = null;
+let sourceNode = null;
+let destinationNode = null;
+let workletHandle = null;
+let fallbackUsed = false;
+let fallbackStarted = false;
+let rawUrl = null;
+let cleanUrl = null;
+let recorderActive = false;
+
+function setStatus(message, kind) {
+ const el = $("status");
+ el.textContent = message;
+ el.className = "status" + (kind ? " " + kind : "");
+}
+function updateButtons(running) {
+ $("startBtn").disabled = running;
+ $("stopBtn").disabled = !running;
+ $("recordBtn").disabled = !running || recorderActive;
+}
+function chooseRecorderOptions() {
+ if (typeof MediaRecorder === "undefined") return {};
+ const choices = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"];
+ for (const mimeType of choices) {
+  if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(mimeType)) return {mimeType};
+ }
+ return {};
+}
+function createRecorder(stream) {
+ const chunks = [];
+ const recorder = new MediaRecorder(stream, chooseRecorderOptions());
+ recorder.ondataavailable = (event) => {
+  if (event.data && event.data.size) chunks.push(event.data);
+ };
+ const stopped = new Promise((resolve) => {
+  recorder.addEventListener("stop", () => resolve(new Blob(chunks, {type:recorder.mimeType || "audio/webm"})), {once:true});
+ });
+ recorder.start(250);
+ return {recorder, stopped};
+}
+function releaseObjectUrl(url) {
+ if (url) URL.revokeObjectURL(url);
+}
+async function switchToRawFallback(load) {
+ if (fallbackStarted || !sourceNode || !destinationNode || !audioContext) return;
+ fallbackStarted = true;
+ fallbackUsed = true;
+ try {
+  sourceNode.disconnect();
+  sourceNode.connect(destinationNode);
+  if (workletHandle) workletHandle.dispose();
+  workletHandle = null;
+  $("filterState").textContent = "Native fallback";
+  $("fallbackState").textContent = "CPU safety fallback";
+  setStatus("Device load அதிகமாக உள்ளது (" + Math.round(load * 100) + "%). Voice துண்டிக்காமல் இருக்க AI processing-ஐ bypass செய்து raw microphone route-க்கு மாறிவிட்டோம்.", "warn");
+ } catch (error) {
+  console.error("Fallback failed:", error);
+  setStatus("Fallback error: " + (error.message || error), "warn");
+ }
+}
+async function startMicrophone() {
+ if (micStream) return;
+ $("startBtn").disabled = true;
+ setStatus("Microphone permission கேட்கப்படுகிறது...");
+ try {
+  micStream = await navigator.mediaDevices.getUserMedia({
+   audio: {
+    channelCount: {ideal:1},
+    sampleRate: {ideal:48000},
+    echoCancellation: true,
+    noiseSuppression: false,
+    autoGainControl: false
+   },
+   video: false
+  });
+  audioContext = new AudioContext({sampleRate:48000});
+  await audioContext.resume();
+  $("contextState").textContent = audioContext.sampleRate + " Hz · " + audioContext.state;
+  if (audioContext.sampleRate !== 48000) throw new Error("This browser could not provide a 48 kHz AudioContext.");
+  sourceNode = audioContext.createMediaStreamSource(micStream);
+  destinationNode = audioContext.createMediaStreamDestination();
+  const {createDeepFilterNetAudioWorklet} = await import("https://cdn.jsdelivr.net/npm/@workadventure/noise-suppression@0.2.0/dist/deepfilternet.js");
+  setStatus("AI noise model download / initialization நடக்கிறது. இந்த நேரத்தில் microphone capture local-ஆகவே இருக்கும்...");
+  workletHandle = await createDeepFilterNetAudioWorklet(audioContext, {
+   speechAttenuationDb: 30,
+   pauseAttenuationDb: 45,
+   pauseGateLookaheadFrames: 2,
+   postGain: true,
+   maxLoad: 0.45,
+   loadReportAfterMs: 10000,
+   bypassUntilReady: true,
+   onOverload: (load) => { void switchToRawFallback(load); },
+   onLoadReport: (report) => {
+    const median = Math.round(report.medianLoad * 100);
+    const p95 = Math.round(report.p95Load * 100);
+    $("loadState").textContent = "Median " + median + "% · P95 " + p95 + "%";
+    console.info("KVK HUB AudioWorklet load report:", report);
+   }
+  });
+  await workletHandle.ready;
+  if (!fallbackStarted) {
+   sourceNode.connect(workletHandle.node).connect(destinationNode);
+   $("filterState").textContent = "DeepFilterNet3 · Active";
+   $("fallbackState").textContent = "Not used";
+   setStatus("AI Noise Cancellation இயங்குகிறது. இப்போது A/B comparison record செய்து கேளுங்கள்.", "good");
+  }
+  $("recordBtn").disabled = false;
+  $("stopBtn").disabled = false;
+  $("startBtn").disabled = true;
+ } catch (error) {
+  console.error("Audio Lab start failed:", error);
+  if (sourceNode && destinationNode) {
+   try { sourceNode.disconnect(); sourceNode.connect(destinationNode); } catch (_) {}
+  }
+  if (workletHandle) { try { workletHandle.dispose(); } catch (_) {} workletHandle = null; }
+  if (micStream) {
+   const settings = micStream.getAudioTracks()[0]?.getSettings?.() || {};
+   $("filterState").textContent = "Native / raw fallback";
+   $("fallbackState").textContent = "AI load failed";
+   $("recordBtn").disabled = false;
+   $("stopBtn").disabled = false;
+   $("startBtn").disabled = true;
+   setStatus("AI filter load ஆகவில்லை; microphone raw fallback-ல் உள்ளது. Error: " + (error.message || error), "warn");
+  } else {
+   setStatus("Microphone start ஆகவில்லை: " + (error.message || error), "warn");
+   $("startBtn").disabled = false;
+  }
+ }
+ updateButtons(!!micStream);
+}
+async function stopMicrophone() {
+ if (recorderActive) return;
+ if (workletHandle) { try { workletHandle.dispose(); } catch (_) {} workletHandle = null; }
+ if (sourceNode) { try { sourceNode.disconnect(); } catch (_) {} sourceNode = null; }
+ if (destinationNode) {
+  try { destinationNode.stream.getTracks().forEach((track) => track.stop()); } catch (_) {}
+  try { destinationNode.disconnect(); } catch (_) {}
+  destinationNode = null;
+ }
+ if (micStream) { micStream.getTracks().forEach((track) => track.stop()); micStream = null; }
+ if (audioContext) { try { await audioContext.close(); } catch (_) {} audioContext = null; }
+ $("contextState").textContent = "Closed";
+ $("filterState").textContent = "Not started";
+ $("loadState").textContent = "Waiting";
+ $("fallbackState").textContent = "Not used";
+ fallbackUsed = false;
+ fallbackStarted = false;
+ updateButtons(false);
+ setStatus("Microphone stopped. Recording-ஐ கேட்கலாம் அல்லது மீண்டும் test தொடங்கலாம்.");
+}
+async function recordComparison() {
+ if (!micStream || !destinationNode || recorderActive) return;
+ if (typeof MediaRecorder === "undefined") {
+  setStatus("இந்த browser-ல் MediaRecorder support இல்லை.", "warn");
+  return;
+ }
+ recorderActive = true;
+ $("recordBtn").disabled = true;
+ $("recordStatus").textContent = "Recording raw + AI-filtered audio for 12 seconds...";
+ $("rawRecording").hidden = true;
+ $("cleanRecording").hidden = true;
+ releaseObjectUrl(rawUrl); rawUrl = null;
+ releaseObjectUrl(cleanUrl); cleanUrl = null;
+ try {
+  const raw = createRecorder(micStream);
+  const clean = createRecorder(destinationNode.stream);
+  await new Promise((resolve) => setTimeout(resolve, 12000));
+  if (raw.recorder.state !== "inactive") raw.recorder.stop();
+  if (clean.recorder.state !== "inactive") clean.recorder.stop();
+  const blobs = await Promise.all([raw.stopped, clean.stopped]);
+  rawUrl = URL.createObjectURL(blobs[0]);
+  cleanUrl = URL.createObjectURL(blobs[1]);
+  $("rawPlayer").src = rawUrl;
+  $("cleanPlayer").src = cleanUrl;
+  $("rawRecording").hidden = false;
+  $("cleanRecording").hidden = false;
+  $("recordStatus").textContent = "Done. இரண்டு recordings-ஐ headphones-ல் ஒப்பிடுங்கள்." + (fallbackUsed ? " Note: CPU fallback recording நடுவில் செயல்பட்டது." : "");
+ } catch (error) {
+  console.error("Recording failed:", error);
+  $("recordStatus").textContent = "Recording error: " + (error.message || error);
+ } finally {
+  recorderActive = false;
+  $("recordBtn").disabled = !micStream;
+ }
+}
+$("startBtn").addEventListener("click", startMicrophone);
+$("stopBtn").addEventListener("click", stopMicrophone);
+$("recordBtn").addEventListener("click", recordComparison);
+window.addEventListener("pagehide", () => {
+ if (micStream) micStream.getTracks().forEach((track) => track.stop());
+ if (workletHandle) workletHandle.dispose();
+ if (audioContext && audioContext.state !== "closed") void audioContext.close();
+ releaseObjectUrl(rawUrl);
+ releaseObjectUrl(cleanUrl);
+});
+</script>
+</body>
+</html>
