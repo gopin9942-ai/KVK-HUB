@@ -257,7 +257,12 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
 .participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
-body.room-speaking-active #roomPage .participantTile.is-speaking .avatar{outline:2px solid #8cf4ff!important;outline-offset:3px!important;box-shadow:0 0 0 5px #67e3f366,0 0 14px 4px #55d8eddd,0 0 28px 8px #55d8edaa!important;filter:drop-shadow(0 0 7px #55d8edcc)!important;animation:softSpeakerGlow 1.35s ease-in-out infinite!important;will-change:box-shadow,filter}body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}@media(prefers-reduced-motion:reduce){body.room-speaking-active #roomPage .participantTile.is-speaking .avatar{animation:none!important}}
+.participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#263b58;border:1px solid #526784;color:#c8d8ee;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
+.participantRoleBadge:has([data-admin]){background:#174b3b;border-color:#48d6a0;color:#8fffd0}
+.participantSpeakingStatus{display:none;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px;border-radius:999px;background:#123c36;border:1px solid #42d6a4;color:#70f0c3;font-size:8px;font-weight:800;letter-spacing:.04em;line-height:1.4}
+.participantTile.is-speaking .participantSpeakingStatus{display:block}
+body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
+@media(prefers-reduced-motion:reduce){.participantSpeakingStatus{transition:none!important}}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
 .volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
@@ -280,7 +285,7 @@ header{position:relative}
 #resumeActiveRoomBtn{width:100%;min-height:42px;padding:10px 13px;border:1px solid #54dcff55;border-radius:12px;background:linear-gradient(135deg,#174b5d,#203b5b);color:#e8fbff;box-shadow:0 6px 18px #35c9f422;text-align:center}
 #appBackBtn{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:auto;min-height:34px;margin:0;padding:7px 10px;border:1px solid #ffffff24;border-radius:9px;background:#263650;color:#eef8ff;font-size:12px;box-shadow:none}
 @media(max-width:600px){#appBackBtn{left:8px;padding:7px 8px;font-size:11px}}
-@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
+
 @media(max-width:600px){
  #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
  #roomPage>.roomScreenCard{padding:13px!important}
@@ -1475,11 +1480,9 @@ function renderParticipants(){
    function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
-   tile.append(img,fallback,name,panel);
-   if(roomOwnerUid&&p.uid===roomOwnerUid){
-    const adminBadge=document.createElement("div");adminBadge.className="participantAdminBadge";adminBadge.textContent="👑 ADMIN";adminBadge.setAttribute("aria-label","Room admin");
-    tile.insertBefore(adminBadge,panel);
-   }
+   const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge";roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
+   const speakingStatus=document.createElement("div");speakingStatus.className="participantSpeakingStatus";speakingStatus.textContent="◖)) SPEAKING";speakingStatus.setAttribute("aria-label","Currently speaking");
+   tile.append(img,fallback,name,roleBadge,speakingStatus,panel);
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
     const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
