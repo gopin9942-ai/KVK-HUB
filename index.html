@@ -1297,6 +1297,16 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   [participant.identity,participant.sid].filter(Boolean).forEach(id=>speakingParticipantIds.delete(id));
   updateParticipantIndicators();
  });
+ // Room-level active-speaker updates cover both local and remote participants.
+ // This drives UI indicators only; media tracks and audio routing remain untouched.
+ room.on(RoomEvent.ActiveSpeakersChanged,participants=>{
+  speakingParticipantIds.clear();
+  for(const participant of participants||[]){
+   [participant.identity,participant.sid].filter(Boolean).forEach(id=>speakingParticipantIds.add(id));
+  }
+  kvkDiag("room-active-speakers-changed",{count:(participants||[]).length,includesLocal:(participants||[]).includes(room.localParticipant)});
+  updateParticipantIndicators();
+ });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown"});
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
