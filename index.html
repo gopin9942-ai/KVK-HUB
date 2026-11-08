@@ -252,7 +252,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
 .participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
-.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 5px #67e3f31b,0 0 13px #55d8ed75!important;filter:none!important;animation:softSpeakerGlow 2.2s ease-in-out infinite!important}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
 .volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
@@ -266,7 +266,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .callControl small{font-size:8px;color:#d5e3f4}
 .disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
 .callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
-@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f316,0 0 9px #55d8ed45}50%{box-shadow:0 0 0 5px #67e3f329,0 0 15px #55d8ed78}}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
 @media(max-width:600px){
  #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
  #roomPage>.roomScreenCard{padding:13px!important}
@@ -312,9 +312,9 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
 .participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
-.participantTile .avatarFallback{display:flex!important}
+
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
-.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 5px #67e3f31b,0 0 13px #55d8ed75!important;filter:none!important;animation:softSpeakerGlow 2.2s ease-in-out infinite!important}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
 .volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
@@ -328,7 +328,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .callControl small{font-size:8px;color:#d5e3f4}
 .disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
 .callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
-@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f316,0 0 9px #55d8ed45}50%{box-shadow:0 0 0 5px #67e3f329,0 0 15px #55d8ed78}}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
 @media(max-width:600px){
  #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
  #roomPage>.roomScreenCard{padding:13px!important}
@@ -863,19 +863,22 @@ function startMyRooms(){
    const roomData=room.roomData||{};
    const creatorUid=roomData.creatorUid||roomData.createdBy||"";
    let creatorName=roomData.createdByName||roomData.creatorName||(room.isRoomAdmin?(auth.currentUser?.displayName||"You"):"Room creator");
-   let creatorPhoto="";
+   let creatorPhoto=roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
    if(creatorUid){
     try{
      const creatorSnap=await getDoc(doc(db,"users",creatorUid));
      if(creatorSnap.exists()){
       const creator=creatorSnap.data()||{};
       creatorName=creator.displayName||creatorName;
-      creatorPhoto=creator.photoDataUrl||creator.photoURL||"";
+      creatorPhoto=creator.photoDataUrl||creator.photoURL||creatorPhoto;
      }
     }catch(profileError){console.warn("Creator profile lookup failed:",profileError);}
+    if(!creatorPhoto){
+     try{const presenceSnap=await getDoc(doc(db,"rooms",room.id,"participants",creatorUid));if(presenceSnap.exists()){const presence=presenceSnap.data()||{};creatorName=presence.name||creatorName;creatorPhoto=presence.photoURL||"";}}catch(presenceError){console.warn("Creator presence profile lookup failed:",presenceError);}
+    }
     if(creatorUid===auth.currentUser?.uid){
      creatorName=auth.currentUser.displayName||creatorName;
-     creatorPhoto=auth.currentUser.photoURL||creatorPhoto;
+     creatorPhoto=creatorPhoto||auth.currentUser.photoURL||"";
      try{const ownProfile=await getDoc(doc(db,"users",creatorUid));if(ownProfile.exists()){const own=ownProfile.data()||{};creatorName=own.displayName||creatorName;creatorPhoto=own.photoDataUrl||own.photoURL||creatorPhoto;}}catch(_){}
     }
    }
@@ -953,6 +956,18 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const roomSnap=await getDoc(roomRef);
  if(!roomSnap.exists())throw new Error("Room not found. Ask the host to check the Room ID.");
  const roomDetails=roomSnap.data();
+ // When the creator joins an older room, refresh the room-level public profile snapshot.
+ if(roomDetails.creatorUid===auth.currentUser.uid||roomDetails.createdBy===auth.currentUser.uid){
+  try{
+   const ownerProfileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));
+   const ownerProfile=ownerProfileSnap.exists()?ownerProfileSnap.data()||{}:{};
+   const ownerName=ownerProfile.displayName||auth.currentUser.displayName||"User";
+   const rawOwnerPhoto=ownerProfile.photoDataUrl||ownerProfile.photoURL||auth.currentUser.photoURL||"";
+   const ownerPhotoSnapshot=rawOwnerPhoto.startsWith("data:image/")?(rawOwnerPhoto.length<=180000?rawOwnerPhoto:(auth.currentUser.photoURL||"")):rawOwnerPhoto;
+   await setDoc(roomRef,{createdByName:ownerName,creatorPhotoURL:ownerPhotoSnapshot},{merge:true});
+   roomDetails.createdByName=ownerName;roomDetails.creatorPhotoURL=ownerPhotoSnapshot;
+  }catch(profileSnapshotError){console.warn("Could not refresh room creator profile snapshot:",profileSnapshotError);}
+ }
  if(roomDetails.isPublic!==false)throw new Error("Public rooms are disabled. Use a password-protected room.");
  if(activeRoom)await leaveVoiceRoom();
  // Authorization is remembered by the Worker for this Firebase UID.
@@ -997,7 +1012,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  // LiveKit reports room-wide active speakers and participant-level speaking changes.
  // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
-  activeSpeakerIds=new Set(speakers.map(p=>p.identity));
+  activeSpeakerIds=new Set(speakers.flatMap(p=>[p.identity,p.sid].filter(Boolean)));
   for(const participant of speakers){
    const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
    if(profile)profile.level=Number(participant.audioLevel)||0;
@@ -1111,6 +1126,12 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  }catch(e){console.error("Presence setup error:",e);$("voiceMembers").textContent="Member count unavailable: "+(e.code||e.message||"Firestore error");}
  if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected! Share the room code with friends.";
 }
+function isProfileSpeaking(profile){
+ const isLocal=profile.uid===auth.currentUser?.uid;
+ const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
+ const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
+ return activeSpeakerIds.has(identity)||!!(participant&&(activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
+}
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
  const people=[...participantProfiles.values()];
@@ -1193,8 +1214,7 @@ function renderParticipants(){
   }
   const children=tile.children;
   children[2].textContent=p.name||"User";
-  const speakingIdentity=p.uid===auth.currentUser?.uid?(activeRoom?.localParticipant?.identity||p.livekitIdentity||p.uid):(p.livekitIdentity||p.uid);
-  const isSpeaking=activeSpeakerIds.has(speakingIdentity);
+  const isSpeaking=isProfileSpeaking(p);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
@@ -1202,8 +1222,7 @@ function renderParticipants(){
 function updateParticipantIndicators(){
  for(const [id,tile] of participantTiles){
   const p=participantProfiles.get(id);if(!p)continue;
-  const speakingIdentity=p.uid===auth.currentUser?.uid?(activeRoom?.localParticipant?.identity||p.livekitIdentity||id):(p.livekitIdentity||id);
-  const isSpeaking=activeSpeakerIds.has(speakingIdentity);
+  const isSpeaking=isProfileSpeaking(p);
   tile.dataset.livekitIdentity=speakingIdentity;
   tile.dataset.speaking=isSpeaking?"yes":"no";
   tile.classList.toggle("is-speaking",isSpeaking);
@@ -1353,18 +1372,23 @@ $("createBtn").onclick=async()=>{
  if(password===null)return;
  const code="kvk-room-"+Math.random().toString(36).slice(2,8);
  const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
+ const creatorProfileSnap=await getDoc(doc(db,"users",auth.currentUser.uid)).catch(()=>null);
+ const creatorProfile=creatorProfileSnap?.exists()?creatorProfileSnap.data()||{}:{};
+ const creatorName=creatorProfile.displayName||auth.currentUser.displayName||"User";
+ const rawCreatorPhoto=creatorProfile.photoDataUrl||creatorProfile.photoURL||auth.currentUser.photoURL||"";
+ const creatorPhotoSnapshot=rawCreatorPhoto.startsWith("data:image/")?(rawCreatorPhoto.length<=180000?rawCreatorPhoto:(auth.currentUser.photoURL||"")):rawCreatorPhoto;
  let firestoreCreated=false,workerCreated=false;
  try{
   await setDoc(doc(db,"rooms",code),{
-   name:(auth.currentUser.displayName||"User")+"'s room",
+   name:creatorName+"\u0027s room",
    isPublic:false,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,
-   createdByName:auth.currentUser.displayName||"User",createdAt:serverTimestamp()
+   createdByName:creatorName,creatorPhotoURL:creatorPhotoSnapshot,createdAt:serverTimestamp()
   });
   firestoreCreated=true;
   await workerAdminRequest("/create-private-room",{roomName:code,password});
   workerCreated=true;
   await setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",code),{
-   roomName:code,name:(auth.currentUser.displayName||"User")+"'s room",
+   roomName:code,name:creatorName+"\u0027s room",
    role:"created",updatedAt:serverTimestamp()
   },{merge:true});
   $("roomCode").value=code;
