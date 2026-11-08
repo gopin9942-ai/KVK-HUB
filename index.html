@@ -1274,10 +1274,10 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  // Speaking glow uses only LiveKit's participant speaking-state event.
  // This is visual state only; it does not access or modify audio tracks or routing.
  const speakingIndicatorBound=new WeakSet();
- const refreshParticipantSpeaking=participant=>{
+ const refreshParticipantSpeaking=(participant,speaking=participant?.isSpeaking)=>{
   if(!participant)return;
   const ids=[participant.identity,participant.sid].filter(Boolean);
-  if(participant.isSpeaking)ids.forEach(id=>speakingParticipantIds.add(id));
+  if(speaking)ids.forEach(id=>speakingParticipantIds.add(id));
   else ids.forEach(id=>speakingParticipantIds.delete(id));
   const profile=[...participantProfiles.values()].find(p=>p.livekitIdentity===participant.identity||p.uid===participant.identity);
   if(profile)profile.level=Number(participant.audioLevel)||0;
@@ -1286,8 +1286,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const bindSpeakingIndicator=participant=>{
   if(!participant||speakingIndicatorBound.has(participant))return;
   speakingIndicatorBound.add(participant);
-  participant.on(ParticipantEvent.IsSpeakingChanged,()=>refreshParticipantSpeaking(participant));
-  refreshParticipantSpeaking(participant);
+  participant.on(ParticipantEvent.IsSpeakingChanged,speaking=>refreshParticipantSpeaking(participant,speaking));
+  refreshParticipantSpeaking(participant,participant.isSpeaking);
  };
  bindSpeakingIndicator(room.localParticipant);
  room.on(RoomEvent.ParticipantConnected,participant=>bindSpeakingIndicator(participant));
@@ -1322,6 +1322,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  kvkDiag("livekit-connect-complete");
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
+ // Re-evaluate participants now that the room is assigned to activeRoom.
+ refreshParticipantSpeaking(room.localParticipant,room.localParticipant.isSpeaking);
+ for(const participant of room.remoteParticipants.values())refreshParticipantSpeaking(participant,participant.isSpeaking);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
@@ -1452,7 +1455,7 @@ function isProfileSpeaking(profile){
  if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return false;
  const isLocal=profile.uid===auth.currentUser?.uid;
  const participant=isLocal?activeRoom.localParticipant:[...(activeRoom.remoteParticipants?.values?.()||[])].find(p=>p.identity===(profile.livekitIdentity||profile.uid)||p.identity===profile.uid);
- return !!(participant&&(speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
+ return !!(participant&&(participant.isSpeaking===true||speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
 }
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
