@@ -927,16 +927,17 @@ async function stopLocalMicrophone(room=activeRoom){
  if(track){try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
-// Raw microphone baseline: all browser voice filters disabled.
-const audioPreferences={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+// Android/WebView voice processing: enable built-in echo cancellation and noise suppression.
+// Keep automatic gain control off to avoid unnecessary voice-level pumping.
+const audioPreferences={echoCancellation:true,noiseSuppression:true,autoGainControl:false};
 async function setRoomMicrophone(room,enabled){
  await stopLocalMicrophone(room);
  if(!enabled)return;
- // Raw microphone baseline: filters OFF; request 48 kHz mono (best-effort).
+ // Use the platform/WebRTC voice processor; 48 kHz mono remains a best-effort request.
  const stream=await navigator.mediaDevices.getUserMedia({
   audio:{
-   echoCancellation:false,
-   noiseSuppression:false,
+   echoCancellation:true,
+   noiseSuppression:true,
    autoGainControl:false,
    channelCount:{ideal:1},
    sampleRate:{ideal:48000}
@@ -955,8 +956,8 @@ async function setRoomMicrophone(room,enabled){
   const filterState=["echoCancellation","noiseSuppression","autoGainControl"]
    .map(key=>key+"="+(settings[key]===undefined?"unknown":settings[key]?"ON":"OFF")).join(" · ");
   const supportNote=$("audioSupportNote");
-  if(supportNote)supportNote.textContent="Requested: filters OFF, 48 kHz mono. Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
-  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · browser filters requested OFF.";
+  if(supportNote)supportNote.textContent="Requested: noise suppression ON, echo cancellation ON, AGC OFF, 48 kHz mono. Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
+  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · noise suppression and echo cancellation requested ON.";
  }catch(error){
   stream.getTracks().forEach(t=>t.stop());
   throw error;
