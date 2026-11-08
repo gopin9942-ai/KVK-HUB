@@ -1555,6 +1555,7 @@ function updateParticipantIndicators(){
   tile.dataset.livekitIdentity=p.livekitIdentity||p.uid;
   tile.dataset.speaking=isSpeaking?"yes":"no";
   tile.classList.toggle("is-speaking",isSpeaking);
+  const speakingBadge=tile.querySelector(".participantSpeakingBadge");if(speakingBadge)speakingBadge.hidden=!isSpeaking;
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
 }
