@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#091323">
+<title>KVK HUB · Glowing Bar Test</title>
+<style>
+:root{color-scheme:dark;--bg:#091323;--panel:#14243b;--line:#29415f;--muted:#a8bad1;--mint:#65f0c5;--cyan:#65dff5}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 0,#203b5a 0,#101d32 42%,var(--bg) 100%);color:#f3f8ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100% - 28px,620px);margin:auto;padding:24px 0 42px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#76edff,#388bc8);color:#082039;font-weight:950;font-size:22px}
+h1{font-size:20px;margin:0;letter-spacing:.04em}header p{margin:3px 0 0;color:var(--muted);font-size:11px;letter-spacing:.12em}
+.card{background:linear-gradient(145deg,#192b45f2,#101c30f5);border:1px solid var(--line);border-radius:18px;padding:17px;margin:13px 0;box-shadow:0 12px 32px #0003}
+h2{font-size:16px;margin:0 0 8px}.note{color:var(--muted);font-size:13px;line-height:1.55}
+.status{padding:11px 12px;border-radius:11px;background:#0b1729;border:1px solid var(--line);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+button{min-height:44px;padding:11px 15px;border:0;border-radius:11px;background:linear-gradient(135deg,#73e7f7,#43b3df);color:#071a2b;font-weight:850;font-size:14px;flex:1}
+button.secondary{background:#263b59;color:#eef7ff;border:1px solid #405a7d}button:disabled{opacity:.45}
+.visual{padding:35px 8px 26px;text-align:center}
+.bar-shell{height:28px;border-radius:99px;background:#07111f;border:1px solid #314968;padding:4px;overflow:hidden;box-shadow:inset 0 2px 8px #0008}
+.bar{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#259ed5 0%,#53dce9 48%,#8bffd5 100%);box-shadow:0 0 7px #58e8ed,0 0 16px #55e9d5,0 0 30px #5df2c8;transition:width 65ms linear,filter 80ms linear;filter:brightness(.8)}
+.bar.active{filter:brightness(1.45)}
+.bar-label{font-size:12px;color:#b9cce1;margin-top:14px;letter-spacing:.14em;font-weight:850}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.metric{padding:11px;border-radius:11px;background:#0c182b;border:1px solid #293d5b}
+.metric small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.metric strong{display:block;margin-top:5px;font-size:15px;overflow-wrap:anywhere}
+label{display:block;font-size:12px;color:var(--muted);margin:15px 0 7px}input[type=range]{width:100%;accent-color:#65e8d0}
+footer{text-align:center;color:#8094b0;font-size:11px;margin-top:18px}
+@media(max-width:420px){main{padding-top:17px}.card{padding:14px}h1{font-size:18px}}
+</style>
+</head>
+<body><main>
+<header><div class="logo">K</div><div><h1>KVK HUB</h1><p>GLOWING BAR · TEST LAB</p></div></header>
+<section class="card">
+<h2>Live microphone glowing bar test</h2>
+<p class="note">இது தனி test page. Microphone audio-வை எங்கும் அனுப்பாது, பதிவு செய்யாது, playback செய்யாது. Mic level-ஐ local-ஆக மட்டும் அளந்து கீழே உள்ள glowing bar-ஐ இயக்கும். ஏற்கெனவே voice room call நடக்கும்போது இதைத் தொட வேண்டாம்; முதலில் call-ஐ விட்டு வெளியேறி test செய்யவும்.</p>
+<div id="status" class="status">Start Test அழுத்தி microphone permission கொடுக்கவும்.</div>
+<div class="actions"><button id="start">Start Test</button><button id="stop" class="secondary" disabled>Stop</button></div>
+</section>
+<section class="card">
+<h2>Speaking level</h2>
+<div class="visual">
+<div class="bar-shell"><div id="bar" class="bar"></div></div>
+<div id="barLabel" class="bar-label">WAITING FOR MICROPHONE</div>
+</div>
+<div class="metrics">
+<div class="metric"><small>Input level</small><strong id="level">0%</strong></div>
+<div class="metric"><small>Bar response</small><strong id="response">IDLE</strong></div>
+<div class="metric"><small>Mic state</small><strong id="micState">Stopped</strong></div>
+<div class="metric"><small>Audio context</small><strong id="ctxState">Closed</strong></div>
+</div>
+<label for="threshold">Sensitivity · <span id="thresholdValue">5</span>%</label>
+<input id="threshold" type="range" min="1" max="25" value="5">
+<p class="note">Sensitivity-ஐக் குறைத்தால் மெதுவான குரலுக்கும் bar அசையும். அதிகரித்தால் background noise குறைவாகப் பிரதிபலிக்கும்.</p>
+</section>
+<section class="card">
+<h2>Test steps</h2>
+<ol class="note"><li>Start Test அழுத்தவும்.</li><li>பேசும்போது bar நீளமாகி பிரகாசமாகிறதா பாருங்கள்.</li><li>சத்தமாகப் பேசும்போது bar அதிகமாகவும், மெதுவாகப் பேசும்போது குறைவாகவும் அசைய வேண்டும்.</li><li>பேசுவதை நிறுத்தினால் bar மீண்டும் பூஜ்ஜியத்துக்கு வர வேண்டும்.</li><li>Stop அழுத்தி microphone-ஐ release செய்யவும்.</li></ol>
+<p class="note">இது local Web Audio analyser test மட்டுமே. LiveKit அல்லது KVK HUB main UI-ஐ மாற்றாது. Android Chrome/WebView microphone permission தேவை.</p>
+</section>
+<footer><a href="./speaking-test.html" style="color:#65dff5">Speaking Indicator Test</a> · <a href="./" style="color:#65dff5">Back to KVK HUB</a></footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let stream=null,context=null,source=null,analyser=null,data=null,raf=0,active=false,smoothed=0,barActive=false;
+function stop(){active=false;if(raf)cancelAnimationFrame(raf);raf=0;if(source){try{source.disconnect()}catch(_){}source=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if(context){const c=context;context=null;c.close().catch(()=>{})}analyser=null;data=null;smoothed=0;barActive=false;$("bar").style.width="0%";$("bar").classList.remove("active");$("level").textContent="0%";$("response").textContent="IDLE";$("barLabel").textContent="MICROPHONE STOPPED";$("micState").textContent="Stopped";$("ctxState").textContent="Closed";$("status").textContent="Microphone stopped and released.";$("start").disabled=false;$("stop").disabled=true;}
+function loop(){if(!active||!analyser||!data)return;analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}const rms=Math.sqrt(sum/data.length);const raw=Math.min(100,Math.round(rms*260));smoothed=smoothed*.68+raw*.32;const level=Math.round(smoothed);const threshold=Number($("threshold").value);const visible=level>=threshold?Math.min(100,Math.max(0,(level-threshold)*1.65+5)):Math.max(0,level/threshold*4);$("bar").style.width=visible+"%";$("bar").classList.toggle("active",level>=threshold);$("level").textContent=level+"%";const nowActive=level>=threshold;if(nowActive!==barActive){barActive=nowActive;$("response").textContent=nowActive?"VOICE DETECTED":"QUIET";$("barLabel").textContent=nowActive?"◖)) SPEAKING":"LISTENING";}raf=requestAnimationFrame(loop);}
+async function start(){if(active)return;$("start").disabled=true;$("status").textContent="Requesting microphone permission...";try{stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});context=new AudioContext();await context.resume();source=context.createMediaStreamSource(stream);analyser=context.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;source.connect(analyser);data=new Uint8Array(analyser.fftSize);active=true;$("micState").textContent="Granted · local only";$("ctxState").textContent=context.state+" · "+context.sampleRate+" Hz";$("status").textContent="Mic ready. பேசிப் பாருங்கள் — குரலுக்கு ஏற்ப glowing bar மாறும்.";$("stop").disabled=false;raf=requestAnimationFrame(loop);}catch(e){stop();$("status").textContent="Microphone start failed: "+(e.message||e);}}
+$("start").addEventListener("click",start);$("stop").addEventListener("click",stop);$("threshold").addEventListener("input",()=>{$("thresholdValue").textContent=$("threshold").value;});window.addEventListener("pagehide",stop);
+</script></body></html>
