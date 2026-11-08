@@ -1191,7 +1191,13 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  // Load LiveKit only when the user actually joins a room. A CDN failure must not
  // block Firebase initialization and leave the app stuck on the boot splash.
  const {Room,RoomEvent}=await import("https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs");
- const room=new Room();
+ // Keep the existing LiveKit room and media tracks alive while Android backgrounds the WebView.
+ // A brief network outage must not be treated as an intentional room exit. Retry until
+ // connectivity returns; server-side terminal disconnects still emit Disconnected.
+ const room=new Room({
+  disconnectOnPageLeave:false,
+  reconnectPolicy:{nextRetryDelayInMs:()=>7000}
+ });
  // LiveKit reports room-wide active speakers and participant-level speaking changes.
  // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
@@ -1207,6 +1213,16 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{
   track.detach().forEach(el=>el.remove());
+ });
+ room.on(RoomEvent.Reconnecting,()=>{
+  if(activeRoom===room)status.textContent="Network interrupted. Staying in "+roomName+"; trying to reconnect...";
+ });
+ room.on(RoomEvent.Reconnected,()=>{
+  if(activeRoom===room){
+   status.textContent="Reconnected to "+roomName+". Voice is back.";
+   room.startAudio().catch(()=>{});
+   updateNativeVoiceService();
+  }
  });
  room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
  await room.connect(data.serverUrl,data.token);
