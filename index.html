@@ -260,8 +260,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#263b58;border:1px solid #526784;color:#c8d8ee;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
 .participantRoleBadge.is-admin{background:#174b3b;border-color:#48d6a0;color:#8fffd0}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
-.participantTile.is-speaking .avatar,.avatar.is-speaking{outline-color:#62f5c5;box-shadow:0 0 0 3px #45e8b555,0 0 14px #42f0bdcc,0 0 26px #42f0bd66;animation:participantSpeakingGlow 1.15s ease-in-out infinite alternate}
-@keyframes participantSpeakingGlow{from{box-shadow:0 0 0 2px #45e8b544,0 0 9px #42f0bd99}to{box-shadow:0 0 0 4px #45e8b577,0 0 18px #42f0bdff,0 0 30px #42f0bd77}}
+.participantTile.is-speaking .avatar,.avatar.is-speaking{outline:2px solid #62f5c5;outline-offset:2px;box-shadow:0 0 6px #42f0bd88;animation:none}
 @media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none!important}}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
