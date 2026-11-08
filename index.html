@@ -1674,10 +1674,8 @@ $("createBtn").onclick=async()=>{
    roomName:code,name:creatorName+"\u0027s room",
    role:"created",updatedAt:serverTimestamp()
   },{merge:true});
-  $("roomCode").value=code;
-  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
-  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Room created. Invite link copied! Share the password separately.";}
-  catch(copyError){status.textContent="Room created. Invite link: "+inviteUrl.toString()+" — share the password separately.";}
+  $("roomCode").value="";
+  status.textContent="Room created. Joining your room...";
   await connectVoiceRoom(code,false,password);
  }catch(e){
   console.error("Create room failed:",e);status.textContent="CREATE ROOM ERROR: "+e.message;
