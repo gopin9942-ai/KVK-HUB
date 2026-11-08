@@ -769,32 +769,72 @@ let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const roomPresenceStops=new Map();
-// 100 on the slider is capped at 50% media-element volume.
-// This is a software limit, not a calibrated dB safety guarantee.
+// 100 is the normal reference level; 200 reaches the media element's 100% output.
+// This doubles the previous 100-level output without exceeding browser volume limits.
 const MAX_REMOTE_VOLUME=0.5;
 function volumeToMediaVolume(value){
  const n=Number(value);
- const clamped=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+ const clamped=Number.isFinite(n)?Math.max(0,Math.min(200,n)):100;
  return (clamped/100)*MAX_REMOTE_VOLUME;
 }
-function loadRemoteVolume(identity){
- const stored=localStorage.getItem("kvkRemoteVolume:"+identity);
- if(stored===null)return 100;
- const n=Number(stored);
- return Number.isFinite(n)?Math.max(0,Math.min(100,n)):100;
+function remoteVolumePreferenceRef(targetUid){
+ if(!auth.currentUser||!currentRoomCode||!targetUid)return null;
+ return doc(db,"users",auth.currentUser.uid,"roomVolumeSettings",currentRoomCode+"_"+targetUid);
 }
-function setRemoteVolume(identity,value){
- const n=Number(value);
- const safeValue=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
- const mediaVolume=volumeToMediaVolume(safeValue);
+function applyRemoteVolume(identity,value){
+ const safeValue=Math.max(0,Math.min(200,Number(value)||0));
  remoteAudioGains.set(identity,safeValue);
- localStorage.setItem("kvkRemoteVolume:"+identity,String(safeValue));
+ const mediaVolume=volumeToMediaVolume(safeValue);
  document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
   if(audioEl.dataset.identity===identity){
    audioEl.muted=(safeValue===0);
    audioEl.volume=mediaVolume;
   }
  });
+ document.querySelectorAll(".participantTile").forEach(tile=>{
+  if(tile.dataset.livekitIdentity===identity){
+   const slider=tile.querySelector(".volumePanel input[type=range]");
+   const label=tile.querySelector(".volumePanel label span:last-child");
+   if(slider)slider.value=String(safeValue);
+   if(label)label.textContent=safeValue+"%";
+  }
+ });
+}
+async function loadRemoteVolume(identity,targetUid){
+ if(remoteAudioGains.has(identity))return remoteAudioGains.get(identity);
+ remoteAudioGains.set(identity,100);
+ const ref=remoteVolumePreferenceRef(targetUid);
+ if(!ref)return 100;
+ try{
+  const snap=await getDoc(ref);
+  if(snap.exists()&&snap.data().roomName===currentRoomCode){
+   const n=Number(snap.data().volume);
+   const saved=Number.isFinite(n)?Math.max(0,Math.min(200,n)):100;
+   applyRemoteVolume(identity,saved);
+   return saved;
+  }
+ }catch(error){console.warn("Could not load account-synced room volume:",error);}
+ return 100;
+}
+function setRemoteVolume(identity,value){
+ const n=Number(value);
+ const safeValue=Number.isFinite(n)?Math.max(0,Math.min(200,n)):100;
+ applyRemoteVolume(identity,safeValue);
+}
+async function saveRemoteVolume(identity,targetUid,value){
+ const ref=remoteVolumePreferenceRef(targetUid);
+ if(!ref)return;
+ try{
+  await setDoc(ref,{roomName:currentRoomCode,targetUid,volume:Math.max(0,Math.min(200,Number(value)||0)),updatedAt:serverTimestamp()},{merge:true});
+ }catch(error){
+  console.error("Could not save room volume to account:",error);
+  status.textContent="Volume changed on this device, but account sync failed. Check Firestore rules.";
+ }
+}
+async function clearRemoteVolumePreference(targetUid){
+ const ref=remoteVolumePreferenceRef(targetUid);
+ if(!ref)return;
+ try{await deleteDoc(ref);}catch(error){console.warn("Could not clear departed participant volume:",error);}
 }
 function attachRemoteAudio(track,identity){
  const audioEl=track.attach();
@@ -1268,7 +1308,7 @@ function renderParticipants(){
    const panel=document.createElement("div");panel.className="volumePanel";
    const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
    const initialAudioIdentity=p.livekitIdentity||p.uid;
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??loadRemoteVolume(initialAudioIdentity));
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="200";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??100);
    volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
    slider.addEventListener("input",()=>{
     const value=Number(slider.value);
@@ -1277,6 +1317,9 @@ function renderParticipants(){
     setRemoteVolume(currentAudioIdentity,value);
     volumeValue.textContent=value+"%";
    });
+   slider.addEventListener("change",()=>saveRemoteVolume(latestAudioIdentity(),p.uid,Number(slider.value)));
+   function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
+   loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
    tile.append(img,fallback,name,panel);
    if(roomOwnerUid&&p.uid===roomOwnerUid){
