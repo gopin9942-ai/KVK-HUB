@@ -1288,15 +1288,32 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   disconnectOnPageLeave:false,
   reconnectPolicy:{nextRetryDelayInMs:()=>7000}
  });
- // Restore the earlier room-level LiveKit active-speaker detection.
- // This controls participant UI only; media tracks and audio routing are untouched.
+ // Speaking UI only: observe LiveKit's participant speaking events.
+ // No microphone capture, media tracks, audio processing, or playback are changed.
+ const speakingEventBound=new WeakSet();
+ const bindSpeakingEvents=participant=>{
+  if(!participant||speakingEventBound.has(participant))return;
+  speakingEventBound.add(participant);
+  participant.on(ParticipantEvent.IsSpeakingChanged,()=>{
+   const ids=[participant.identity,participant.sid].filter(Boolean);
+   if(participant.isSpeaking){for(const id of ids)activeSpeakerIds.add(id);}
+   else{for(const id of ids)activeSpeakerIds.delete(id);}
+   updateParticipantIndicators();
+  });
+ };
  room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
   activeSpeakerIds=new Set((speakers||[]).flatMap(p=>[p.identity,p.sid].filter(Boolean)));
   for(const participant of speakers||[]){
+   bindSpeakingEvents(participant);
    const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
    if(profile)profile.level=Number(participant.audioLevel)||0;
   }
   kvkDiag("room-active-speakers-changed",{count:(speakers||[]).length,includesLocal:(speakers||[]).includes(room.localParticipant)});
+  updateParticipantIndicators();
+ });
+ room.on(RoomEvent.ParticipantConnected,bindSpeakingEvents);
+ room.on(RoomEvent.ParticipantDisconnected,participant=>{
+  for(const id of [participant.identity,participant.sid].filter(Boolean))activeSpeakerIds.delete(id);
   updateParticipantIndicators();
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
@@ -1323,6 +1340,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  kvkDiag("livekit-connect-start");
  await room.connect(data.serverUrl,data.token);
  kvkDiag("livekit-connect-complete");
+ // Bind the local and already-present remote participants once connected.
+ bindSpeakingEvents(room.localParticipant);
+ for(const participant of room.remoteParticipants.values())bindSpeakingEvents(participant);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
  // Try to start remote audio automatically after the user taps Join.
