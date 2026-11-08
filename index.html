@@ -1718,10 +1718,13 @@ async function changeMicrophoneState(nextEnabled){
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
-$("copyRoomLinkBtn").onclick=async()=>{
+$("copyRoomCodeBtn").onclick=async()=>{
  const code=currentRoomCode;
  if(!code)return;
- trdocument.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code);}
+  else{
+   const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
    const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
   }
   status.textContent="Room code copied! Now you can send it to your friends.";
