@@ -1067,7 +1067,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.TrackUnsubscribed,track=>{
   track.detach().forEach(el=>el.remove());
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;closeRoomSettings();roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
@@ -1315,6 +1315,15 @@ function stopDeleteCountdown(){
  $("confirmDeleteChannelBtn").disabled=true;
  $("confirmDeleteChannelBtn").textContent="Confirm Delete";
  $("deleteChannelBtn").disabled=false;
+}
+function closeRoomSettings(){
+ const panel=$("roomSettingsPanel");
+ if(panel)panel.style.display="none";
+ const audio=$("audioSettingsPanel");if(audio)audio.style.display="none";
+ const unban=$("unbanSettingsPanel");if(unban)unban.style.display="none";
+ const audioChevron=$("audioSettingsChevron");if(audioChevron)audioChevron.textContent="＋";
+ const unbanBtn=$("unbanSettingsBtn");if(unbanBtn)unbanBtn.innerHTML="🛡 Unban Settings <span>＋</span>";
+ stopDeleteCountdown();
 }
 $("roomSettingsBtn").onclick=()=>{
  const panel=$("roomSettingsPanel");
