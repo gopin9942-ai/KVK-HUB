@@ -843,7 +843,7 @@ function startMyRooms(){
   const uniqueRoomIds=new Set();
   // Remove stale My Rooms entries when their Firestore room document no longer exists.
   for(const d of snapshot.docs){
-   const room={id:d.id,...d.data()};
+   const room={id:d.id,savedDocId:d.id,...d.data()};
    const canonicalRoomId=String(room.roomName||room.id).trim();
    if(!canonicalRoomId||uniqueRoomIds.has(canonicalRoomId))continue;
    uniqueRoomIds.add(canonicalRoomId);
@@ -852,7 +852,7 @@ function startMyRooms(){
    try{
     const roomSnap=await getDoc(doc(db,"rooms",room.id));
     if(!roomSnap.exists()){
-     await deleteDoc(doc(db,"users",uid,"myRooms",room.id));
+     await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId));
      continue;
     }
     const roomData=roomSnap.data()||{};
