@@ -834,7 +834,7 @@ let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
-let speakingParticipantIds=new Set();
+let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const remoteVolumeLoaded=new Set();
@@ -1288,38 +1288,15 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   disconnectOnPageLeave:false,
   reconnectPolicy:{nextRetryDelayInMs:()=>7000}
  });
- // Speaking glow uses only LiveKit's participant speaking-state event.
- // This is visual state only; it does not access or modify audio tracks or routing.
- const speakingIndicatorBound=new WeakSet();
- const refreshParticipantSpeaking=(participant,speaking=participant?.isSpeaking)=>{
-  if(!participant)return;
-  const ids=[participant.identity,participant.sid].filter(Boolean);
-  if(speaking)ids.forEach(id=>speakingParticipantIds.add(id));
-  else ids.forEach(id=>speakingParticipantIds.delete(id));
-  const profile=[...participantProfiles.values()].find(p=>p.livekitIdentity===participant.identity||p.uid===participant.identity);
-  if(profile)profile.level=Number(participant.audioLevel)||0;
-  updateParticipantIndicators();
- };
- const bindSpeakingIndicator=participant=>{
-  if(!participant||speakingIndicatorBound.has(participant))return;
-  speakingIndicatorBound.add(participant);
-  participant.on(ParticipantEvent.IsSpeakingChanged,speaking=>{kvkDiag("participant-speaking-event",{isLocal:participant===room.localParticipant,speaking:!!speaking,roomState:room.state,screen:currentAppScreen});refreshParticipantSpeaking(participant,speaking);});
-  refreshParticipantSpeaking(participant,participant.isSpeaking);
- };
- bindSpeakingIndicator(room.localParticipant);
- room.on(RoomEvent.ParticipantConnected,participant=>bindSpeakingIndicator(participant));
- room.on(RoomEvent.ParticipantDisconnected,participant=>{
-  [participant.identity,participant.sid].filter(Boolean).forEach(id=>speakingParticipantIds.delete(id));
-  updateParticipantIndicators();
- });
- // Room-level active-speaker updates cover both local and remote participants.
- // This drives UI indicators only; media tracks and audio routing remain untouched.
- room.on(RoomEvent.ActiveSpeakersChanged,participants=>{
-  speakingParticipantIds.clear();
-  for(const participant of participants||[]){
-   [participant.identity,participant.sid].filter(Boolean).forEach(id=>speakingParticipantIds.add(id));
+ // Restore the earlier room-level LiveKit active-speaker detection.
+ // This controls participant UI only; media tracks and audio routing are untouched.
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
+  activeSpeakerIds=new Set((speakers||[]).flatMap(p=>[p.identity,p.sid].filter(Boolean)));
+  for(const participant of speakers||[]){
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
+   if(profile)profile.level=Number(participant.audioLevel)||0;
   }
-  kvkDiag("room-active-speakers-changed",{count:(participants||[]).length,includesLocal:(participants||[]).includes(room.localParticipant)});
+  kvkDiag("room-active-speakers-changed",{count:(speakers||[]).length,includesLocal:(speakers||[]).includes(room.localParticipant)});
   updateParticipantIndicators();
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
@@ -1479,10 +1456,10 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected!";
 }
 function isProfileSpeaking(profile){
- if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return false;
  const isLocal=profile.uid===auth.currentUser?.uid;
- const participant=isLocal?activeRoom.localParticipant:[...(activeRoom.remoteParticipants?.values?.()||[])].find(p=>p.identity===(profile.livekitIdentity||profile.uid)||p.identity===profile.uid);
- return !!(participant&&(participant.isSpeaking===true||speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
+ const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
+ const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
+ return activeSpeakerIds.has(identity)||!!(participant&&(activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
 }
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
@@ -1589,7 +1566,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();livekitIdentityToUid.clear();speakingParticipantIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
+ participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
