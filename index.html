@@ -396,7 +396,9 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
    <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Reduce background noise, if supported</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
-   <p class="audioSupportNote" id="audioSupportNote">Noise Suppression depends on device support. Echo Cancellation is requested automatically where supported; Auto Gain Control is kept off.</p>
+   <label class="audioSettingRow"><span><strong>Echo Cancellation</strong><small>Reduce speaker-to-microphone echo</small></span><input id="echoCancellationToggle" type="checkbox"></label>
+   <label class="audioSettingRow"><span><strong>Auto Gain Control</strong><small>Keep microphone level consistent</small></span><input id="autoGainControlToggle" type="checkbox"></label>
+   <p class="audioSupportNote" id="audioSupportNote">These options depend on browser and microphone support. Actual settings will be checked when the microphone is enabled.</p>
   </div>
   <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
   <div id="unbanSettingsPanel" style="display:none">
@@ -929,15 +931,15 @@ async function stopLocalMicrophone(room=activeRoom){
  if(track){try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
-const audioPreferenceDefaults={noiseSuppression:true};
-const audioPreferences={
- noiseSuppression:localStorage.getItem("kvkAudio:noiseSuppression")!=="false",
- echoCancellation:true,
- autoGainControl:false
-};
+const audioPreferenceDefaults={noiseSuppression:true,echoCancellation:true,autoGainControl:true};
+const audioPreferences={};
+for(const [key,defaultValue] of Object.entries(audioPreferenceDefaults)){
+ const stored=localStorage.getItem("kvkAudio:"+key);
+ audioPreferences[key]=stored===null?defaultValue:stored==="true";
+}
 function syncAudioPreferenceControls(){
- const control=$("noiseSuppressionToggle");
- if(control)control.checked=!!audioPreferences.noiseSuppression;
+ const map={noiseSuppression:"noiseSuppressionToggle",echoCancellation:"echoCancellationToggle",autoGainControl:"autoGainControlToggle"};
+ for(const [key,id] of Object.entries(map)){const control=$(id);if(control)control.checked=!!audioPreferences[key];}
 }
 syncAudioPreferenceControls();
 async function setRoomMicrophone(room,enabled){
@@ -960,7 +962,7 @@ async function setRoomMicrophone(room,enabled){
   localMicStream=stream;localPublishedMicTrack=track;
   const settings=track.getSettings?.()||{};
   console.info("KVK HUB microphone processing settings:",settings);
-  const labels={noiseSuppression:"Noise suppression",echoCancellation:"Echo cancellation"};
+  const labels={noiseSuppression:"Noise suppression",echoCancellation:"Echo cancellation",autoGainControl:"Auto gain"};
   const activeFilters=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]===true).map(key=>labels[key]);
   const unsupported=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]!==true).map(key=>labels[key]);
   const supportNote=$("audioSupportNote");
@@ -1321,7 +1323,7 @@ $("audioSettingsBtn").onclick=()=>{
  $("audioSettingsChevron").textContent=opening?"−":"＋";
  syncAudioPreferenceControls();
 };
-for(const [key,id] of [["noiseSuppression","noiseSuppressionToggle"]]){
+for(const [key,id] of [["noiseSuppression","noiseSuppressionToggle"],["echoCancellation","echoCancellationToggle"],["autoGainControl","autoGainControlToggle"]]){
  const control=$(id);
  control.onchange=async()=>{
   const previous=audioPreferences[key];
