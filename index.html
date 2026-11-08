@@ -412,6 +412,7 @@ header{position:relative}
  <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
   <div class="settingsHeading">Room Settings</div>
   <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
+  <div class="roomSettingRow"><div><strong>Room Link</strong><small>Copy a link to invite people to this room</small></div><button id="copyRoomLinkBtn" class="secondary compactAction">Copy Link</button></div>
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
    <div class="audioSettingRow"><div><strong>Noise Suppression</strong><small>Reduce background noise (device-supported)</small></div><input id="noiseSuppressionToggle" type="checkbox" checked aria-label="Noise Suppression"></div>
@@ -1676,8 +1677,7 @@ $("createBtn").onclick=async()=>{
   },{merge:true});
   $("roomCode").value="";
   const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
-  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Room created. Invite link copied! Share the password separately.";}
-  catch(copyError){status.textContent="Room created. Invite link: "+inviteUrl.toString()+" — share the password separately.";}
+  status.textContent="Room created. Joining your room...";
   await connectVoiceRoom(code,false,password);
  }catch(e){
   console.error("Create room failed:",e);status.textContent="CREATE ROOM ERROR: "+e.message;
@@ -1720,6 +1720,19 @@ async function changeMicrophoneState(nextEnabled){
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
+$("copyRoomLinkBtn").onclick=async()=>{
+ const code=currentRoomCode;
+ if(!code)return;
+ const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(inviteUrl.toString());}
+  else{
+   const temp=document.createElement("textarea");temp.value=inviteUrl.toString();temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+   const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+  }
+  status.textContent="Room invite link copied! Share the password separately.";
+ }catch(e){console.error("Copy room link failed:",e);status.textContent="Could not copy the room link. Please try again.";}
+};
 $("copyRoomCodeBtn").onclick=async()=>{
  const code=currentRoomCode;
  if(!code)return;
