@@ -1775,7 +1775,7 @@ $("leaveBtn").onclick=async()=>{
 $("leaveRoomSettingsBtn").onclick=async()=>{
  if(!currentRoomCode||!auth.currentUser)return;
  const roomToLeave=currentRoomCode;
- if(!confirm("Leave this room? You will need the room password next time."))return;
+ if(!await askRoomConfirmation({title:"Leave Room?",description:"Are you sure you want to leave this room? You will need the room password next time.",confirmText:"Yes, Leave Room",cancelText:"Cancel"}))return;
  const button=$("leaveRoomSettingsBtn");button.disabled=true;button.textContent="Leaving...";
  try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToLeave));await leaveVoiceRoom();status.textContent="You left the room. It was removed from My Rooms. Password required next time."; }
  catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
