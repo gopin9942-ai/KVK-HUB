@@ -1601,6 +1601,9 @@ function renderParticipants(){
   }
   const children=tile.children;
   children[2].textContent=p.name||"User";
+  const roleBadge=tile.querySelector(".participantRoleBadge");
+  const participantIsAdmin=p.role==="admin"||(roomOwnerUid&&p.uid===roomOwnerUid);
+  if(roleBadge){roleBadge.classList.toggle("is-admin",!!participantIsAdmin);roleBadge.textContent=participantIsAdmin?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",participantIsAdmin?"Room admin":"Room member");}
   const isSpeaking=isProfileSpeaking(p);
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.querySelectorAll(".avatar").forEach(avatar=>avatar.classList.toggle("is-speaking",isSpeaking));
