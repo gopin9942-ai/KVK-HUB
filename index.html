@@ -266,6 +266,8 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .callControl small{font-size:8px;color:#d5e3f4}
 .disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
 .callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
+#appBackBtn{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:auto;min-height:34px;margin:0;padding:7px 10px;border:1px solid #ffffff24;border-radius:9px;background:#263650;color:#eef8ff;font-size:12px;box-shadow:none}
+@media(max-width:600px){#appBackBtn{left:8px;padding:7px 8px;font-size:11px}}
 @keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
 @media(max-width:600px){
  #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
@@ -343,7 +345,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 </head>
 <body>
 <div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="24" y="7" width="16" height="31" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M15 29v3a17 17 0 0 0 34 0v-3M32 49v8m-10 0h20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
-<header><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
+<header><button type="button" id="appBackBtn" class="secondary" aria-label="Back" style="display:none">← Back</button><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
 <main>
 <section id="loginPage" class="card">
 <h2>Welcome to KVK HUB 🎙️</h2><p>Sign in to connect with your friends.</p>
@@ -519,6 +521,43 @@ async function stopNativeVoiceService(){
 }
 
 
+let appNavDepth=0;
+let skipAppPopstate=false;
+function pushAppNav(){appNavDepth++;history.pushState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
+function dismissAppNav(){if(appNavDepth>0){appNavDepth--;skipAppPopstate=true;history.back();}updateAppBackButton();}
+function resetAppNav(){appNavDepth=0;skipAppPopstate=false;history.replaceState({kvkAppNav:true,depth:0},"",location.href);}
+function updateAppBackButton(){
+ const button=$("appBackBtn");if(!button)return;
+ const loginVisible=$("loginPage").style.display!=="none";
+ const roomVisible=$("roomPage").style.display!=="none";
+ const hasOverlay=$("profileEditor").style.display==="block"||!$("profileMenu").hidden||$("roomSettingsPanel").style.display!=="none"||$("passwordModalOverlay").style.display==="flex";
+ button.style.display=(!loginVisible&&(appNavDepth>0||roomVisible||hasOverlay))?"inline-flex":"none";
+}
+function handleAppBack(){
+ if($("passwordModalOverlay").style.display==="flex"){$("passwordModalCancel").click();return;}
+ if(!$("profileMenu").hidden){$("profileMenu").hidden=true;updateAppBackButton();return;}
+ if($("profileEditor").style.display==="block"){$("profileEditor").style.display="none";updateAppBackButton();return;}
+ if($("audioSettingsPanel").style.display!=="none"){$("audioSettingsPanel").style.display="none";$("audioSettingsChevron").textContent="＋";updateAppBackButton();return;}
+ if($("unbanSettingsPanel").style.display!=="none"){$("unbanSettingsPanel").style.display="none";$("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";updateAppBackButton();return;}
+ if($("roomSettingsPanel").style.display!=="none"){closeRoomSettings();updateAppBackButton();return;}
+ if($("roomPage").style.display!=="none"){
+  if(activeRoom&&!confirm("Leave this voice room and go back to Home?")){pushAppNav();return;}
+  leaveVoiceRoom().catch(error=>{console.error(error);status.textContent="Could not leave room: "+error.message;});return;
+ }
+ updateAppBackButton();
+}
+function initializeAppNavigation(){
+ history.replaceState({kvkAppNav:true,depth:0},"",location.href);
+ history.pushState({kvkAppNav:true,depth:0},"",location.href);
+ $("appBackBtn").onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};
+ window.addEventListener("popstate",()=>{
+  if(skipAppPopstate){skipAppPopstate=false;return;}
+  if(appNavDepth>0){appNavDepth--;handleAppBack();}
+  else history.pushState({kvkAppNav:true,depth:0},"",location.href);
+  updateAppBackButton();
+ });
+ updateAppBackButton();
+}
 function askRoomConfirmation({title="Please Confirm",description="Are you sure?",confirmText="Confirm",cancelText="Cancel"}={}){
  return new Promise(resolve=>{
   const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
@@ -681,6 +720,7 @@ function setupModeration(roomData){
 }
 
 const $=id=>document.getElementById(id);
+initializeAppNavigation();
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 // Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
@@ -833,6 +873,7 @@ $("profilePhotoInput").onchange=async event=>{
  }catch(error){status.textContent="Could not read that image.";console.error(error);}
 };
 function showHome(user){
+ resetAppNav();
  loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
  $("userName").textContent="Hello, "+(user.displayName||"User");
  loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
@@ -840,6 +881,7 @@ function showHome(user){
  startMyRooms();
 }
 function showLogin(){
+ resetAppNav();
  stopMyRooms();
  loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";
  status.textContent="Please login to continue.";
@@ -1115,7 +1157,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
  // Audio diagnostics appear after microphone connection.
- homePage.style.display="none";roomPage.style.display="block";
+ pushAppNav();
+ homePage.style.display="none";roomPage.style.display="block";updateAppBackButton();
  await startNativeVoiceService(roomName);
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
@@ -1281,6 +1324,7 @@ function clearPresence(){
  }
 }
 async function leaveVoiceRoom(){
+ resetAppNav();closeRoomSettings();
  await stopNativeVoiceService();
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
@@ -1328,7 +1372,8 @@ function closeRoomSettings(){
 $("roomSettingsBtn").onclick=()=>{
  const panel=$("roomSettingsPanel");
  const opening=panel.style.display==="none";
- panel.style.display=opening?"block":"none";
+ if(opening){pushAppNav();panel.style.display="block";}else{dismissAppNav();panel.style.display="none";}
+ updateAppBackButton();
  if(!opening){
   stopDeleteCountdown();
   $("unbanSettingsPanel").style.display="none";
@@ -1340,14 +1385,16 @@ $("roomSettingsBtn").onclick=()=>{
 $("unbanSettingsBtn").onclick=async()=>{
  const panel=$("unbanSettingsPanel");
  const opening=panel.style.display==="none";
- panel.style.display=opening?"block":"none";
+ if(opening){pushAppNav();panel.style.display="block";}else{dismissAppNav();panel.style.display="none";}
+ updateAppBackButton();
  $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>"+(opening?"−":"＋")+"</span>";
  if(opening)await refreshModeration();
 };
 $("audioSettingsBtn").onclick=()=>{
  const panel=$("audioSettingsPanel");
  const opening=panel.style.display==="none";
- panel.style.display=opening?"block":"none";
+ if(opening){pushAppNav();panel.style.display="block";}else{dismissAppNav();panel.style.display="none";}
+ updateAppBackButton();
  $("audioSettingsChevron").textContent=opening?"−":"＋";
  if(opening)syncAudioPreferenceControls();
 };
