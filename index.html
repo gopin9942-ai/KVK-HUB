@@ -354,6 +354,8 @@ header{position:relative}
 }
 @media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .youtubePromoRow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 2px;padding:10px 12px;border:1px solid rgba(255,65,85,.28);border-radius:13px;background:linear-gradient(105deg,rgba(255,55,75,.13),rgba(23,35,58,.78) 65%)}.youtubePromoCopy{display:flex;flex-direction:column;gap:3px;min-width:0}.youtubePromoCopy strong{font-size:11px;letter-spacing:.14em;color:#fff}.youtubePromoCopy small{font-size:10px;color:#aebbd3}.youtubePromoRow .youtubeChannelLink{min-height:36px;padding:0 12px;background:#e62135;border-color:#ff5262;color:#fff;font-size:11px;box-shadow:0 5px 15px rgba(230,33,53,.2)}.youtubePromoRow .youtubeChannelLink svg{color:#fff;width:17px;height:17px}@media(max-width:600px){.youtubePromoRow{margin:6px 0 1px;padding:7px 9px;gap:7px}.youtubePromoCopy strong{font-size:9px}.youtubePromoCopy small{font-size:9px}.youtubePromoRow .youtubeChannelLink{min-height:32px;padding:0 9px;font-size:10px}.youtubePromoRow .youtubeChannelLink svg{width:15px;height:15px}}
+.roomTopActions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.roomCodeQuickCopy{width:auto;min-width:0;height:42px;min-height:42px;padding:0 13px;margin:0;font-size:12px;font-weight:700;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -407,11 +409,10 @@ header{position:relative}
 <div class="card roomScreenCard">
  <div class="roomTopbar">
   <div class="roomTitleGroup"><div class="sectionEyebrow">LIVE VOICE SPACE</div><h2>🎙️ Voice Room</h2><p id="roomInfo" class="small">Room connected</p></div>
-  <button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button>
+  <div class="roomTopActions"><button id="roomCodeQuickCopyBtn" class="secondary roomCodeQuickCopy" type="button">Room Code</button><button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button></div>
  </div>
  <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
   <div class="settingsHeading">Room Settings</div>
-  <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
    <div class="audioSettingRow"><div><strong>Noise Suppression</strong><small>Reduce background noise (device-supported)</small></div><input id="noiseSuppressionToggle" type="checkbox" checked aria-label="Noise Suppression"></div>
@@ -778,7 +779,7 @@ function setupModeration(roomData){
  $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
- $("copyRoomCodeBtn").style.display="inline-flex";
+ $("roomCodeQuickCopyBtn").style.display="inline-flex";
 }
 
 const $=id=>document.getElementById(id);
@@ -1718,7 +1719,7 @@ async function changeMicrophoneState(nextEnabled){
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
-$("copyRoomCodeBtn").onclick=async()=>{
+$("roomCodeQuickCopyBtn").onclick=async()=>{
  const code=currentRoomCode;
  if(!code)return;
  try{
