@@ -1306,9 +1306,19 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   }
   stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const present=new Set();
+   // Firestore heartbeat timers may be throttled while Android is backgrounded.
+   // LiveKit's actual participant list is authoritative while the voice connection is alive.
+   const liveKitOnline=new Set();
+   if(activeRoom){
+    if(activeRoom.localParticipant?.identity)liveKitOnline.add(activeRoom.localParticipant.identity);
+    for(const participant of activeRoom.remoteParticipants.values()){
+     if(participant.identity)liveKitOnline.add(participant.identity);
+    }
+   }
    for(const snap of people.docs){
     const d=snap.data(),seen=d.lastSeen?.toMillis?.()||0;
-    if(Date.now()-seen<90000){
+    const liveKitConnected=liveKitOnline.has(d.livekitIdentity||snap.id);
+    if(Date.now()-seen<90000||liveKitConnected){
      present.add(snap.id);
      const prior=participantProfiles.get(snap.id);
      participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});
@@ -1324,7 +1334,17 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   });
   stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
    const now=Date.now();
-   const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
+   const liveKitOnline=new Set();
+   if(activeRoom){
+    if(activeRoom.localParticipant?.identity)liveKitOnline.add(activeRoom.localParticipant.identity);
+    for(const participant of activeRoom.remoteParticipants.values()){
+     if(participant.identity)liveKitOnline.add(participant.identity);
+    }
+   }
+   const online=people.docs.filter(p=>{
+    const d=p.data();
+    return now-(d.lastSeen?.toMillis?.()||0)<90000||liveKitOnline.has(d.livekitIdentity||p.id);
+   }).length;
    $("voiceMembers").textContent=online+" member(s) online";
   },err=>{
    console.error("Member count listener failed:",err);
