@@ -491,6 +491,7 @@ async function getNativeKvkCall(){
   // itself from an async function: Promise resolution would call plugin.then().
   nativeKvkCall={
    requestNotificationPermission:(...args)=>nativePlugin.requestNotificationPermission(...args),
+   requestMicrophonePermission:(...args)=>nativePlugin.requestMicrophonePermission(...args),
    start:(...args)=>nativePlugin.start(...args),
    update:(...args)=>nativePlugin.update(...args),
    stop:(...args)=>nativePlugin.stop(...args),
@@ -499,12 +500,23 @@ async function getNativeKvkCall(){
  }catch(error){console.warn("Could not load native KVK bridge:",error);}
  return nativeKvkCall;
 }
+let postLoginPermissionsRequested=false;
+async function requestMainPagePermissions(){
+ if(!window.Capacitor||postLoginPermissionsRequested)return;
+ postLoginPermissionsRequested=true;
+ const plugin=await getNativeKvkCall();
+ if(!plugin)return;
+ try{
+  const notification=await plugin.requestNotificationPermission();
+  if(notification?.granted===false)status.textContent="Notification permission is off. You can enable it in Android Settings.";
+  const microphone=await plugin.requestMicrophonePermission();
+  if(microphone?.granted===false)status.textContent="Microphone permission is off. Enable it in Android Settings to speak in voice rooms.";
+ }catch(error){console.warn("Post-login permission request failed:",error);}
+}
 async function startNativeVoiceService(roomName){
  const plugin=await getNativeKvkCall();
  if(!plugin)return;
  try{
-  const permission=await plugin.requestNotificationPermission();
-  if(permission?.granted===false)status.textContent="Notification permission is off. KVK HUB will try to keep the room active in background.";
   if(!nativeKvkCallListenerReady){
    await plugin.addListener("notificationAction",async event=>{
     kvkDiag("notification-action-received",{action:event?.action,roomActive:!!activeRoom,micEnabled});
@@ -1536,8 +1548,9 @@ onAuthStateChanged(auth,async user=>{
  // Reveal the correct signed-in/signed-out screen immediately. Persistence setup
  // must never keep the user behind the boot splash.
  $("bootSplash").classList.add("done");
- if(!user){showLogin();return;}
+ if(!user){postLoginPermissionsRequested=false;showLogin();return;}
  showHome(user);
+ await requestMainPagePermissions();
  try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
  const inviteRoom=new URLSearchParams(location.search).get("room");
  if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom))$("roomCode").value=inviteRoom;
