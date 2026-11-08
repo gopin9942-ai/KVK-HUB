@@ -898,7 +898,7 @@ function startMyRooms(){
    const by=document.createElement("div");by.className="roomCreatorLine";by.textContent="Created by "+creatorName;
    const role=document.createElement("span");role.className="creatorRole";role.textContent=room.isRoomAdmin?"ADMIN":"HOST";
    details.append(name,by,role);top.append(avatar,details);
-   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Your room":"Joined room")+" · "+room.id;
+   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=room.role==="created"?"Your room":"Joined room";
    const actions=document.createElement("div");actions.className="roomCardActions";
    const join=document.createElement("button");join.textContent="Join Room";join.className="roomJoinAction";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
    actions.append(join);
@@ -1232,7 +1232,7 @@ function updateParticipantIndicators(){
  for(const [id,tile] of participantTiles){
   const p=participantProfiles.get(id);if(!p)continue;
   const isSpeaking=isProfileSpeaking(p);
-  tile.dataset.livekitIdentity=speakingIdentity;
+  tile.dataset.livekitIdentity=p.livekitIdentity||p.uid;
   tile.dataset.speaking=isSpeaking?"yes":"no";
   tile.classList.toggle("is-speaking",isSpeaking);
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
