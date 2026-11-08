@@ -768,6 +768,8 @@ const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
+const remoteVolumeLoaded=new Set();
+const remoteVolumeTouched=new Set();
 const roomPresenceStops=new Map();
 // 100 is the normal reference level; 200 reaches the media element's 100% output.
 // This doubles the previous 100-level output without exceeding browser volume limits.
@@ -801,29 +803,32 @@ function applyRemoteVolume(identity,value){
  });
 }
 async function loadRemoteVolume(identity,targetUid){
- if(remoteAudioGains.has(identity))return remoteAudioGains.get(identity);
- remoteAudioGains.set(identity,100);
+ if(remoteVolumeLoaded.has(identity))return remoteAudioGains.get(identity)??100;
+ if(!remoteAudioGains.has(identity))remoteAudioGains.set(identity,100);
  const ref=remoteVolumePreferenceRef(targetUid);
- if(!ref)return 100;
+ if(!ref){remoteVolumeLoaded.add(identity);return 100;}
  try{
   const snap=await getDoc(ref);
-  if(snap.exists()&&snap.data().roomName===currentRoomCode){
+  if(snap.exists()&&snap.data().roomName===currentRoomCode&&!remoteVolumeTouched.has(identity)){
    const n=Number(snap.data().volume);
    const saved=Number.isFinite(n)?Math.max(0,Math.min(200,n)):100;
    applyRemoteVolume(identity,saved);
-   return saved;
   }
  }catch(error){console.warn("Could not load account-synced room volume:",error);}
- return 100;
+ remoteVolumeLoaded.add(identity);
+ return remoteAudioGains.get(identity)??100;
 }
 function setRemoteVolume(identity,value){
  const n=Number(value);
  const safeValue=Number.isFinite(n)?Math.max(0,Math.min(200,n)):100;
+ remoteVolumeTouched.add(identity);
  applyRemoteVolume(identity,safeValue);
 }
 async function saveRemoteVolume(identity,targetUid,value){
  const ref=remoteVolumePreferenceRef(targetUid);
  if(!ref)return;
+ remoteVolumeTouched.add(identity);
+ remoteVolumeLoaded.add(identity);
  try{
   await setDoc(ref,{roomName:currentRoomCode,targetUid,volume:Math.max(0,Math.min(200,Number(value)||0)),updatedAt:serverTimestamp()},{merge:true});
  }catch(error){
@@ -842,7 +847,7 @@ function attachRemoteAudio(track,identity){
  audioEl.playsInline=true;
  audioEl.className="remoteAudio";
  audioEl.dataset.identity=identity;
- const savedValue=remoteAudioGains.get(identity)??loadRemoteVolume(identity);
+ const savedValue=remoteAudioGains.get(identity)??100;
  remoteAudioGains.set(identity,savedValue);
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
