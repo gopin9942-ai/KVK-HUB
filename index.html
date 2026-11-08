@@ -670,6 +670,7 @@ let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",cu
 let localMicStream=null,localPublishedMicTrack=null;
 $("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
+let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
@@ -828,6 +829,7 @@ function showLogin(){
 }
 function stopMyRooms(){
  if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
+ myRoomsRenderVersion++;
 }
 function startMyRooms(){
  stopMyRooms();
@@ -836,10 +838,16 @@ function startMyRooms(){
  const uid=auth.currentUser?.uid;
  if(!uid){list.textContent="Please login to view your rooms.";return;}
  stopRoomsListener=onSnapshot(collection(db,"users",uid,"myRooms"),async snapshot=>{
+  const renderVersion=++myRoomsRenderVersion;
   const rooms=[];
+  const uniqueRoomIds=new Set();
   // Remove stale My Rooms entries when their Firestore room document no longer exists.
   for(const d of snapshot.docs){
    const room={id:d.id,...d.data()};
+   const canonicalRoomId=String(room.roomName||room.id).trim();
+   if(!canonicalRoomId||uniqueRoomIds.has(canonicalRoomId))continue;
+   uniqueRoomIds.add(canonicalRoomId);
+   room.id=canonicalRoomId;
    room.isRoomAdmin=false;
    try{
     const roomSnap=await getDoc(doc(db,"rooms",room.id));
@@ -855,6 +863,7 @@ function startMyRooms(){
    }
    rooms.push(room);
   }
+  if(renderVersion!==myRoomsRenderVersion)return;
   rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
@@ -1243,7 +1252,10 @@ async function leaveVoiceRoom(){
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
- currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
+ currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";
+ // Reattach the Quick Access listener after every disconnect so the home list refreshes immediately.
+ if(auth.currentUser)startMyRooms();
+ status.textContent="You left the room. Quick Access refreshed.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
 onAuthStateChanged(auth,async user=>{
