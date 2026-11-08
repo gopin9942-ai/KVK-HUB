@@ -267,6 +267,11 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
 .callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
 header{position:relative}
+.appSubScreen{display:none;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;width:100%;max-width:760px;margin:0 auto}
+.appSubScreen .card{margin:0}
+.appSubScreenTop{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.appSubScreenTop h2{font-size:18px;margin:0;color:var(--cyan)}
+.appSubScreenBack{width:auto;min-height:36px;margin:0;padding:7px 11px;background:#263650;color:#eef8ff;box-shadow:none}
 #appBackBtn{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:auto;min-height:34px;margin:0;padding:7px 10px;border:1px solid #ffffff24;border-radius:9px;background:#263650;color:#eef8ff;font-size:12px;box-shadow:none}
 @media(max-width:600px){#appBackBtn{left:8px;padding:7px 8px;font-size:11px}}
 @keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
@@ -525,27 +530,43 @@ async function stopNativeVoiceService(){
 let appNavDepth=0;
 let skipAppPopstate=false;
 let handlingAppPopstate=false;
+let currentAppScreen="login";
+const appScreenStack=[];
+function setAppScreen(name){
+ currentAppScreen=name;
+ const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",userSettings:"userSettingsPage"};
+ for(const [screen,id] of Object.entries(ids)){const el=$(id);if(el)el.style.display=screen===name?"block":"none";}
+ updateAppBackButton();
+}
+function navigateAppScreen(name){if(name===currentAppScreen)return;appScreenStack.push(currentAppScreen);setAppScreen(name);pushAppNav();}
+function prepareSeparateScreens(){
+ const main=document.querySelector("main");
+ const make=(id,title)=>{const section=document.createElement("section");section.id=id;section.className="appSubScreen";const top=document.createElement("div");top.className="appSubScreenTop";const back=document.createElement("button");back.type="button";back.className="appSubScreenBack secondary";back.textContent="← Back";back.onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};const heading=document.createElement("h2");heading.textContent=title;top.append(back,heading);section.append(top);main.append(section);return section;};
+ const roomSettings=make("roomSettingsPage","Room Settings");
+ const audioSettings=make("audioSettingsPage","Audio Settings");
+ const unbanSettings=make("unbanSettingsPage","Unban Settings");
+ const userSettings=make("userSettingsPage","User Settings");
+ const audio=$("audioSettingsPanel"),unban=$("unbanSettingsPanel"),profile=$("profileEditor"),room=$("roomSettingsPanel");
+ roomSettings.append(room);audioSettings.append(audio);unbanSettings.append(unban);userSettings.append(profile);
+ room.style.display="block";audio.style.display="block";unban.style.display="block";profile.style.display="block";
+ $("audioSettingsChevron").textContent="";$("unbanSettingsBtn").innerHTML="🛡 Unban Settings";
+}
 function pushAppNav(){appNavDepth++;history.pushState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
 function dismissAppNav(count=1){if(!handlingAppPopstate&&appNavDepth>0){const steps=Math.min(count,appNavDepth);appNavDepth-=steps;skipAppPopstate=true;history.go(-steps);}updateAppBackButton();}
 function replaceAppNav(){history.replaceState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
 function resetAppNav(){appNavDepth=0;skipAppPopstate=false;history.replaceState({kvkAppNav:true,depth:0},"",location.href);}
 function updateAppBackButton(){
  const button=$("appBackBtn");if(!button)return;
- const loginVisible=$("loginPage").style.display!=="none";
- const roomVisible=$("roomPage").style.display!=="none";
- const hasOverlay=$("profileEditor").style.display==="block"||!$("profileMenu").hidden||$("roomSettingsPanel").style.display!=="none"||$("passwordModalOverlay").style.display==="flex";
- button.style.display=(!loginVisible&&(appNavDepth>0||roomVisible||hasOverlay))?"inline-flex":"none";
+ const hasOverlay=$("passwordModalOverlay")?.style.display==="flex"||(!$("profileMenu")?.hidden&&currentAppScreen==="home");
+ button.style.display=(currentAppScreen!=="login"&&currentAppScreen!=="home"||appNavDepth>0||hasOverlay)?"inline-flex":"none";
 }
 function handleAppBack(){
  if($("passwordModalOverlay").style.display==="flex"){$("passwordModalCancel").click();return;}
  if(!$("profileMenu").hidden){$("profileMenu").hidden=true;updateAppBackButton();return;}
- if($("profileEditor").style.display==="block"){$("profileEditor").style.display="none";updateAppBackButton();return;}
- if($("audioSettingsPanel").style.display!=="none"){$("audioSettingsPanel").style.display="none";$("audioSettingsChevron").textContent="＋";updateAppBackButton();return;}
- if($("unbanSettingsPanel").style.display!=="none"){$("unbanSettingsPanel").style.display="none";$("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";updateAppBackButton();return;}
- if($("roomSettingsPanel").style.display!=="none"){closeRoomSettings();updateAppBackButton();return;}
- if($("roomPage").style.display!=="none"){
-  if(activeRoom&&!confirm("Leave this voice room and go back to Home?")){pushAppNav();return;}
-  leaveVoiceRoom().catch(error=>{console.error(error);status.textContent="Could not leave room: "+error.message;});return;
+ if(currentAppScreen!=="home"&&currentAppScreen!=="login"){
+  const previous=appScreenStack.pop()|| (activeRoom?"home":"home");
+  setAppScreen(previous);
+  return;
  }
  updateAppBackButton();
 }
@@ -733,6 +754,7 @@ function setupModeration(roomData){
 }
 
 const $=id=>document.getElementById(id);
+prepareSeparateScreens();
 initializeAppNavigation();
 initializeNativeBackButton();
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
@@ -837,7 +859,7 @@ async function saveProfile(){
  try{
   await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,publicId,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
   await loadUserProfile(user);
-  $("profileEditor").style.display="none";dismissAppNav();updateAppBackButton();
+  if(appNavDepth>0)history.back();else handleAppBack();
   $("userName").textContent="Hello, "+name;
   status.textContent="Profile saved successfully.";
  }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
@@ -850,9 +872,9 @@ $("profileMenuButton").onclick=()=>{
 };
 $("openUserSettingsBtn").onclick=()=>{
  $("profileMenu").hidden=true;
- $("profileEditor").style.display="block";replaceAppNav();
+ navigateAppScreen("userSettings");
 };
-$("closeProfileBtn").onclick=()=>{dismissAppNav();$("profileEditor").style.display="none";updateAppBackButton();};
+$("closeProfileBtn").onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};
 document.addEventListener("click",event=>{
  if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton")&&!$("profileMenu").hidden){$("profileMenu").hidden=true;dismissAppNav();updateAppBackButton();}
 });
@@ -889,17 +911,15 @@ $("profilePhotoInput").onchange=async event=>{
  }catch(error){status.textContent="Could not read that image.";console.error(error);}
 };
 function showHome(user){
- resetAppNav();
- loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";updateAppBackButton();
+ resetAppNav();appScreenStack.length=0;setAppScreen("home");
  $("userName").textContent="Hello, "+(user.displayName||"User");
  loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
  status.textContent="You are logged in!";
  startMyRooms();
 }
 function showLogin(){
- resetAppNav();
+ resetAppNav();appScreenStack.length=0;setAppScreen("login");
  stopMyRooms();
- loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";updateAppBackButton();
  status.textContent="Please login to continue.";
 }
 function stopMyRooms(){
@@ -1125,7 +1145,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.TrackUnsubscribed,track=>{
   track.detach().forEach(el=>el.remove());
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();closeRoomSettings();roomPage.style.display="none";homePage.style.display="block";updateAppBackButton();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
@@ -1173,8 +1193,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
  // Audio diagnostics appear after microphone connection.
- pushAppNav();
- homePage.style.display="none";roomPage.style.display="block";updateAppBackButton();
+ appScreenStack.length=0;appScreenStack.push("home");setAppScreen("room");pushAppNav();
  await startNativeVoiceService(roomName);
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
@@ -1340,12 +1359,12 @@ function clearPresence(){
  }
 }
 async function leaveVoiceRoom(){
- resetAppNav();closeRoomSettings();
+ resetAppNav();appScreenStack.length=0;closeRoomSettings();
  await stopNativeVoiceService();
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
- currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";updateAppBackButton();
+ currentRoomCode=null;setAppScreen("home");
  // Reattach the Quick Access listener after every disconnect so the home list refreshes immediately.
  if(auth.currentUser)startMyRooms();
  status.textContent="You left the room. Quick Access refreshed.";
@@ -1378,42 +1397,16 @@ function stopDeleteCountdown(){
 }
 function closeRoomSettings(){
  const panel=$("roomSettingsPanel");
- if(panel)panel.style.display="none";
- const audio=$("audioSettingsPanel");if(audio)audio.style.display="none";
- const unban=$("unbanSettingsPanel");if(unban)unban.style.display="none";
+ if(panel)panel.style.display="block";
+ const audio=$("audioSettingsPanel");if(audio)audio.style.display="block";
+ const unban=$("unbanSettingsPanel");if(unban)unban.style.display="block";
  const audioChevron=$("audioSettingsChevron");if(audioChevron)audioChevron.textContent="＋";
  const unbanBtn=$("unbanSettingsBtn");if(unbanBtn)unbanBtn.innerHTML="🛡 Unban Settings <span>＋</span>";
  stopDeleteCountdown();
 }
-$("roomSettingsBtn").onclick=()=>{
- const panel=$("roomSettingsPanel");
- const opening=panel.style.display==="none";
- if(opening){pushAppNav();panel.style.display="block";}else{const nested=$("unbanSettingsPanel").style.display!=="none"||$("audioSettingsPanel").style.display!=="none";dismissAppNav(nested?2:1);panel.style.display="none";}
- updateAppBackButton();
- if(!opening){
-  stopDeleteCountdown();
-  $("unbanSettingsPanel").style.display="none";
-  $("audioSettingsPanel").style.display="none";
-  $("audioSettingsChevron").textContent="＋";
-  $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";
- }
-};
-$("unbanSettingsBtn").onclick=async()=>{
- const panel=$("unbanSettingsPanel");
- const opening=panel.style.display==="none";
- if(opening){pushAppNav();panel.style.display="block";}else{dismissAppNav();panel.style.display="none";}
- updateAppBackButton();
- $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>"+(opening?"−":"＋")+"</span>";
- if(opening)await refreshModeration();
-};
-$("audioSettingsBtn").onclick=()=>{
- const panel=$("audioSettingsPanel");
- const opening=panel.style.display==="none";
- if(opening){pushAppNav();panel.style.display="block";}else{dismissAppNav();panel.style.display="none";}
- updateAppBackButton();
- $("audioSettingsChevron").textContent=opening?"−":"＋";
- if(opening)syncAudioPreferenceControls();
-};
+$("roomSettingsBtn").onclick=()=>navigateAppScreen("roomSettings");
+$("unbanSettingsBtn").onclick=async()=>{navigateAppScreen("unbanSettings");await refreshModeration();};
+$("audioSettingsBtn").onclick=()=>{navigateAppScreen("audioSettings");syncAudioPreferenceControls();};
 syncAudioPreferenceControls();
 $("noiseSuppressionToggle").onchange=event=>updateAudioPreference("noiseSuppression",event.target.checked);
 $("echoCancellationToggle").onchange=event=>updateAudioPreference("echoCancellation",event.target.checked);
@@ -1518,7 +1511,7 @@ $("leaveRoomSettingsBtn").onclick=async()=>{
  catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
  finally{button.disabled=false;button.textContent="Leave Room";}
 };
-window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
+window.addEventListener("pagehide",()=>{ /* Do not clear room presence on a navigation-only page transition. */ });
 window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
 window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
 </script>
