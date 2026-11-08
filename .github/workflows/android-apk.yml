@@ -70,31 +70,70 @@ jobs:
       - name: Configure Android foreground voice service
         run: python3 scripts/configure_android_foreground_service.py
 
-      - name: Keep hardware volume keys on Media stream without overriding WebRTC audio mode
+      - name: Route foreground hardware volume keys to Media stream
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           root = Path("android/app/src/main/java")
           files = list(root.rglob("MainActivity.java"))
           if len(files) != 1:
               raise SystemExit(f"Expected one MainActivity.java, found {len(files)}")
           path = files[0]
           content = path.read_text()
-          if "import android.media.AudioManager;" not in content:
-              content = content.replace("package com.kvkhub.voice;\n", "package com.kvkhub.voice;\n\nimport android.media.AudioManager;\n", 1)
-          if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
-              marker = "public class MainActivity extends BridgeActivity {"
-              if marker not in content:
-                  raise SystemExit("Could not find MainActivity class declaration")
-              content = content.replace(marker, marker + """
+          imports = ["import android.media.AudioManager;", "import android.os.Bundle;", "import android.view.KeyEvent;"]
+          for item in imports:
+              if item not in content:
+                  content = content.replace("package com.kvkhub.voice;", "package com.kvkhub.voice;\\n\\n" + item, 1)
+          marker = "public class MainActivity extends BridgeActivity {"
+          if marker not in content:
+              raise SystemExit("Could not find MainActivity class declaration")
+          # Remove the earlier onResume-only handler before installing the complete handler.
+          content = re.sub(r"\\n\\s*@Override\\s+public void onResume\\(\\)\\s*\\{\\s*super\\.onResume\\(\\);\\s*setVolumeControlStream\\(AudioManager\\.STREAM_MUSIC\\);\\s*\\}\\s*", "\\n", content)
+          if "public boolean dispatchKeyEvent(KeyEvent event)" in content:
+              raise SystemExit("A custom volume-key handler already exists; refusing to overwrite it")
+          methods = """
+              // Keep hardware volume controls associated with Media while this Activity is visible.
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setVolumeControlStream(AudioManager.STREAM_MUSIC);
+              }
+
               @Override
               public void onResume() {
                   super.onResume();
                   setVolumeControlStream(AudioManager.STREAM_MUSIC);
               }
-              """, 1)
+
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) setVolumeControlStream(AudioManager.STREAM_MUSIC);
+              }
+
+              // Explicitly route foreground volume-key presses to Media without changing
+              // WebRTC's audio mode, microphone capture, or output routing.
+              @Override
+              public boolean dispatchKeyEvent(KeyEvent event) {
+                  int keyCode = event.getKeyCode();
+                  if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                      if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                          AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+                          if (audio != null && !audio.isVolumeFixed()) {
+                              int direction = keyCode == KeyEvent.KEYCODE_VOLUME_UP
+                                      ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER;
+                              audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI);
+                          }
+                      }
+                      return true;
+                  }
+                  return super.dispatchKeyEvent(event);
+              }
+          """
+          content = content.replace(marker, marker + methods, 1)
           path.write_text(content)
-          print(f"Configured Media volume keys without changing Android audio mode in {path}")
+          print(f"Configured foreground hardware volume keys to adjust Media only in {path}")
           PY
 
       - name: Add Android microphone permissions
