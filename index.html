@@ -523,10 +523,10 @@ async function stopNativeVoiceService(){
 
 
 let appNavDepth=0;
-let skipAppPopstate=0;
+let skipAppPopstate=false;
 let handlingAppPopstate=false;
 function pushAppNav(){appNavDepth++;history.pushState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
-function dismissAppNav(count=1){if(!handlingAppPopstate&&appNavDepth>0){const steps=Math.min(count,appNavDepth);appNavDepth-=steps;skipAppPopstate+=steps;history.go(-steps);}updateAppBackButton();}
+function dismissAppNav(count=1){if(!handlingAppPopstate&&appNavDepth>0){const steps=Math.min(count,appNavDepth);appNavDepth-=steps;skipAppPopstate=true;history.go(-steps);}updateAppBackButton();}
 function resetAppNav(){appNavDepth=0;skipAppPopstate=false;history.replaceState({kvkAppNav:true,depth:0},"",location.href);}
 function updateAppBackButton(){
  const button=$("appBackBtn");if(!button)return;
@@ -553,7 +553,7 @@ function initializeAppNavigation(){
  history.pushState({kvkAppNav:true,depth:0},"",location.href);
  $("appBackBtn").onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};
  window.addEventListener("popstate",()=>{
-  if(skipAppPopstate>0){skipAppPopstate--;return;}
+  if(skipAppPopstate){skipAppPopstate=false;return;}
   if(appNavDepth>0){appNavDepth--;handlingAppPopstate=true;handleAppBack();handlingAppPopstate=false;}
   else history.pushState({kvkAppNav:true,depth:0},"",location.href);
   updateAppBackButton();
