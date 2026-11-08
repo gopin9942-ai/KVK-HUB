@@ -437,6 +437,25 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 
 <p id="status" role="status" aria-live="polite"></p>
 </main>
+<script>
+/* Keep a failed remote-module load from trapping users behind the boot splash. */
+window.setTimeout(()=>{
+ const splash=document.getElementById("bootSplash");
+ if(!splash||splash.classList.contains("done"))return;
+ splash.classList.add("done");
+ const login=document.getElementById("loginPage");
+ if(login)login.style.display="block";
+ const status=document.getElementById("status");
+ if(status)status.textContent="KVK HUB is taking too long to start. Check your internet connection and tap Reload.";
+ if(status&&!document.getElementById("bootRetryBtn")){
+  const retry=document.createElement("button");
+  retry.id="bootRetryBtn";retry.type="button";retry.textContent="Reload KVK HUB";
+  retry.style.cssText="display:block;max-width:240px;margin:12px auto";
+  retry.addEventListener("click",()=>location.reload());
+  status.insertAdjacentElement("afterend",retry);
+ }
+},15000);
+</script>
 <script type="module">
 import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
 import {
@@ -1259,10 +1278,12 @@ async function leaveVoiceRoom(){
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
 onAuthStateChanged(auth,async user=>{
- try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
+ // Reveal the correct signed-in/signed-out screen immediately. Persistence setup
+ // must never keep the user behind the boot splash.
  $("bootSplash").classList.add("done");
  if(!user){showLogin();return;}
  showHome(user);
+ try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
  const inviteRoom=new URLSearchParams(location.search).get("room");
  if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom))$("roomCode").value=inviteRoom;
  const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
