@@ -1286,7 +1286,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const bindSpeakingIndicator=participant=>{
   if(!participant||speakingIndicatorBound.has(participant))return;
   speakingIndicatorBound.add(participant);
-  participant.on(ParticipantEvent.IsSpeakingChanged,speaking=>refreshParticipantSpeaking(participant,speaking));
+  participant.on(ParticipantEvent.IsSpeakingChanged,speaking=>{kvkDiag("participant-speaking-event",{isLocal:participant===room.localParticipant,speaking:!!speaking,roomState:room.state,screen:currentAppScreen});refreshParticipantSpeaking(participant,speaking);});
   refreshParticipantSpeaking(participant,participant.isSpeaking);
  };
  bindSpeakingIndicator(room.localParticipant);
@@ -1452,96 +1452,12 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected!";
 }
 function isProfileSpeaking(profile){
- if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return false;
- const isLocal=profile.uid===auth.currentUser?.uid;
- const participant=isLocal?activeRoom.localParticipant:[...(activeRoom.remoteParticipants?.values?.()||[])].find(p=>p.identity===(profile.livekitIdentity||profile.uid)||p.identity===profile.uid);
- return !!(participant&&(participant.isSpeaking===true||speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
-}
-function renderParticipants(){
- const grid=$("participantGrid");if(!grid)return;
- const people=[...participantProfiles.values()];
- if(!people.length){if(!grid.querySelector(".empty")){grid.replaceChildren();const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);}return;}
- grid.querySelector(".empty")?.remove();
- for(const p of people){
-  let tile=participantTiles.get(p.uid);
-  if(!tile){
-   tile=document.createElement("div");tile.className="participantTile";
-   const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";
-   const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
-   if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
-   const name=document.createElement("div");name.className="participantName";
-   const panel=document.createElement("div");panel.className="volumePanel";
-   const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
-   const initialAudioIdentity=p.livekitIdentity||p.uid;
-   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="200";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??100);
-   volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
-   slider.addEventListener("input",()=>{
-    const value=Number(slider.value);
-    const latestProfile=participantProfiles.get(p.uid);
-    const currentAudioIdentity=latestProfile?.livekitIdentity||p.livekitIdentity||p.uid;
-    setRemoteVolume(currentAudioIdentity,value);
-    volumeValue.textContent=value+"%";
-   });
-   slider.addEventListener("change",()=>saveRemoteVolume(latestAudioIdentity(),p.uid,Number(slider.value)));
-   function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
-   loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
-   panel.append(volumeLabel,slider);
-   const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge"+(roomOwnerUid&&p.uid===roomOwnerUid?" is-admin":"");roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
-   tile.append(img,fallback,name,roleBadge,panel);
-   if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
-    const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
-    const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
-    const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
-    const muteButton=document.createElement("button");muteButton.type="button";muteButton.className="muteToggleAction";
-    const banButton=document.createElement("button");banButton.type="button";banButton.textContent="Ban user";
-    const kickButton=document.createElement("button");kickButton.type="button";kickButton.textContent="Kick user";kickButton.style.background="#8f6b2f";kickButton.style.color="#fff";
-    const getTargetIdentity=()=>{const profile=participantProfiles.get(p.uid);return profile?.livekitIdentity||p.livekitIdentity||p.uid;};
-    const syncMuteLabel=()=>{const identity=getTargetIdentity();const muted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);muteButton.textContent=muted?"Unmute":"Mute";};
-    syncMuteLabel();
-    muteButton.onclick=async event=>{
-     event.stopPropagation();const identity=getTargetIdentity();const currentlyMuted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);
-     muteButton.disabled=true;
-     try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
-     finally{muteButton.disabled=false;}
-    };
-    kickButton.onclick=async event=>{
-     event.stopPropagation();dropdown.hidden=true;
-     const identity=getTargetIdentity();
-     const profile=participantProfiles.get(p.uid)||p;
-     const memberName=profile.name||"this member";
-     const confirmed=await askRoomConfirmation({title:"Kick Member",description:"Kick "+memberName+" from this room? They can rejoin later without entering the room password again.",confirmText:"Kick User"});
-     if(!confirmed)return;
-     kickButton.disabled=true;kickButton.textContent="Kicking...";
-     try{
-      const succeeded=await moderationAction("/kick",identity);
-      if(succeeded){
-       participantProfiles.delete(p.uid);
-       participantTiles.get(p.uid)?.remove();
-       participantTiles.delete(p.uid);
-       status.textContent=memberName+" was disconnected from the room. They can rejoin.";
-      }
-     }finally{kickButton.disabled=false;kickButton.textContent="Kick user";}
-    };
-    banButton.onclick=async event=>{
-     event.stopPropagation();dropdown.hidden=true;
-     const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;
-     let savedProfile={uid:profile.uid||p.uid,displayName:profile.name||"User",photoURL:profile.photoURL||"",publicId:profile.publicId||""};
-     try{const snap=await getDoc(doc(db,"users",savedProfile.uid));if(snap.exists())savedProfile={...savedProfile,...snap.data()};}catch(e){console.warn("Could not read member profile before ban:",e);}
-     const ok=await moderationAction("/ban",identity,{targetUid:savedProfile.uid,targetName:savedProfile.displayName,targetPhotoURL:savedProfile.photoDataUrl||savedProfile.photoURL||"",targetPublicId:savedProfile.publicId||""});
-     if(ok){try{await setDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity),{uid:savedProfile.uid,displayName:savedProfile.displayName||"Member",photoDataUrl:savedProfile.photoDataUrl||null,photoURL:savedProfile.photoURL||"",publicId:savedProfile.publicId||"",livekitIdentity:identity,updatedAt:serverTimestamp()},{merge:true});await refreshModeration();}catch(e){console.error("Could not save banned profile snapshot:",e);status.textContent="User banned, but profile details could not be saved. Check Firestore rules.";}}
-    };
-    dropdown.append(muteButton,kickButton,banButton);
-    dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
-    menuWrap.append(dots,dropdown);tile.append(menuWrap);
-   }
-   tile.addEventListener("click",e=>{if(e.target===slider||e.target.closest(".tileAdminMenu"))return;panel.classList.toggle("open");});
-   participantTiles.set(p.uid,tile);grid.append(tile);
-  }
-  const children=tile.children;
-  children[2].textContent=p.name||"User";
-  const isSpeaking=isProfileSpeaking(p);
-  tile.classList.toggle("is-speaking",isSpeaking);
-  tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
+  const isLocal=profile.uid===auth.currentUser?.uid;
+  const roomReady=!!activeRoom&&activeRoom.state==="connected";
+  const onRoomScreen=currentAppScreen==="room";
+  const participant=roomReady?(isLocal?activeRoom.localParticipant:[...(activeRoom.remoteParticipants?.values?.()||[])].find(p=>p.identity===(profile.livekitIdentity||profile.uid)||p.identity===profile.uid)):null;
+  const speaking=!!(onRoomScreen&&roomReady&&participant&&(participant.isSpeaking===true||speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
+  return speaking;
  }
 }
 function updateParticipantIndicators(){
