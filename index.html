@@ -765,6 +765,7 @@ let localMicStream=null,localPublishedMicTrack=null;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
+const livekitIdentityToUid=new Map();
 let activeSpeakerIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
@@ -1401,7 +1402,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
+ participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
