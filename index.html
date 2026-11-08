@@ -762,7 +762,7 @@ const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),sta
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
 // Use Android/WebView built-in voice processing only; no custom AI audio worklet.
 let localMicStream=null,localPublishedMicTrack=null;
-let stopRoomsListener=null,stopRoomPeopleListener=null;
+let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener=null;
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
@@ -1229,6 +1229,15 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   }
  }
  activeRoom=room;currentRoomCode=roomName;
+ if(stopRoomLifecycleListener){stopRoomLifecycleListener();stopRoomLifecycleListener=null;}
+ stopRoomLifecycleListener=onSnapshot(roomRef,async roomState=>{
+  if(roomState.exists())return;
+  try{
+   const saved=query(collection(db,"users",auth.currentUser.uid,"roomVolumeSettings"),where("roomName","==",roomName));
+   const savedDocs=await getDocs(saved);
+   await Promise.all(savedDocs.docs.map(item=>deleteDoc(item.ref)));
+  }catch(error){console.warn("Could not clean account room-volume settings after room deletion:",error);}
+ },error=>console.warn("Room lifecycle listener failed:",error));
  // Save created and joined rooms in the user's My Rooms list.
  setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomName),{roomName,name:roomSnap.data().name||roomName,role:roomSnap.data().creatorUid===auth.currentUser.uid?"created":"joined",updatedAt:serverTimestamp()},{merge:true}).catch(error=>{console.error("Could not save room to My Rooms:",error);status.textContent="Connected, but My Rooms could not be updated. Check Firestore rules.";});
  // Remember the room for this signed-in user so a refresh can restore it.
