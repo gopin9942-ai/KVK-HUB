@@ -947,9 +947,9 @@ function syncAudioPreferenceControls(){
 async function updateAudioPreference(key,value){
  audioPreferences[key]=!!value;
  localStorage.setItem(AUDIO_PREFS_KEY,JSON.stringify(audioPreferences));
- if(activeRoom&&micEnabled){
+ if(activeRoom&&localPublishedMicTrack){
   const note=$("audioSupportNote");if(note)note.textContent="Applying microphone settings…";
-  try{await setRoomMicrophone(activeRoom,true);}
+  try{await setRoomMicrophone(activeRoom,micEnabled);}
   catch(error){console.error("Could not apply microphone setting:",error);status.textContent="Audio setting could not be applied: "+error.message;}
  }else{
   const note=$("audioSupportNote");if(note)note.textContent="Saved. These settings will apply when your microphone is enabled.";
