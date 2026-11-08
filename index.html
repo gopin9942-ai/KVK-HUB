@@ -868,6 +868,16 @@ function profilePlaceholder(name){
  return "data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88"><rect width="100%" height="100%" fill="#303954"/><text x="50%" y="58%" text-anchor="middle" dominant-baseline="middle" font-size="42" fill="white">'+letter+'</text></svg>');
 }
 function profileAvatar(user,photo){return photo||user.photoURL||"";}
+function setProfileImage(image,photo,name){
+ if(!image)return;
+ image.referrerPolicy="no-referrer";
+ image.loading="eager";
+ image.onerror=()=>{
+  image.onerror=null;
+  image.src=profilePlaceholder(name);
+ };
+ image.src=photo||profilePlaceholder(name);
+}
 async function loadUserProfile(user){
  // Show Google account details immediately; Firestore custom values are optional overrides.
  const googleName=user.displayName||user.email?.split("@")[0]||"Google User";
@@ -875,8 +885,8 @@ async function loadUserProfile(user){
  $("profileUid").textContent=user.uid||"Unavailable";
  $("profileTopName").textContent=googleName;
  $("profileNameInput").value=googleName;
- $("profileTopPhoto").src=googlePhoto||profilePlaceholder(googleName);
- $("profilePreview").src=$("profileTopPhoto").src;
+ setProfileImage($("profileTopPhoto"),googlePhoto,googleName);
+ setProfileImage($("profilePreview"),googlePhoto,googleName);
  $("userName").textContent="Hello, "+googleName;
  selectedProfilePhoto=null;
  try{
@@ -890,8 +900,8 @@ async function loadUserProfile(user){
   $("profileNameInput").value=name;
   $("profileNameIdInput").value=publicId;
   $("profileTopId").textContent=publicId?"@"+publicId:"";
-  $("profileTopPhoto").src=photo||profilePlaceholder(name);
-  $("profilePreview").src=$("profileTopPhoto").src;
+  setProfileImage($("profileTopPhoto"),photo,name);
+  setProfileImage($("profilePreview"),photo,name);
   $("userName").textContent="Hello, "+name;
   selectedProfilePhoto=customPhoto||null;
  }catch(error){
@@ -957,7 +967,7 @@ $("profilePhotoInput").onchange=async event=>{
   canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
   canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
   selectedProfilePhoto=canvas.toDataURL("image/jpeg",0.78);
-  $("profilePreview").src=selectedProfilePhoto;
+  setProfileImage($("profilePreview"),selectedProfilePhoto,$("profileNameInput").value||"User");
   status.textContent="Photo selected. Press Save Profile.";
  }catch(error){status.textContent="Could not read that image.";console.error(error);}
 };
@@ -966,7 +976,7 @@ function syncActiveRoomShortcut(){
  if(!button)return;
  const connected=!!activeRoom&&activeRoom.state==="connected";
  button.style.display=connected&&currentAppScreen==="home"?"block":"none";
- button.textContent=connected?"🎙 Return to Room · "+(currentRoomCode||"Active Room"):"";
+ button.textContent=connected?"🎙 Return to Room":"";
 }
 $("resumeActiveRoomBtn").onclick=()=>{
  if(!activeRoom||activeRoom.state!=="connected"){status.textContent="The voice room is no longer connected. Please join again.";syncActiveRoomShortcut();return;}
