@@ -1333,7 +1333,7 @@ async function leaveVoiceRoom(){
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  clearPresence();
  if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
- currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";
+ currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";updateAppBackButton();
  // Reattach the Quick Access listener after every disconnect so the home list refreshes immediately.
  if(auth.currentUser)startMyRooms();
  status.textContent="You left the room. Quick Access refreshed.";
