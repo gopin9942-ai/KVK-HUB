@@ -1250,14 +1250,14 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   data=await requestRoomToken(providedPassword||"");
  }catch(error){
   if(error.code!=="PASSWORD_REQUIRED")throw error;
-  let password=providedPassword||await askRoomPassword({title:"Join Private Room",description:"இந்த private room-ல் சேர password உள்ளிடவும்.",confirmText:"Join Room",minLength:3});
+  let password=providedPassword||await askRoomPassword({title:"Join Private Room",description:"Enter the password to join this private room.",confirmText:"Join Room",minLength:3});
   if(password===null||!password.trim())throw new Error("Private room password is required.");
   let attempts=0;
   while(true){
    try{data=await requestRoomToken(password);break;}
    catch(passwordError){
     if(passwordError.code!=="INVALID_PASSWORD"||++attempts>=3)throw passwordError;
-    password=await askRoomPassword({title:"Incorrect Password",description:"Password தவறு. மீண்டும் உள்ளிடவும்.",confirmText:"Try Again",minLength:3});
+    password=await askRoomPassword({title:"Incorrect Password",description:"Incorrect password. Please try again.",confirmText:"Try Again",minLength:3});
     if(password===null||!password.trim())throw new Error("Private room password is required.");
    }
   }
