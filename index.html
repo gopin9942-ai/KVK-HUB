@@ -566,9 +566,9 @@ function askRoomConfirmation({title="Please Confirm",description="Are you sure?"
   $("passwordModalDescription").textContent=description;
   input.style.display="none";input.required=false;input.value="";
   error.style.display="none";cancel.textContent=cancelText;submit.textContent=confirmText;
-  overlay.style.display="flex";
+  overlay.style.display="flex";pushAppNav();updateAppBackButton();
   const finish=value=>{
-   overlay.style.display="none";input.style.display="";input.required=true;error.style.display="";
+   dismissAppNav();overlay.style.display="none";input.style.display="";input.required=true;error.style.display="";
    cancel.textContent="Cancel";submit.textContent="Continue";
    form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);
    input.removeEventListener("keydown",onKeyDown);resolve(value);
@@ -589,8 +589,8 @@ function askRoomPassword({title="Room Password",description="Enter your room pas
   $("passwordModalDescription").textContent=description;
   submit.textContent=confirmText;input.value="";input.minLength=String(minLength);
   input.placeholder="At least "+minLength+" characters";
-  error.textContent="";overlay.style.display="flex";
-  const finish=value=>{overlay.style.display="none";form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);input.removeEventListener("keydown",onKeyDown);resolve(value);};
+  error.textContent="";overlay.style.display="flex";pushAppNav();updateAppBackButton();
+  const finish=value=>{dismissAppNav();overlay.style.display="none";form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);input.removeEventListener("keydown",onKeyDown);resolve(value);};
   const onCancel=()=>finish(null);
   const onKeyDown=event=>{if(event.key==="Escape"){event.preventDefault();finish(null);}};
   const onSubmit=event=>{
