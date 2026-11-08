@@ -1328,6 +1328,13 @@ $("roomSettingsBtn").onclick=()=>{
   $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";
  }
 };
+$("unbanSettingsBtn").onclick=async()=>{
+ const panel=$("unbanSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>"+(opening?"−":"＋")+"</span>";
+ if(opening)await refreshModeration();
+};
 $("audioSettingsBtn").onclick=()=>{
  const panel=$("audioSettingsPanel");
  const opening=panel.style.display==="none";
