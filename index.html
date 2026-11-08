@@ -1322,13 +1322,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.Disconnected,()=>{kvkDiag("livekit-disconnected");if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
  kvkDiag("livekit-connect-start");
  await room.connect(data.serverUrl,data.token);
- for(const participant of room.remoteParticipants.values())bindSpeakingIndicator(participant);
  kvkDiag("livekit-connect-complete");
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
- // Re-evaluate participants now that the room is assigned to activeRoom.
- refreshParticipantSpeaking(room.localParticipant,room.localParticipant.isSpeaking);
- for(const participant of room.remoteParticipants.values())refreshParticipantSpeaking(participant,participant.isSpeaking);
  // Try to start remote audio automatically after the user taps Join.
  room.startAudio().catch(()=>{});
  // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
