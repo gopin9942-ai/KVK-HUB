@@ -23,7 +23,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
 .roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
 .roomItem button{margin-top:10px}
-.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:none}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{background:transparent;border:0;box-shadow:none}
 header{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 15px;background:linear-gradient(135deg,#191f35,#202b49);border-bottom:1px solid #303954}
 .brandMark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#35c9f4,#2876a8);box-shadow:0 0 22px #35c9f455;font-size:25px}
 .brandCopy{text-align:left}.brandCopy h1{font-size:25px;letter-spacing:1.4px}.brandCopy p{margin:4px 0 0;font-size:10px;font-weight:800;letter-spacing:2px;color:#aab5d0}
@@ -257,7 +257,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
 .participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
-.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}
+body.room-speaking-active #roomPage .participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}@media(prefers-reduced-motion:reduce){body.room-speaking-active #roomPage .participantTile.is-speaking .avatar{animation:none!important}}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
 .volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
@@ -563,8 +563,10 @@ function setAppScreen(name){
  currentAppScreen=name;
  const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",userSettings:"userSettingsPage"};
  for(const [screen,id] of Object.entries(ids)){const el=$(id);if(el)el.style.display=screen===name?"block":"none";}
+ document.body.classList.toggle("room-speaking-active",name==="room"&&!!activeRoom&&activeRoom.state==="connected");
  updateAppBackButton();
  syncActiveRoomShortcut();
+ if(typeof updateParticipantIndicators==="function")updateParticipantIndicators();
 }
 function navigateAppScreen(name){if(name===currentAppScreen)return;appScreenStack.push(currentAppScreen);setAppScreen(name);pushAppNav();}
 function prepareSeparateScreens(){
@@ -1427,6 +1429,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected!";
 }
 function isProfileSpeaking(profile){
+ if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return false;
  const isLocal=profile.uid===auth.currentUser?.uid;
  const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
  const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
