@@ -526,6 +526,7 @@ import {loginWithGoogle,logoutUser,auth,authReady,db,roomStorage,onAuthStateChan
 import {
  collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 
@@ -1181,6 +1182,8 @@ function startMyRooms(){
    rooms.push(room);
   }
   if(renderVersion!==myRoomsRenderVersion)return;
+  for(const stop of quickRoomPresenceStops.values()){try{stop();}catch(e){}}
+  quickRoomPresenceStops.clear();
   rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
