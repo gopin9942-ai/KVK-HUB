@@ -1244,7 +1244,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  });
  room.on(RoomEvent.Reconnected,()=>{
   if(activeRoom===room){
-   status.textContent="Reconnected to "+roomName+". Voice is back.";
+   status.textContent="Voice reconnected.";
    room.startAudio().catch(()=>{});
    updateNativeVoiceService();
   }
@@ -1377,7 +1377,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   });
 
  }catch(e){console.error("Presence setup error:",e);$("voiceMembers").textContent="Member count unavailable: "+(e.code||e.message||"Firestore error");}
- if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected! Share the room code with friends.";
+ if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected!";
 }
 function isProfileSpeaking(profile){
  const isLocal=profile.uid===auth.currentUser?.uid;
@@ -1518,7 +1518,7 @@ onAuthStateChanged(auth,async user=>{
  const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
  if(savedRoom){
   status.textContent="Restoring your previous room...";
-  try{await connectVoiceRoom(savedRoom,true);status.textContent="Welcome back! Reconnected to "+savedRoom+". Your microphone is OFF.";}
+  try{await connectVoiceRoom(savedRoom,true);status.textContent="Welcome back! Reconnected to your room. Your microphone is OFF.";}
   catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
  }
 });
