@@ -835,6 +835,50 @@ let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
 let activeSpeakerIds=new Set();
+// Read-only voice activity meter observes existing LiveKit tracks only.
+let audioMeterContext=null;
+const audioMeters=new Map();
+const audioMeterSpeakingIds=new Set();
+async function startVoiceMeter(mediaTrack,identity){
+ if(!mediaTrack||!identity||mediaTrack.readyState==="ended")return;
+ const trackKey=mediaTrack.id||identity;
+ stopVoiceMeter(mediaTrack);
+ try{
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)return;
+  if(!audioMeterContext||audioMeterContext.state==="closed")audioMeterContext=new AudioContextClass();
+  if(audioMeterContext.state==="suspended")await audioMeterContext.resume();
+  const source=audioMeterContext.createMediaStreamSource(new MediaStream([mediaTrack]));
+  const analyser=audioMeterContext.createAnalyser();
+  analyser.fftSize=512;analyser.smoothingTimeConstant=0.35;
+  source.connect(analyser);
+  const samples=new Uint8Array(analyser.fftSize);
+  let aboveCount=0,belowCount=0,isSpeaking=false;
+  const timer=setInterval(()=>{
+   if(mediaTrack.readyState==="ended"){stopVoiceMeter(mediaTrack);return;}
+   analyser.getByteTimeDomainData(samples);
+   let sum=0;for(let i=0;i<samples.length;i++){const v=(samples[i]-128)/128;sum+=v*v;}
+   const rms=Math.sqrt(sum/samples.length);
+   if(rms>0.027){aboveCount++;belowCount=0;}else if(rms<0.017){belowCount++;aboveCount=0;}
+   if(!isSpeaking&&aboveCount>=2){isSpeaking=true;audioMeterSpeakingIds.add(identity);updateParticipantIndicators();}
+   if(isSpeaking&&belowCount>=5){isSpeaking=false;audioMeterSpeakingIds.delete(identity);updateParticipantIndicators();}
+  },100);
+  audioMeters.set(trackKey,{source,analyser,timer,identity});
+ }catch(error){console.warn("KVK voice activity meter unavailable:",error);}
+}
+function stopVoiceMeter(mediaTrack){
+ if(!mediaTrack)return;
+ const entry=audioMeters.get(mediaTrack.id);
+ if(!entry)return;
+ clearInterval(entry.timer);try{entry.source.disconnect();entry.analyser.disconnect();}catch(_){}
+ audioMeterSpeakingIds.delete(entry.identity);audioMeters.delete(mediaTrack.id);updateParticipantIndicators();
+}
+function stopAllVoiceMeters(){
+ for(const entry of audioMeters.values()){clearInterval(entry.timer);try{entry.source.disconnect();entry.analyser.disconnect();}catch(_){}}
+ audioMeters.clear();audioMeterSpeakingIds.clear();
+ if(audioMeterContext&&audioMeterContext.state!=="closed")audioMeterContext.close().catch(()=>{});
+ audioMeterContext=null;
+}
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const remoteVolumeLoaded=new Set();
@@ -920,6 +964,7 @@ function attachRemoteAudio(track,identity){
  const savedValue=remoteAudioGains.get(identity)??100;
  remoteAudioGains.set(identity,savedValue);
  audioEl.volume=volumeToMediaVolume(savedValue);
+ startVoiceMeter(track.mediaStreamTrack,identity);
  audioEl.muted=(savedValue===0);
  ["playing","waiting","stalled","pause","error","ended"].forEach(n=>audioEl.addEventListener(n,()=>kvkDiag("remote-audio-"+n,{readyState:audioEl.readyState,networkState:audioEl.networkState,paused:audioEl.paused,muted:audioEl.muted})));
  document.body.appendChild(audioEl);
@@ -1158,7 +1203,7 @@ function startMyRooms(){
 async function stopLocalMicrophone(room=activeRoom){
  const track=localPublishedMicTrack;localPublishedMicTrack=null;
  if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
- if(track){try{track.stop();}catch(e){}}
+ if(track){stopVoiceMeter(track);try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
 // Android/WebView voice processing: enable built-in echo cancellation and noise suppression.
@@ -1205,6 +1250,7 @@ async function setRoomMicrophone(room,enabled){
  try{
   await room.localParticipant.publishTrack(track,{name:"microphone"});
   localMicStream=stream;localPublishedMicTrack=track;
+  startVoiceMeter(track,room.localParticipant.identity);
   const settings=track.getSettings?.()||{};
   syncAudioPreferenceControls();
   console.info("KVK HUB microphone diagnostics:",settings);
@@ -1299,11 +1345,29 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   kvkDiag("room-active-speakers-changed",{count:(speakers||[]).length,includesLocal:(speakers||[]).includes(room.localParticipant)});
   updateParticipantIndicators();
  });
+ const diagnosticSpeakingParticipants=new WeakSet();
+ const syncParticipantSpeaking=(participant,speaking=participant?.isSpeaking)=>{
+  if(!participant)return;
+  const ids=[participant.identity,participant.sid].filter(Boolean);
+  if(speaking)ids.forEach(id=>activeSpeakerIds.add(id));else ids.forEach(id=>activeSpeakerIds.delete(id));
+  const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity||p.uid===participant.identity);
+  if(profile)profile.level=Number(participant.audioLevel)||0;
+  updateParticipantIndicators();
+ };
+ const bindSpeakingDiagnostics=participant=>{
+  if(!participant||diagnosticSpeakingParticipants.has(participant))return;
+  diagnosticSpeakingParticipants.add(participant);
+  participant.on(ParticipantEvent.IsSpeakingChanged,()=>syncParticipantSpeaking(participant,!!participant.isSpeaking));
+  syncParticipantSpeaking(participant,!!participant.isSpeaking);
+ };
+ bindSpeakingDiagnostics(room.localParticipant);room.remoteParticipants.forEach(bindSpeakingDiagnostics);
+ room.on(RoomEvent.ParticipantConnected,bindSpeakingDiagnostics);
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown"});
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{
+  stopVoiceMeter(track.mediaStreamTrack);
   kvkDiag("livekit-track-unsubscribed",{kind:track.kind});
   track.detach().forEach(el=>el.remove());
  });
@@ -1455,7 +1519,7 @@ function isProfileSpeaking(profile){
  const isLocal=profile.uid===auth.currentUser?.uid;
  const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
  const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
- return activeSpeakerIds.has(identity)||!!(participant&&(activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
+ return audioMeterSpeakingIds.has(identity)||activeSpeakerIds.has(identity)||!!(participant&&(audioMeterSpeakingIds.has(participant.sid)||activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
 }
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
@@ -1559,6 +1623,7 @@ function updateParticipantIndicators(){
  }
 }
 function clearPresence(){
+ stopAllVoiceMeters();
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
