@@ -1453,6 +1453,56 @@ function stopDeleteCountdown(){
  $("confirmDeleteChannelBtn").textContent="Confirm Delete";
  $("deleteChannelBtn").disabled=false;
 }
+$("deleteChannelBtn").onclick=()=>{
+ if(!activeRoom||!currentRoomCode||!isRoomAdmin||!auth.currentUser){
+  status.textContent="Only the room owner can delete this room.";
+  return;
+ }
+ stopDeleteCountdown();
+ deleteCountdownRemaining=5;
+ $("deleteConfirmBox").style.display="block";
+ $("deleteCountdownText").textContent="Room deletion will be available in 5 seconds. This cannot be undone.";
+ $("confirmDeleteChannelBtn").disabled=true;
+ $("deleteChannelBtn").disabled=true;
+ deleteCountdownTimer=setInterval(()=>{
+  deleteCountdownRemaining--;
+  if(deleteCountdownRemaining<=0){
+   clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;
+   $("deleteCountdownText").textContent="This permanently deletes the room. Confirm if you are sure.";
+   $("confirmDeleteChannelBtn").disabled=false;
+   $("deleteChannelBtn").disabled=false;
+  }else{
+   $("deleteCountdownText").textContent="Please wait "+deleteCountdownRemaining+" seconds...";
+  }
+ },1000);
+};
+$("cancelDeleteChannelBtn").onclick=()=>stopDeleteCountdown();
+$("confirmDeleteChannelBtn").onclick=async()=>{
+ const roomToDelete=currentRoomCode;
+ if(!roomToDelete||!auth.currentUser||!isRoomAdmin||deleteCountdownRemaining>0||$("confirmDeleteChannelBtn").disabled)return;
+ const button=$("confirmDeleteChannelBtn");
+ button.disabled=true;button.textContent="Deleting...";
+ $("cancelDeleteChannelBtn").disabled=true;
+ $("deleteChannelBtn").disabled=true;
+ try{
+  // Remove the room from the voice backend first. Keep Firestore metadata intact
+  // if the backend rejects the deletion, so the owner can retry safely.
+  await workerAdminRequest("/delete-room",{roomName:roomToDelete});
+  await deleteDoc(doc(db,"rooms",roomToDelete));
+  await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToDelete)).catch(error=>{
+   console.warn("Room deleted, but My Rooms entry could not be removed:",error);
+  });
+  await leaveVoiceRoom();
+  status.textContent="Room "+roomToDelete+" was permanently deleted.";
+ }catch(error){
+  console.error("Delete room failed:",error);
+  status.textContent="Could not delete room: "+(error.message||"Unknown error")+". The room was not fully deleted; please retry.";
+  stopDeleteCountdown();
+ }finally{
+  $("cancelDeleteChannelBtn").disabled=false;
+  button.textContent="Confirm Delete";
+ };
+};
 function closeRoomSettings(){
  const panel=$("roomSettingsPanel");
  if(panel)panel.style.display="block";
