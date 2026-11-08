@@ -527,6 +527,7 @@ let skipAppPopstate=false;
 let handlingAppPopstate=false;
 function pushAppNav(){appNavDepth++;history.pushState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
 function dismissAppNav(count=1){if(!handlingAppPopstate&&appNavDepth>0){const steps=Math.min(count,appNavDepth);appNavDepth-=steps;skipAppPopstate=true;history.go(-steps);}updateAppBackButton();}
+function replaceAppNav(){history.replaceState({kvkAppNav:true,depth:appNavDepth},"",location.href);updateAppBackButton();}
 function resetAppNav(){appNavDepth=0;skipAppPopstate=false;history.replaceState({kvkAppNav:true,depth:0},"",location.href);}
 function updateAppBackButton(){
  const button=$("appBackBtn");if(!button)return;
@@ -835,8 +836,8 @@ $("profileMenuButton").onclick=()=>{
  updateAppBackButton();
 };
 $("openUserSettingsBtn").onclick=()=>{
- $("profileMenu").hidden=true;dismissAppNav();
- $("profileEditor").style.display="block";pushAppNav();updateAppBackButton();
+ $("profileMenu").hidden=true;
+ $("profileEditor").style.display="block";replaceAppNav();
 };
 $("closeProfileBtn").onclick=()=>{dismissAppNav();$("profileEditor").style.display="none";updateAppBackButton();};
 document.addEventListener("click",event=>{
