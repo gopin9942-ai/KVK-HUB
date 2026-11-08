@@ -823,7 +823,7 @@ async function saveProfile(){
  try{
   await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,publicId,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
   await loadUserProfile(user);
-  $("profileEditor").style.display="none";
+  $("profileEditor").style.display="none";dismissAppNav();updateAppBackButton();
   $("userName").textContent="Hello, "+name;
   status.textContent="Profile saved successfully.";
  }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
@@ -831,14 +831,16 @@ async function saveProfile(){
 }
 $("profileMenuButton").onclick=()=>{
  const menu=$("profileMenu");menu.hidden=!menu.hidden;
+ if(!menu.hidden)pushAppNav();else dismissAppNav();
+ updateAppBackButton();
 };
 $("openUserSettingsBtn").onclick=()=>{
- $("profileMenu").hidden=true;
- $("profileEditor").style.display="block";
+ $("profileMenu").hidden=true;dismissAppNav();
+ $("profileEditor").style.display="block";pushAppNav();updateAppBackButton();
 };
-$("closeProfileBtn").onclick=()=>{$("profileEditor").style.display="none";};
+$("closeProfileBtn").onclick=()=>{dismissAppNav();$("profileEditor").style.display="none";updateAppBackButton();};
 document.addEventListener("click",event=>{
- if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton"))$("profileMenu").hidden=true;
+ if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton")&&!$("profileMenu").hidden){$("profileMenu").hidden=true;dismissAppNav();updateAppBackButton();}
 });
 $("saveProfileBtn").onclick=saveProfile;
 $("logoutBtn").onclick=async()=>{
