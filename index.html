@@ -439,7 +439,6 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 </main>
 <script type="module">
 import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
-import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 import {
  collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -1015,6 +1014,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   }
  }
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
+ // Load LiveKit only when the user actually joins a room. A CDN failure must not
+ // block Firebase initialization and leave the app stuck on the boot splash.
+ const {Room,RoomEvent}=await import("https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs");
  const room=new Room();
  // LiveKit reports room-wide active speakers and participant-level speaking changes.
  // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
