@@ -259,8 +259,6 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
 .participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#263b58;border:1px solid #526784;color:#c8d8ee;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
 .participantRoleBadge.is-admin{background:#174b3b;border-color:#48d6a0;color:#8fffd0}
-.participantSpeakingBadge{display:block;width:max-content;max-width:100%;min-width:88px;box-sizing:border-box;margin:5px auto 0;padding:4px 9px;border-radius:999px;background:#202a39;border:1px solid #465367;color:#aebbd0;font-size:9px;font-weight:850;letter-spacing:.06em;line-height:1.35;text-align:center;box-shadow:none}
-.participantSpeakingBadge.is-speaking{background:#123d35;border-color:#42e8bd;color:#8fffd0;box-shadow:0 0 12px #42e8bd33}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantTile.is-speaking .avatar{outline-color:#62f5c5;box-shadow:0 0 0 3px #45e8b555,0 0 14px #42f0bdcc,0 0 26px #42f0bd66;animation:participantSpeakingGlow 1.15s ease-in-out infinite alternate}
 @keyframes participantSpeakingGlow{from{box-shadow:0 0 0 2px #45e8b544,0 0 9px #42f0bd99}to{box-shadow:0 0 0 4px #45e8b577,0 0 18px #42f0bdff,0 0 30px #42f0bd77}}
@@ -372,10 +370,7 @@ header{position:relative}
  filter:brightness(1.08) drop-shadow(0 0 7px #65f0c5aa)!important;
  transform:scale(1.045);
 }
-.participantTile.is-speaking .participantSpeakingBadge{
- box-shadow:0 0 10px #42e8bd88,0 0 20px #42e8bd55!important;
-}
-@media(prefers-reduced-motion:reduce){
+.participantTile.is-speaking @media(prefers-reduced-motion:reduce){
  .participantTile.is-speaking .avatar,.participantTile.is-speaking .avatarFallback{animation:none!important;transform:none}
 }
 </style>
@@ -1487,8 +1482,7 @@ function renderParticipants(){
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
    const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge"+(roomOwnerUid&&p.uid===roomOwnerUid?" is-admin":"");roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
-   const speakingBadge=document.createElement("div");speakingBadge.className="participantSpeakingBadge";speakingBadge.textContent="NOT SPEAKING";
-   tile.append(img,fallback,name,roleBadge,speakingBadge,panel);
+   tile.append(img,fallback,name,roleBadge,panel);
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
     const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
@@ -1542,7 +1536,6 @@ function renderParticipants(){
   children[2].textContent=p.name||"User";
   const isSpeaking=isProfileSpeaking(p);
   tile.classList.toggle("is-speaking",isSpeaking);
-  const speakingBadge=tile.querySelector(".participantSpeakingBadge");if(speakingBadge){speakingBadge.textContent=isSpeaking?"◖)) SPEAKING":"NOT SPEAKING";speakingBadge.classList.toggle("is-speaking",isSpeaking);}
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
 }
@@ -1554,7 +1547,6 @@ function updateParticipantIndicators(){
   tile.dataset.livekitIdentity=p.livekitIdentity||p.uid;
   tile.dataset.speaking=isSpeaking?"yes":"no";
   tile.classList.toggle("is-speaking",isSpeaking);
-  const speakingBadge=tile.querySelector(".participantSpeakingBadge");if(speakingBadge){speakingBadge.textContent=isSpeaking?"◖)) SPEAKING":"NOT SPEAKING";speakingBadge.classList.toggle("is-speaking",isSpeaking);}
   tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
  }
 }
