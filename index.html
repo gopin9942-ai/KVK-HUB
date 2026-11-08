@@ -872,7 +872,7 @@ $("profileMenuButton").onclick=()=>{
 };
 $("openUserSettingsBtn").onclick=()=>{
  $("profileMenu").hidden=true;
- navigateAppScreen("userSettings");
+ appScreenStack.push(currentAppScreen);setAppScreen("userSettings");replaceAppNav();
 };
 $("closeProfileBtn").onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};
 document.addEventListener("click",event=>{
