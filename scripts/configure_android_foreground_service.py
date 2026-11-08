@@ -20,7 +20,8 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 @CapacitorPlugin(name = "KvkCall", permissions = {
-    @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS })
+    @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+    @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO })
 })
 public class KvkCallPlugin extends Plugin {
     private static volatile KvkCallPlugin instance;
@@ -52,6 +53,25 @@ public class KvkCallPlugin extends Plugin {
     private void notificationPermissionCallback(PluginCall call) {
         JSObject result = new JSObject();
         result.put("granted", getPermissionState("notifications") ==
+            com.getcapacitor.PermissionState.GRANTED);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestMicrophonePermission(PluginCall call) {
+        if (getPermissionState("microphone") == com.getcapacitor.PermissionState.GRANTED) {
+            JSObject result = new JSObject();
+            result.put("granted", true);
+            call.resolve(result);
+            return;
+        }
+        requestPermissionForAlias("microphone", call, "microphonePermissionCallback");
+    }
+
+    @PermissionCallback
+    private void microphonePermissionCallback(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", getPermissionState("microphone") ==
             com.getcapacitor.PermissionState.GRANTED);
         call.resolve(result);
     }
