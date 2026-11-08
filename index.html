@@ -227,6 +227,118 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
  .splashOrb{width:88px;height:88px;border-radius:27px}
  .splashOrb svg{width:56px;height:56px}
 }
+
+/* Room experience polish: compact cards, profile-first members and subtle speaker glow */
+#roomPage{width:100%;max-width:760px;margin:0 auto}
+.roomScreenCard{padding:18px!important}
+.roomTopbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.roomTitleGroup h2{font-size:20px;margin:0 0 4px}
+.roomTitleGroup .small{margin:0;font-size:11px}
+.roomSettingsIcon{width:42px;min-width:42px;height:42px;min-height:42px;padding:0;margin:0;font-size:20px}
+.roomSettingsSheet{margin:12px 0!important;padding:13px!important;border-radius:16px}
+.roomSettingRow,.audioSettingRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 8px;border-bottom:1px solid #ffffff12}
+.roomSettingRow strong,.audioSettingRow strong{display:block;font-size:12px}
+.roomSettingRow small,.audioSettingRow small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.compactAction{width:auto;min-height:35px;padding:7px 11px;margin:0;font-size:11px}
+.settingsMenuButton{width:100%;display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:11px 12px;background:#263650;color:#eef8ff;box-shadow:none}
+.audioSettingsPanel{padding:3px 7px 8px;background:#0c1729;border:1px solid #ffffff12;border-radius:12px}
+.audioSettingRow input{width:40px;height:22px;min-width:40px;margin:0;padding:0;accent-color:#43d0ec}
+.audioSupportNote{font-size:9px;line-height:1.5;color:#93a7c5;margin:10px 5px 4px}
+.peopleHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 7px}
+.peopleHeading h3{font-size:16px;margin:0}
+.memberCount{font-size:10px;color:#b8c8df;background:#263b58;padding:6px 9px;border-radius:99px;margin:0}
+.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
+.participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
+.participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
+.participantTile .avatarFallback{display:flex!important}
+.participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 5px #67e3f31b,0 0 13px #55d8ed75!important;filter:none!important;animation:softSpeakerGlow 2.2s ease-in-out infinite!important}
+.participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
+.participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
+.volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
+.volumePanel label{font-size:9px}
+.volumePanel input{margin:6px 0 0}
+.tileAdminMenu{top:0;right:0}
+.tileAdminDots{width:25px;height:25px;min-height:25px;font-size:17px}
+.callControlBar{position:sticky;bottom:8px;z-index:4;display:flex;justify-content:center;align-items:center;gap:24px;width:min(100%,390px);margin:15px auto 0;padding:11px 16px;border-radius:22px;background:rgba(8,17,32,.92);border:1px solid #ffffff22;box-shadow:0 12px 30px #0007;backdrop-filter:blur(14px)}
+.callControl{position:relative;width:56px;height:56px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px;margin:0;border-radius:50%;background:#293e5e;color:#f4f8ff;border:1px solid #ffffff20;box-shadow:none}
+.callControlIcon{font-size:21px;line-height:1.1}
+.callControl small{font-size:8px;color:#d5e3f4}
+.disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
+.callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f316,0 0 9px #55d8ed45}50%{box-shadow:0 0 0 5px #67e3f329,0 0 15px #55d8ed78}}
+@media(max-width:600px){
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.roomScreenCard{padding:13px!important}
+ .participantGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}
+ .participantTile .avatar{width:52px;height:52px}
+ .participantTile .participantName{font-size:10px}
+ .roomTopbar{padding-bottom:10px}
+ .callControlBar{position:sticky;bottom:5px;margin-top:10px;padding:9px 14px}
+}
+@media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.polishedRoomItem{padding:13px!important;margin-top:10px!important;background:linear-gradient(145deg,#101d32,#0c1729)!important;border:1px solid #354a67!important;border-radius:16px!important}
+.roomCardTop{display:flex;align-items:center;gap:11px;min-width:0}
+.roomCreatorAvatar{width:45px;height:45px;flex:none;border-radius:50%;object-fit:cover;border:2px solid #69dff366;background:#2c405e}
+.roomCreatorDetails{min-width:0;flex:1}
+.roomCreatorDetails>strong{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roomCreatorLine{font-size:10px;color:#a9bad3;margin-top:4px}
+.creatorRole{display:inline-block;margin-top:5px;padding:2px 7px;border-radius:99px;background:#174b3b;color:#8fffd0;font-size:8px;font-weight:900;letter-spacing:.1em}
+.polishedRoomItem .roomMeta{font-size:10px;margin-top:9px}
+.roomCardActions{display:flex;justify-content:flex-end;margin-top:6px}
+.roomCardActions .roomJoinAction{width:auto;min-height:34px;padding:7px 14px;margin:0;font-size:11px}
+@media(max-width:600px){.polishedRoomItem{padding:9px!important}.roomCreatorAvatar{width:40px;height:40px}.roomCreatorDetails>strong{font-size:12px}.roomCardActions .roomJoinAction{min-height:31px;padding:6px 12px}}
+
+/* Room experience polish: compact cards, profile-first members and subtle speaker glow */
+#roomPage{width:100%;max-width:760px;margin:0 auto}
+.roomScreenCard{padding:18px!important}
+.roomTopbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.roomTitleGroup h2{font-size:20px;margin:0 0 4px}
+.roomTitleGroup .small{margin:0;font-size:11px}
+.roomSettingsIcon{width:42px;min-width:42px;height:42px;min-height:42px;padding:0;margin:0;font-size:20px}
+.roomSettingsSheet{margin:12px 0!important;padding:13px!important;border-radius:16px}
+.roomSettingRow,.audioSettingRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 8px;border-bottom:1px solid #ffffff12}
+.roomSettingRow strong,.audioSettingRow strong{display:block;font-size:12px}
+.roomSettingRow small,.audioSettingRow small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.compactAction{width:auto;min-height:35px;padding:7px 11px;margin:0;font-size:11px}
+.settingsMenuButton{width:100%;display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:11px 12px;background:#263650;color:#eef8ff;box-shadow:none}
+.audioSettingsPanel{padding:3px 7px 8px;background:#0c1729;border:1px solid #ffffff12;border-radius:12px}
+.audioSettingRow input{width:40px;height:22px;min-width:40px;margin:0;padding:0;accent-color:#43d0ec}
+.audioSupportNote{font-size:9px;line-height:1.5;color:#93a7c5;margin:10px 5px 4px}
+.peopleHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 7px}
+.peopleHeading h3{font-size:16px;margin:0}
+.memberCount{font-size:10px;color:#b8c8df;background:#263b58;padding:6px 9px;border-radius:99px;margin:0}
+.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
+.participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
+.participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
+.participantTile .avatarFallback{display:flex!important}
+.participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 5px #67e3f31b,0 0 13px #55d8ed75!important;filter:none!important;animation:softSpeakerGlow 2.2s ease-in-out infinite!important}
+.participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
+.participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
+.volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
+.volumePanel label{font-size:9px}
+.volumePanel input{margin:6px 0 0}
+.tileAdminMenu{top:0;right:0}
+.tileAdminDots{width:25px;height:25px;min-height:25px;font-size:17px}
+.callControlBar{position:sticky;bottom:8px;z-index:4;display:flex;justify-content:center;align-items:center;gap:24px;width:min(100%,390px);margin:15px auto 0;padding:11px 16px;border-radius:22px;background:rgba(8,17,32,.92);border:1px solid #ffffff22;box-shadow:0 12px 30px #0007;backdrop-filter:blur(14px)}
+.callControl{position:relative;width:56px;height:56px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px;margin:0;border-radius:50%;background:#293e5e;color:#f4f8ff;border:1px solid #ffffff20;box-shadow:none}
+.callControlIcon{font-size:21px;line-height:1.1}
+.callControl small{font-size:8px;color:#d5e3f4}
+.disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
+.callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f316,0 0 9px #55d8ed45}50%{box-shadow:0 0 0 5px #67e3f329,0 0 15px #55d8ed78}}
+@media(max-width:600px){
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.roomScreenCard{padding:13px!important}
+ .participantGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}
+ .participantTile .avatar{width:52px;height:52px}
+ .participantTile .participantName{font-size:10px}
+ .roomTopbar{padding-bottom:10px}
+ .callControlBar{position:sticky;bottom:5px;margin-top:10px;padding:9px 14px}
+}
+@media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -273,43 +385,40 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 
 </section>
 <section id="roomPage">
-<div class="card">
-<h2>🎙️ Voice Room</h2>
-<p class="small">You are connected to this voice room.</p>
-<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
- <p id="roomInfo" class="small" style="margin:8px 0;min-width:0;overflow-wrap:anywhere">Room connected</p>
- <button id="roomSettingsBtn" class="secondary" style="width:auto;flex:0 0 auto;margin:0;padding:9px 12px;display:none">⚙️ Settings</button>
-</div>
-<div id="roomSettingsPanel" class="settingsPanel" style="display:none">
- <div class="settingsHeading">Room Settings</div>
- <button id="unbanSettingsBtn" class="secondary" style="width:100%;margin:8px 0">Unban Settings</button>
- <div id="unbanSettingsPanel" style="display:none">
-  <div class="settingsSubheading">Banned Users</div>
-  <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
+<div class="card roomScreenCard">
+ <div class="roomTopbar">
+  <div class="roomTitleGroup"><div class="sectionEyebrow">LIVE VOICE SPACE</div><h2>🎙️ Voice Room</h2><p id="roomInfo" class="small">Room connected</p></div>
+  <button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button>
  </div>
- <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
+ <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
+  <div class="settingsHeading">Room Settings</div>
+  <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
+  <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
+  <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
+   <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Reduce background noise, if supported</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
+   <label class="audioSettingRow"><span><strong>Echo Cancellation</strong><small>Reduce speaker-to-microphone echo</small></span><input id="echoCancellationToggle" type="checkbox"></label>
+   <label class="audioSettingRow"><span><strong>Auto Gain Control</strong><small>Keep microphone level consistent</small></span><input id="autoGainControlToggle" type="checkbox"></label>
+   <p class="audioSupportNote" id="audioSupportNote">These options depend on browser and microphone support. Actual settings will be checked when the microphone is enabled.</p>
+  </div>
+  <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
+  <div id="unbanSettingsPanel" style="display:none">
+   <div class="settingsSubheading">Banned Users</div>
+   <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
+  </div>
+  <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
   <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
- <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
-  <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
-  <div class="deleteConfirmButtons">
-   <button id="confirmDeleteChannelBtn" class="confirmDeleteAction" disabled>Confirm Delete</button>
-   <button id="cancelDeleteChannelBtn" class="cancelDeleteAction">Cancel</button>
+  <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
+   <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
+   <div class="deleteConfirmButtons"><button id="confirmDeleteChannelBtn" class="confirmDeleteAction" disabled>Confirm Delete</button><button id="cancelDeleteChannelBtn" class="cancelDeleteAction">Cancel</button></div>
   </div>
  </div>
-</div>
-<button id="copyRoomCodeBtn" class="secondary">Copy Room Code</button>
-<p class="small" id="voiceMembers">Connecting member count...</p>
-<h3>People in this room</h3>
-<div id="participantGrid" class="participantGrid"></div>
-<div id="moderationPanel" style="display:none"></div>
-<div class="card" style="margin:12px 0;padding:14px">
- <h3 style="margin:0 0 10px">🎧 Audio Settings</h3>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input type="checkbox" checked disabled style="width:auto;margin:0"> Device Noise Suppression (Always ON)</label>
- <label class="small" style="display:flex;align-items:center;gap:9px;margin:9px 0"><input id="echoCancellationToggle" type="checkbox" checked disabled style="width:auto;margin:0"> Echo Cancellation (Always ON)</label>
- <p class="small" style="margin:8px 0 0">Uses Android/WebView built-in microphone noise reduction and echo cancellation. Custom AI processing is disabled to keep audio capture lightweight.</p>
-</div>
-<button id="muteBtn" class="secondary">Mute Microphone</button>
-<button id="leaveBtn">Disconnect</button>
+ <div class="peopleHeading"><div><div class="sectionEyebrow">PEOPLE IN THIS ROOM</div><h3>Members</h3></div><p id="voiceMembers" class="memberCount">Connecting...</p></div>
+ <div id="participantGrid" class="participantGrid"></div>
+ <div id="moderationPanel" style="display:none"></div>
+ <div class="callControlBar">
+  <button id="muteBtn" class="callControl muteControl" aria-label="Mute microphone"><span class="callControlIcon">🎙</span><small id="muteBtnLabel">Mute</small></button>
+  <button id="leaveBtn" class="callControl disconnectControl" aria-label="Disconnect call"><span class="callControlIcon">☎</span><small>Leave</small></button>
+ </div>
 </div>
 </section>
 
@@ -550,7 +659,7 @@ function setupModeration(roomData){
  $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
- $("copyRoomCodeBtn").style.display=isRoomAdmin?"block":"none";
+ $("copyRoomCodeBtn").style.display="inline-flex";
 }
 
 const $=id=>document.getElementById(id);
@@ -739,6 +848,7 @@ function startMyRooms(){
      continue;
     }
     const roomData=roomSnap.data()||{};
+    room.roomData=roomData;
     room.isRoomAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
    }catch(checkError){
     console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
@@ -749,24 +859,38 @@ function startMyRooms(){
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
   for(const room of rooms){
-   const item=document.createElement("div");item.className="roomItem";
-   const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
-   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Created by you":"Joined by you");
-   const join=document.createElement("button");join.textContent="Join Room";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
-   item.append(name,meta,join);
-   if(room.isRoomAdmin){
-    const copy=document.createElement("button");copy.className="secondary";copy.textContent="Copy Room Code";copy.onclick=async()=>{
-     try{
-      if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(room.id);}
-      else{
-       const temp=document.createElement("textarea");temp.value=room.id;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
-       const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
-      }
-      status.textContent="Room code copied!";
-     }catch(error){console.error("Copy room code failed:",error);status.textContent="Could not copy room code. Please try again.";}
-    };
-    item.append(copy);
+   const item=document.createElement("article");item.className="roomItem polishedRoomItem";
+   const roomData=room.roomData||{};
+   const creatorUid=roomData.creatorUid||roomData.createdBy||"";
+   let creatorName=roomData.createdByName||roomData.creatorName||(room.isRoomAdmin?(auth.currentUser?.displayName||"You"):"Room creator");
+   let creatorPhoto="";
+   if(creatorUid){
+    try{
+     const creatorSnap=await getDoc(doc(db,"users",creatorUid));
+     if(creatorSnap.exists()){
+      const creator=creatorSnap.data()||{};
+      creatorName=creator.displayName||creatorName;
+      creatorPhoto=creator.photoDataUrl||creator.photoURL||"";
+     }
+    }catch(profileError){console.warn("Creator profile lookup failed:",profileError);}
+    if(creatorUid===auth.currentUser?.uid){
+     creatorName=auth.currentUser.displayName||creatorName;
+     creatorPhoto=auth.currentUser.photoURL||creatorPhoto;
+     try{const ownProfile=await getDoc(doc(db,"users",creatorUid));if(ownProfile.exists()){const own=ownProfile.data()||{};creatorName=own.displayName||creatorName;creatorPhoto=own.photoDataUrl||own.photoURL||creatorPhoto;}}catch(_){}
+    }
    }
+   const top=document.createElement("div");top.className="roomCardTop";
+   const avatar=document.createElement("img");avatar.className="roomCreatorAvatar";avatar.alt="Room creator profile";avatar.src=creatorPhoto||profilePlaceholder(creatorName);
+   const details=document.createElement("div");details.className="roomCreatorDetails";
+   const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
+   const by=document.createElement("div");by.className="roomCreatorLine";by.textContent="Created by "+creatorName;
+   const role=document.createElement("span");role.className="creatorRole";role.textContent=room.isRoomAdmin?"ADMIN":"HOST";
+   details.append(name,by,role);top.append(avatar,details);
+   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Your room":"Joined room")+" · "+room.id;
+   const actions=document.createElement("div");actions.className="roomCardActions";
+   const join=document.createElement("button");join.textContent="Join Room";join.className="roomJoinAction";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
+   actions.append(join);
+   item.append(top,meta,actions);
    list.append(item);
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
@@ -777,15 +901,26 @@ async function stopLocalMicrophone(room=activeRoom){
  if(track){try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
+const audioPreferenceDefaults={noiseSuppression:true,echoCancellation:true,autoGainControl:true};
+const audioPreferences={};
+for(const [key,defaultValue] of Object.entries(audioPreferenceDefaults)){
+ const stored=localStorage.getItem("kvkAudio:"+key);
+ audioPreferences[key]=stored===null?defaultValue:stored==="true";
+}
+function syncAudioPreferenceControls(){
+ const map={noiseSuppression:"noiseSuppressionToggle",echoCancellation:"echoCancellationToggle",autoGainControl:"autoGainControlToggle"};
+ for(const [key,id] of Object.entries(map)){const control=$(id);if(control)control.checked=!!audioPreferences[key];}
+}
+syncAudioPreferenceControls();
 async function setRoomMicrophone(room,enabled){
  await stopLocalMicrophone(room);
  if(!enabled)return;
- // Ask Chromium/Android for its built-in voice processing; all constraints are best-effort.
+ // Ask the browser/device for its selected built-in voice processing; constraints are best-effort.
  const stream=await navigator.mediaDevices.getUserMedia({
   audio:{
-   echoCancellation:true,
-   noiseSuppression:true,
-   autoGainControl:true,
+   echoCancellation:audioPreferences.echoCancellation,
+   noiseSuppression:audioPreferences.noiseSuppression,
+   autoGainControl:audioPreferences.autoGainControl,
    channelCount:{ideal:1}
   },
   video:false
@@ -797,10 +932,16 @@ async function setRoomMicrophone(room,enabled){
   localMicStream=stream;localPublishedMicTrack=track;
   const settings=track.getSettings?.()||{};
   console.info("KVK HUB microphone processing settings:",settings);
-  const activeFilters=["noiseSuppression","echoCancellation","autoGainControl"].filter(key=>settings[key]===true);
+  const labels={noiseSuppression:"Noise suppression",echoCancellation:"Echo cancellation",autoGainControl:"Auto gain"};
+  const activeFilters=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]===true).map(key=>labels[key]);
+  const unsupported=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]!==true).map(key=>labels[key]);
+  const supportNote=$("audioSupportNote");
+  if(supportNote)supportNote.textContent=activeFilters.length
+   ? "Device reports active: "+activeFilters.join(", ")+(unsupported.length?". Not confirmed: "+unsupported.join(", "):".")
+   : "The device did not confirm the selected processing options. Support varies by browser, Android version and microphone.";
   status.textContent=activeFilters.length
-   ? "Device microphone processing active: "+activeFilters.join(", ")+ "."
-   : "Microphone connected. Android/WebView applies supported voice processing automatically.";
+   ? "Microphone connected. Active device processing: "+activeFilters.join(", ")+"."
+   : "Microphone connected. Device processing was not confirmed; check Audio Settings.";
  }catch(error){
   stream.getTracks().forEach(t=>t.stop());
   throw error;
@@ -913,7 +1054,10 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
  $("roomInfo").textContent="Room connected";
  setupModeration(roomSnap.data());
- $("muteBtn").textContent=data.muted?"Muted by Admin — tap after admin unmute":(micEnabled?"Mute Microphone":"Unmute Microphone");
+ $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
+ $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
+ $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
+ syncAudioPreferenceControls();
  homePage.style.display="none";roomPage.style.display="block";
  await startNativeVoiceService(roomName);
  try{
@@ -996,7 +1140,7 @@ function renderParticipants(){
    tile.append(img,fallback,name,panel);
    if(roomOwnerUid&&p.uid===roomOwnerUid){
     const adminBadge=document.createElement("div");adminBadge.className="participantAdminBadge";adminBadge.textContent="👑 ADMIN";adminBadge.setAttribute("aria-label","Room admin");
-    tile.append(adminBadge);
+    tile.insertBefore(adminBadge,panel);
    }
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
@@ -1113,9 +1257,41 @@ $("roomSettingsBtn").onclick=()=>{
  if(!opening){
   stopDeleteCountdown();
   $("unbanSettingsPanel").style.display="none";
-  $("unbanSettingsBtn").textContent="Unban Settings";
+  $("audioSettingsPanel").style.display="none";
+  $("audioSettingsChevron").textContent="＋";
+  $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";
  }
 };
+$("audioSettingsBtn").onclick=()=>{
+ const panel=$("audioSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("audioSettingsChevron").textContent=opening?"−":"＋";
+ syncAudioPreferenceControls();
+};
+for(const [key,id] of [["noiseSuppression","noiseSuppressionToggle"],["echoCancellation","echoCancellationToggle"],["autoGainControl","autoGainControlToggle"]]){
+ const control=$(id);
+ control.onchange=async()=>{
+  const previous=audioPreferences[key];
+  audioPreferences[key]=control.checked;
+  localStorage.setItem("kvkAudio:"+key,String(control.checked));
+  if(localPublishedMicTrack&&typeof localPublishedMicTrack.applyConstraints==="function"){
+   try{
+    await localPublishedMicTrack.applyConstraints({[key]:control.checked});
+    const actual=localPublishedMicTrack.getSettings?.()||{};
+    const confirmed=actual[key]===control.checked;
+    $("audioSupportNote").textContent=confirmed
+     ? (control.checked?"Enabled and confirmed by device: ":"Disabled and confirmed by device: ")+key+"."
+     : "The browser accepted the request but did not confirm the selected value. Device support may vary.";
+   }catch(error){
+    audioPreferences[key]=previous;control.checked=previous;localStorage.setItem("kvkAudio:"+key,String(previous));
+    $("audioSupportNote").textContent="This device/browser could not apply that option: "+(error.message||"unsupported");
+   }
+  }else{
+   $("audioSupportNote").textContent="Saved. This option will be requested next time you enable your microphone; device support will then be checked.";
+  }
+ };
+}
 $("unbanSettingsBtn").onclick=()=>{
  const panel=$("unbanSettingsPanel");
  const opening=panel.style.display==="none";
@@ -1220,12 +1396,17 @@ async function changeMicrophoneState(nextEnabled){
   }
   micEnabled=nextEnabled;
   localStorage.setItem("kvkMicEnabled",String(micEnabled));
-  $("muteBtn").textContent=micEnabled?"Mute Microphone":"Unmute Microphone";
+  $("muteBtnLabel").textContent=micEnabled?"Mute":"Unmute";
+  $("muteBtn").classList.toggle("is-muted",!micEnabled);
+  $("muteBtn").setAttribute("aria-label",micEnabled?"Mute microphone":"Unmute microphone");
+  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled?"🎙":"🔇";
   await updateNativeVoiceService();
  }catch(e){
   console.error(e);status.textContent="Microphone Error: "+e.message;
   micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
-  $("muteBtn").textContent="Unmute Microphone";
+  $("muteBtnLabel").textContent="Unmute";
+  $("muteBtn").classList.add("is-muted");
+  $("muteBtn").querySelector(".callControlIcon").textContent="🔇";
   await updateNativeVoiceService();
  }
 }
