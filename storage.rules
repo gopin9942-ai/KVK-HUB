@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /room-images/{roomId}/{userId}/{fileName} {
+      function roomData() {
+        return firestore.get(/databases/(default)/documents/rooms/$(roomId)).data;
+      }
+      function isRoomAdmin() {
+        return request.auth != null
+          && (roomData().creatorUid == request.auth.uid
+              || roomData().createdBy == request.auth.uid);
+      }
+      allow read: if request.auth != null;
+      allow create, update: if isRoomAdmin()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && userId == request.auth.uid;
+      allow delete: if false;
+    }
+  }
+}
