@@ -16,6 +16,8 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const authReady = setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
+import { getStorage } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
+export const roomStorage = getStorage(app);
 export { onAuthStateChanged };
 
 const provider = new GoogleAuthProvider();
