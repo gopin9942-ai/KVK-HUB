@@ -1389,7 +1389,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   const updatePresence=async()=>{
    let profile={displayName:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",publicId:""};
    try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
-   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,roomRole:roomOwnerUid===auth.currentUser.uid?"admin":"member",lastSeen:serverTimestamp()},{merge:true});
+   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,roomRole:((roomDetails.creatorUid||roomDetails.createdBy)===auth.currentUser.uid)?"admin":"member",lastSeen:serverTimestamp()},{merge:true});
   };
   // Create this user's presence document before subscribing to the roster.
   // Firestore rules allow roster reads to existing room participants; subscribing
