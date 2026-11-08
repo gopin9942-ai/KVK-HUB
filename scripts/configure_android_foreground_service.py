@@ -188,11 +188,6 @@ public class KvkVoiceService extends Service {
     }
 
     private Notification buildNotification() {
-        Intent openIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        PendingIntent contentPending = openIntent == null ? null :
-            PendingIntent.getActivity(this, 1, openIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
         // Send actions to the running app process without opening its Activity.
         // The foreground service keeps the process alive while the WebView/LiveKit
         // session remains active; the receiver forwards the command to the JS bridge.
@@ -213,17 +208,16 @@ public class KvkVoiceService extends Service {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(getApplicationInfo().icon)
-            .setContentTitle("KVK HUB • Voice room")
-            .setContentText(roomName + (micEnabled ? " • Microphone ON" : " • Microphone OFF"))
+            .setContentTitle("KVK HUB")
+            .setContentText("Voice room active" + (micEnabled ? " • Microphone ON" : " • Microphone OFF"))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .addAction(0, "Mute", mutePending)
             .addAction(0, "Unmute", unmutePending)
             .addAction(0, "Disconnect", disconnectPending);
-        if (contentPending != null) builder.setContentIntent(contentPending);
         return builder.build();
     }
 
