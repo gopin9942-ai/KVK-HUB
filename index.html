@@ -373,6 +373,31 @@ header{position:relative}
 @media(prefers-reduced-motion:reduce){
  .participantTile.is-speaking .avatar,.participantTile.is-speaking .avatarFallback{animation:none!important;transform:none}
 }
+
+/* Quick Access shared room preview */
+.roomPreviewCard{display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0}
+.roomPreviewPhoto{width:54px;height:54px;flex:0 0 54px;border-radius:14px;object-fit:cover;background:#263854;border:1px solid #49617f}
+.roomPreviewFallback{display:grid;place-items:center;color:#65dfff;font-size:22px}
+.roomPreviewMain{flex:1;min-width:0}
+.roomPreviewName{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roomPreviewSub{font-size:10px;color:#a9bad3;margin-top:5px}
+.roomPreviewPeople{display:flex;align-items:center;gap:0;margin-top:8px;min-height:25px}
+.roomPreviewPeople img,.roomPreviewInitial{width:25px;height:25px;border-radius:50%;object-fit:cover;border:2px solid #101d32;margin-right:-6px;background:#344762}
+.roomPreviewInitial{display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
+.roomPreviewCount{font-size:10px;color:#a9bad3;margin-left:12px}
+.roomPreviewActions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}
+.roomPreviewSettings{width:31px;height:31px;padding:0;margin:0;border-radius:9px;background:#303954;color:#fff;font-size:17px}
+.roomPreviewJoin{width:auto!important;min-height:31px;padding:6px 11px!important;margin:0!important;font-size:11px!important}
+.roomSettingsOverlay{position:fixed;inset:0;z-index:10000;background:#050914d9;display:grid;place-items:center;padding:18px}
+.roomSettingsDialog{width:min(100%,420px);background:#18233a;border:1px solid #435675;border-radius:17px;padding:18px;box-shadow:0 18px 55px #000b}
+.roomSettingsDialog h3{margin:0 0 12px;color:#45d9ff}
+.roomSettingsDialog label{display:block;color:#aab5d0;font-size:12px;margin-top:12px}
+.roomSettingsDialog input{margin-top:6px}
+.roomSettingsPhotoPreview{width:76px;height:76px;border-radius:15px;object-fit:cover;background:#303954;display:block;margin-top:8px}
+.roomSettingsDialog .roomSettingsButtons{display:flex;gap:9px;margin-top:16px}
+.roomSettingsDialog .roomSettingsButtons button{margin:0;flex:1}
+@media(max-width:600px){.roomPreviewPhoto{width:47px;height:47px;flex-basis:47px}.roomPreviewName{font-size:12px}.roomPreviewSettings{width:29px;height:29px}}
+
 </style>
 </head>
 <body>
@@ -497,7 +522,7 @@ window.setTimeout(()=>{
 },15000);
 </script>
 <script type="module">
-import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
+import {loginWithGoogle,logoutUser,auth,authReady,db,roomStorage,onAuthStateChanged} from "./firebase.js";
 import {
  collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -826,6 +851,7 @@ let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",cu
 // Use Android/WebView built-in voice processing only; no custom AI audio worklet.
 let localMicStream=null,localPublishedMicTrack=null;
 let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener=null;
+const quickRoomPresenceStops=new Map();
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
@@ -1078,9 +1104,58 @@ function showLogin(){
  stopMyRooms();
  status.textContent="Please login to continue.";
 }
+
 function stopMyRooms(){
  if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
+ for(const stop of quickRoomPresenceStops.values()){try{stop();}catch(e){}}
+ quickRoomPresenceStops.clear();
  myRoomsRenderVersion++;
+}
+function initials(value){return String(value||"U").trim().split(/\\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
+function openQuickRoomSettings(room){
+ const roomData=room.roomData||{};
+ if(!auth.currentUser||!(roomData.creatorUid===auth.currentUser.uid||roomData.createdBy===auth.currentUser.uid)){
+  status.textContent="Only the room admin can edit room details.";return;
+ }
+ const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
+ const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");
+ const heading=document.createElement("h3");heading.textContent="Room Settings";
+ const nameLabel=document.createElement("label");nameLabel.textContent="Room Name";
+ const nameInput=document.createElement("input");nameInput.type="text";nameInput.maxLength=50;nameInput.value=roomData.roomDisplayName||roomData.name||room.id;nameInput.placeholder="Enter room name";
+ const photoLabel=document.createElement("label");photoLabel.textContent="Room Photo";
+ const photoInput=document.createElement("input");photoInput.type="file";photoInput.accept="image/*";
+ const preview=document.createElement("img");preview.className="roomSettingsPhotoPreview";preview.alt="Room photo preview";
+ const existingPhoto=roomData.roomPhotoURL||"";
+ if(existingPhoto)preview.src=existingPhoto;else preview.style.display="none";
+ photoInput.onchange=()=>{const file=photoInput.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){status.textContent="Please choose an image file.";photoInput.value="";return;}if(file.size>5*1024*1024){status.textContent="Choose an image smaller than 5 MB.";photoInput.value="";return;}preview.src=URL.createObjectURL(file);preview.style.display="block";};
+ const buttons=document.createElement("div");buttons.className="roomSettingsButtons";
+ const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";
+ const save=document.createElement("button");save.type="button";save.textContent="Save Changes";
+ const close=()=>{if(photoInput.files?.[0]&&preview.src.startsWith("blob:"))URL.revokeObjectURL(preview.src);overlay.remove();};
+ cancel.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
+ save.onclick=async()=>{
+  const displayName=nameInput.value.trim();
+  if(!displayName){status.textContent="Room name cannot be empty.";return;}
+  if(displayName.length>50){status.textContent="Room name must be 50 characters or less.";return;}
+  save.disabled=true;cancel.disabled=true;save.textContent="Saving...";
+  try{
+   let roomPhotoURL=existingPhoto;
+   const file=photoInput.files?.[0];
+   if(file){
+    if(!file.type.startsWith("image/")||file.size>5*1024*1024)throw new Error("Choose an image under 5 MB.");
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"room-photo";
+    const imageRef=ref(roomStorage,"room-images/"+room.id+"/"+auth.currentUser.uid+"/"+Date.now()+"-"+safeName);
+    const uploaded=await uploadBytes(imageRef,file,{contentType:file.type});
+    roomPhotoURL=await getDownloadURL(uploaded.ref);
+   }
+   await setDoc(doc(db,"rooms",room.id),{roomDisplayName:displayName,roomPhotoURL,updatedAt:serverTimestamp()},{merge:true});
+   room.roomData={...roomData,roomDisplayName:displayName,roomPhotoURL};
+   status.textContent="Room details saved and shared with members.";
+   close();startMyRooms();
+  }catch(error){console.error("Room settings save failed:",error);status.textContent="Could not save room settings: "+(error.message||"Check Firebase rules.");save.disabled=false;cancel.disabled=false;save.textContent="Save Changes";}
+ };
+ buttons.append(cancel,save);dialog.append(heading,nameLabel,nameInput,photoLabel,photoInput,preview,buttons);overlay.append(dialog);document.body.append(overlay);
+ nameInput.focus();
 }
 function startMyRooms(){
  stopMyRooms();
@@ -1092,26 +1167,17 @@ function startMyRooms(){
   const renderVersion=++myRoomsRenderVersion;
   const rooms=[];
   const uniqueRoomIds=new Set();
-  // Remove stale My Rooms entries when their Firestore room document no longer exists.
   for(const d of snapshot.docs){
    const room={id:d.id,savedDocId:d.id,...d.data()};
    const canonicalRoomId=String(room.roomName||room.id).trim();
    if(!canonicalRoomId||uniqueRoomIds.has(canonicalRoomId))continue;
-   uniqueRoomIds.add(canonicalRoomId);
-   room.id=canonicalRoomId;
-   room.isRoomAdmin=false;
+   uniqueRoomIds.add(canonicalRoomId);room.id=canonicalRoomId;room.isRoomAdmin=false;
    try{
     const roomSnap=await getDoc(doc(db,"rooms",room.id));
-    if(!roomSnap.exists()){
-     await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId));
-     continue;
-    }
-    const roomData=roomSnap.data()||{};
-    room.roomData=roomData;
-    room.isRoomAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
-   }catch(checkError){
-    console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
-   }
+    if(!roomSnap.exists()){await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId));continue;}
+    room.roomData=roomSnap.data()||{};
+    room.isRoomAdmin=room.roomData.creatorUid===uid||room.roomData.createdBy===uid;
+   }catch(checkError){console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);}
    rooms.push(room);
   }
   if(renderVersion!==myRoomsRenderVersion)return;
@@ -1119,42 +1185,46 @@ function startMyRooms(){
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
   for(const room of rooms){
-   const item=document.createElement("article");item.className="roomItem polishedRoomItem";
    const roomData=room.roomData||{};
-   const creatorUid=roomData.creatorUid||roomData.createdBy||"";
-   let creatorName=roomData.createdByName||roomData.creatorName||(room.isRoomAdmin?(auth.currentUser?.displayName||"You"):"Room creator");
-   let creatorPhoto=roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
-   if(creatorUid){
-    try{
-     const creatorSnap=await getDoc(doc(db,"users",creatorUid));
-     if(creatorSnap.exists()){
-      const creator=creatorSnap.data()||{};
-      creatorName=creator.displayName||creatorName;
-      creatorPhoto=creator.photoDataUrl||creator.photoURL||creatorPhoto;
-     }
-    }catch(profileError){console.warn("Creator profile lookup failed:",profileError);}
-    if(!creatorPhoto){
-     try{const presenceSnap=await getDoc(doc(db,"rooms",room.id,"participants",creatorUid));if(presenceSnap.exists()){const presence=presenceSnap.data()||{};creatorName=presence.name||creatorName;creatorPhoto=presence.photoURL||"";}}catch(presenceError){console.warn("Creator presence profile lookup failed:",presenceError);}
-    }
-    if(creatorUid===auth.currentUser?.uid){
-     creatorName=auth.currentUser.displayName||creatorName;
-     creatorPhoto=creatorPhoto||auth.currentUser.photoURL||"";
-     try{const ownProfile=await getDoc(doc(db,"users",creatorUid));if(ownProfile.exists()){const own=ownProfile.data()||{};creatorName=own.displayName||creatorName;creatorPhoto=own.photoDataUrl||own.photoURL||creatorPhoto;}}catch(_){}
-    }
+   const item=document.createElement("article");item.className="roomItem polishedRoomItem";
+   const previewCard=document.createElement("div");previewCard.className="roomPreviewCard";previewCard.tabIndex=0;previewCard.setAttribute("role","button");previewCard.setAttribute("aria-label","Join "+(roomData.roomDisplayName||roomData.name||room.id));
+   const photo=roomData.roomPhotoURL||"";
+   let roomImage;
+   if(photo){roomImage=document.createElement("img");roomImage.className="roomPreviewPhoto";roomImage.alt="Room photo";roomImage.src=photo;roomImage.onerror=()=>{roomImage.replaceWith(makeRoomFallback());};}
+   else roomImage=makeRoomFallback();
+   function makeRoomFallback(){const fallback=document.createElement("div");fallback.className="roomPreviewPhoto roomPreviewFallback";fallback.textContent="🎙";return fallback;}
+   const main=document.createElement("div");main.className="roomPreviewMain";
+   const roomName=document.createElement("strong");roomName.className="roomPreviewName";roomName.textContent=roomData.roomDisplayName||roomData.name||room.name||room.id;
+   const meta=document.createElement("div");meta.className="roomPreviewSub";meta.textContent=room.isRoomAdmin?"ADMIN":"MEMBER";
+   const people=document.createElement("div");people.className="roomPreviewPeople";
+   const count=document.createElement("span");count.className="roomPreviewCount";count.textContent="0 online";
+   people.append(count);main.append(roomName,meta,people);
+   const actions=document.createElement("div");actions.className="roomPreviewActions";
+   if(room.isRoomAdmin){
+    const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Settings";settings.setAttribute("aria-label","Room Settings");
+    settings.onclick=e=>{e.stopPropagation();openQuickRoomSettings(room);};actions.append(settings);
    }
-   const top=document.createElement("div");top.className="roomCardTop";
-   const avatar=document.createElement("img");avatar.className="roomCreatorAvatar";avatar.alt="Room creator profile";avatar.referrerPolicy="no-referrer";avatar.loading="eager";avatar.onerror=()=>{avatar.onerror=null;avatar.style.display="none";const fallback=document.createElement("div");fallback.className="roomCreatorAvatar roomCreatorFallback";fallback.textContent=(creatorName||"U").trim().charAt(0).toUpperCase()||"U";avatar.insertAdjacentElement("afterend",fallback);};if(creatorPhoto&&(creatorPhoto.startsWith("https://")||creatorPhoto.startsWith("data:image/")))avatar.src=creatorPhoto;else{avatar.style.display="none";const fallback=document.createElement("div");fallback.className="roomCreatorAvatar roomCreatorFallback";fallback.textContent=(creatorName||"U").trim().charAt(0).toUpperCase()||"U";avatar.insertAdjacentElement("afterend",fallback);}
-   const details=document.createElement("div");details.className="roomCreatorDetails";
-   const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
-   const by=document.createElement("div");by.className="roomCreatorLine";by.textContent="Created by "+creatorName;
-   const role=document.createElement("span");role.className="creatorRole";role.textContent=room.isRoomAdmin?"ADMIN":"HOST";
-   details.append(name,by,role);top.append(avatar,details);
-   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=room.role==="created"?"Your room":"Joined room";
-   const actions=document.createElement("div");actions.className="roomCardActions";
-   const join=document.createElement("button");join.textContent="Join Room";join.className="roomJoinAction";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
+   const join=document.createElement("button");join.type="button";join.className="roomPreviewJoin";join.textContent="Join";join.onclick=async e=>{e.stopPropagation();try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
    actions.append(join);
-   item.append(top,meta,actions);
-   list.append(item);
+   const joinRoom=async()=>{try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
+   previewCard.onclick=joinRoom;previewCard.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();joinRoom();}};
+   previewCard.append(roomImage,main,actions);item.append(previewCard);list.append(item);
+   const stopPresence=onSnapshot(collection(db,"rooms",room.id,"participants"),presenceSnapshot=>{
+    const now=Date.now();
+    const online=presenceSnapshot.docs.map(snap=>({uid:snap.id,...(snap.data()||{})})).filter(person=>{
+     const seen=person.lastSeen?.toMillis?.()||0;
+     return now-seen<90000;
+    });
+    people.replaceChildren();
+    online.slice(0,3).forEach(person=>{
+     if(person.photoURL&&(person.photoURL.startsWith("https://")||person.photoURL.startsWith("data:image/"))){
+      const img=document.createElement("img");img.src=person.photoURL;img.alt=person.name||"Member";img.referrerPolicy="no-referrer";img.onerror=()=>{const fallback=document.createElement("span");fallback.className="roomPreviewInitial";fallback.textContent=initials(person.name);img.replaceWith(fallback);};people.append(img);
+     }else{const fallback=document.createElement("span");fallback.className="roomPreviewInitial";fallback.textContent=initials(person.name);fallback.title=person.name||"Member";people.append(fallback);}
+    });
+    count.textContent=online.length+" online"+(online.length>3?" · +"+(online.length-3):"");
+    if(!online.length)count.textContent="0 online";
+   },error=>{console.warn("Quick Access presence listener:",error);count.textContent="Online status unavailable";});
+   quickRoomPresenceStops.set(room.id,stopPresence);
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
 }
