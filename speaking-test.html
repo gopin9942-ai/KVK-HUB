@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#091323">
+<title>KVK HUB · Speaking Indicator Test</title>
+<style>
+:root{color-scheme:dark;--bg:#091323;--panel:#14243b;--line:#29415f;--muted:#a8bad1;--mint:#65f0c5;--cyan:#65dff5}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 0,#203b5a 0,#101d32 42%,var(--bg) 100%);color:#f3f8ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100% - 28px,620px);margin:auto;padding:24px 0 42px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#76edff,#388bc8);color:#082039;font-weight:950;font-size:22px}
+h1{font-size:20px;margin:0;letter-spacing:.04em}header p{margin:3px 0 0;color:var(--muted);font-size:11px;letter-spacing:.12em}
+.card{background:linear-gradient(145deg,#192b45f2,#101c30f5);border:1px solid var(--line);border-radius:18px;padding:17px;margin:13px 0;box-shadow:0 12px 32px #0003}
+h2{font-size:16px;margin:0 0 8px}
+.note{color:var(--muted);font-size:13px;line-height:1.55}
+.status{padding:11px 12px;border-radius:11px;background:#0b1729;border:1px solid var(--line);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+button{min-height:44px;padding:11px 15px;border:0;border-radius:11px;background:linear-gradient(135deg,#73e7f7,#43b3df);color:#071a2b;font-weight:850;font-size:14px;flex:1}
+button.secondary{background:#263b59;color:#eef7ff;border:1px solid #405a7d}
+button:disabled{opacity:.45}
+.stage{display:grid;place-items:center;min-height:230px;overflow:hidden}
+.avatar{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#355c7b,#1b2d49);border:3px solid #ffffff30;font-size:43px;font-weight:900;transition:box-shadow .12s ease,border-color .12s ease,transform .12s ease}
+.avatar.speaking{border-color:var(--mint);box-shadow:0 0 0 5px #65f0c544,0 0 16px 5px #65f0c5cc,0 0 34px 10px #65f0c577;transform:scale(1.035);animation:pulse 850ms ease-in-out infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 0 7px #65f0c566,0 0 23px 7px #65f0c5ee,0 0 42px 14px #65f0c588}}
+.name{text-align:center;margin-top:15px;font-weight:800}.badge{display:table;margin:7px auto 0;padding:5px 11px;border-radius:99px;background:#123d35;border:1px solid #42e8bd;color:#8fffd0;font-size:11px;font-weight:900;letter-spacing:.08em}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.metric{padding:11px;border-radius:11px;background:#0c182b;border:1px solid #293d5b}
+.metric small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.metric strong{display:block;margin-top:5px;font-size:15px;overflow-wrap:anywhere}
+.meter{height:12px;border-radius:20px;background:#08111f;border:1px solid #2b405b;overflow:hidden;margin-top:12px}.meter>i{display:block;width:0;height:100%;border-radius:20px;background:linear-gradient(90deg,#36a9dc,#65f0c5);transition:width 65ms linear}
+label{display:block;font-size:12px;color:var(--muted);margin:15px 0 7px}input[type=range]{width:100%;accent-color:#65e8d0}
+footer{text-align:center;color:#8094b0;font-size:11px;margin-top:18px}
+@media(max-width:420px){main{padding-top:17px}.card{padding:14px}h1{font-size:18px}}
+</style>
+</head>
+<body><main>
+<header><div class="logo">K</div><div><h1>KVK HUB</h1><p>SPEAKING INDICATOR · TEST LAB</p></div></header>
+<section class="card">
+<h2>Live microphone glow test</h2>
+<p class="note">இது தனி test page. Microphone audio-வை எங்கும் அனுப்பாது, பதிவு செய்யாது, playback செய்யாது. Mic level-ஐ மட்டும் local-ஆக அளந்து avatar glow-ஐ இயக்கும். ஏற்கெனவே voice room call நடக்கும்போது இதைத் தொடங்க வேண்டாம்; முதலில் call-ஐ விட்டு வெளியேறி test செய்யவும்.</p>
+<div id="status" class="status">Start Test அழுத்தி microphone permission கொடுக்கவும்.</div>
+<div class="actions"><button id="start">Start Test</button><button id="stop" class="secondary" disabled>Stop</button></div>
+</section>
+<section class="card">
+<div class="stage"><div><div id="avatar" class="avatar">K</div><div class="name">Your microphone</div><div id="badge" class="badge" hidden>◖)) SPEAKING</div></div></div>
+<div class="meter"><i id="meterFill"></i></div>
+<div class="metrics">
+<div class="metric"><small>Input level</small><strong id="level">0%</strong></div>
+<div class="metric"><small>Detection</small><strong id="detected">SILENT</strong></div>
+<div class="metric"><small>Mic state</small><strong id="micState">Stopped</strong></div>
+<div class="metric"><small>Audio context</small><strong id="ctxState">Closed</strong></div>
+</div>
+<label for="threshold">Speaking sensitivity · <span id="thresholdValue">5</span>%</label>
+<input id="threshold" type="range" min="1" max="25" value="5">
+<p class="note">Sensitivity-ஐ குறைத்தால் மெதுவான குரலும் detect ஆகும்; அதிகரித்தால் background noise-க்கு glow வருவது குறையும்.</p>
+</section>
+<section class="card">
+<h2>Test steps</h2>
+<ol class="note"><li>Start Test அழுத்தவும்.</li><li>சாதாரணமாகப் பேசவும்; பேசும்போது avatar சுற்றி பச்சை glow மற்றும் SPEAKING badge வர வேண்டும்.</li><li>பேசுவதை நிறுத்தினால் சுமார் அரை விநாடிக்குள் glow மறைய வேண்டும்.</li><li>மெதுவாகவும் சத்தமாகவும் பேசிப் பாருங்கள். தேவையானால் sensitivity slider மாற்றவும்.</li><li>Stop அழுத்தி microphone-ஐ release செய்யவும்.</li></ol>
+<p class="note">இந்தப் பரிசோதனை local Web Audio analyser மட்டுமே. இது LiveKit event அல்லது KVK HUB main UI-ஐ மாற்றாது. Android Chrome/WebView microphone permission தேவை.</p>
+</section>
+<footer><a href="./" style="color:#65dff5">Back to KVK HUB</a> · Isolated test page only</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let stream=null,context=null,source=null,analyser=null,data=null,raf=0,active=false,smoothed=0,aboveSince=0,belowSince=0,speaking=false;
+const setSpeaking=value=>{if(speaking===value)return;speaking=value;$("avatar").classList.toggle("speaking",value);$("badge").hidden=!value;$("detected").textContent=value?"SPEAKING":"SILENT";};
+function stop(){active=false;if(raf)cancelAnimationFrame(raf);raf=0;if(source){try{source.disconnect()}catch(_){}source=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if(context){const c=context;context=null;c.close().catch(()=>{})}analyser=null;data=null;smoothed=0;aboveSince=0;belowSince=0;setSpeaking(false);$("meterFill").style.width="0%";$("level").textContent="0%";$("micState").textContent="Stopped";$("ctxState").textContent="Closed";$("status").textContent="Microphone stopped and released.";$("start").disabled=false;$("stop").disabled=true;}
+function loop(now){if(!active||!analyser||!data)return;analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}const rms=Math.sqrt(sum/data.length);const raw=Math.min(100,Math.round(rms*260));smoothed=smoothed*.68+raw*.32;const level=Math.round(smoothed);$("level").textContent=level+"%";$("meterFill").style.width=Math.min(100,level)+"%";const threshold=Number($("threshold").value);if(level>=threshold){if(!aboveSince)aboveSince=now;belowSince=0;if(now-aboveSince>95)setSpeaking(true);}else{if(!belowSince)belowSince=now;aboveSince=0;if(now-belowSince>380)setSpeaking(false);}raf=requestAnimationFrame(loop);}
+async function start(){if(active)return;$("start").disabled=true;$("status").textContent="Requesting microphone permission...";try{stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});context=new AudioContext();await context.resume();source=context.createMediaStreamSource(stream);analyser=context.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;source.connect(analyser);data=new Uint8Array(analyser.fftSize);active=true;$("micState").textContent="Granted · local only";$("ctxState").textContent=context.state+" · "+context.sampleRate+" Hz";$("status").textContent="Mic ready. பேசிப் பாருங்கள் — voice level detect ஆனால் glow வரும்.";$("stop").disabled=false;raf=requestAnimationFrame(loop);}catch(e){stop();$("status").textContent="Microphone start failed: "+(e.message||e);}}
+$("start").addEventListener("click",start);$("stop").addEventListener("click",stop);$("threshold").addEventListener("input",()=>{$("thresholdValue").textContent=$("threshold").value;});window.addEventListener("pagehide",stop);
+</script></body></html>
