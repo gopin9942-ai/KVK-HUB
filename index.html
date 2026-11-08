@@ -878,7 +878,7 @@ $("profilePhotoInput").onchange=async event=>{
 };
 function showHome(user){
  resetAppNav();
- loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
+ loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";updateAppBackButton();
  $("userName").textContent="Hello, "+(user.displayName||"User");
  loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
  status.textContent="You are logged in!";
@@ -887,7 +887,7 @@ function showHome(user){
 function showLogin(){
  resetAppNav();
  stopMyRooms();
- loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";
+ loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";updateAppBackButton();
  status.textContent="Please login to continue.";
 }
 function stopMyRooms(){
@@ -1113,7 +1113,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  room.on(RoomEvent.TrackUnsubscribed,track=>{
   track.detach().forEach(el=>el.remove());
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;closeRoomSettings();roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();closeRoomSettings();roomPage.style.display="none";homePage.style.display="block";updateAppBackButton();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
  await room.connect(data.serverUrl,data.token);
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
