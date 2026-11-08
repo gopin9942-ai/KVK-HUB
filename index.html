@@ -44,6 +44,8 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
  #homePage .profileTop strong{font-size:13px}
  #homePage .profileTop small{font-size:10px}
  #homePage .profileMenuButton{width:34px;height:34px}
+ #homePage .youtubeChannelLink{min-height:34px;padding:0 8px;gap:5px;font-size:10px}
+ #homePage .youtubeChannelLink svg{width:16px;height:16px}
  #homePage>.card:nth-child(2) h2{font-size:16px;margin:0 0 4px}
  #homePage>.card:nth-child(2) p{font-size:11px;line-height:1.3;margin:3px 0}
  #homePage>.card:nth-child(2) input{padding:10px;margin-top:7px;font-size:14px}
@@ -123,6 +125,9 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
 .profileTop{cursor:default}
 .profileMenuWrap{position:relative;flex:0 0 auto}
 .profileMenuButton{width:40px;height:40px;padding:0;margin:0;background:#303954;color:#fff;font-size:20px}
+.youtubeChannelLink{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 11px;border:1px solid #563743;border-radius:11px;background:#261c2b;color:#fff;text-decoration:none;font-size:12px;font-weight:800;white-space:nowrap}
+.youtubeChannelLink svg{width:19px;height:19px;color:#ff3345;flex:0 0 auto}
+.youtubeChannelLink:active{transform:scale(.985)}
 .profileMenu{position:absolute;right:0;top:46px;z-index:40;min-width:155px;padding:7px;background:#202943;border:1px solid #46516e;border-radius:10px;box-shadow:0 8px 24px #0008}
 .profileMenu[hidden]{display:none}
 .profileMenu button{width:100%;margin:0 0 5px;padding:10px;text-align:left;background:#303954;color:#fff;font-size:13px}
@@ -370,6 +375,10 @@ header{position:relative}
    <button type="button" id="logoutBtn">Logout</button>
   </div>
  </div>
+ <a class="youtubeChannelLink" href="https://www.youtube.com/@kvkgladiator" target="_blank" rel="noopener noreferrer" aria-label="KVK Gladiator YouTube channel">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z"/></svg>
+  <span>KVK Gladiator</span>
+ </a>
 </div>
 <div class="profileEditor" id="profileEditor">
  <div class="settingsHeading">User Settings</div>
