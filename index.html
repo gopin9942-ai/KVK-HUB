@@ -550,12 +550,10 @@ function handleAppBack(){
 }
 function initializeAppNavigation(){
  history.replaceState({kvkAppNav:true,depth:0},"",location.href);
- history.pushState({kvkAppNav:true,depth:0},"",location.href);
  $("appBackBtn").onclick=()=>{if(appNavDepth>0)history.back();else handleAppBack();};
  window.addEventListener("popstate",()=>{
   if(skipAppPopstate){skipAppPopstate=false;return;}
   if(appNavDepth>0){appNavDepth--;handlingAppPopstate=true;handleAppBack();handlingAppPopstate=false;}
-  else history.pushState({kvkAppNav:true,depth:0},"",location.href);
   updateAppBackButton();
  });
  updateAppBackButton();
