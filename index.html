@@ -111,7 +111,7 @@ header{display:flex;align-items:center;justify-content:center;gap:12px;padding:1
 .confirmDeleteAction{background:#8f3445;color:#fff}
 .cancelDeleteAction{background:#303954;color:#fff}
 .profileTop{display:flex;align-items:center;gap:12px;cursor:pointer;background:#151d31;border:1px solid #35415f;border-radius:14px;padding:12px;margin-top:12px}
-.profileTop img,.profilePlaceholder{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#303954;display:flex;align-items:center;justify-content:center;font-size:22px}
+.profileTop img,.profilePlaceholder{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#303954;display:flex;align-items:center;justify-content:center;font-size:22px}.profileImageFallback{width:54px;height:54px;flex:0 0 54px;border-radius:50%;background:#35415f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:800}.profileEditor .profileImageFallback{width:88px;height:88px;margin:8px auto;font-size:36px}.roomCreatorFallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;font-weight:800;}
 .profileTop .profileText{flex:1;min-width:0}
 .profileTop strong{display:block}
 .profileTop small{color:#aab5d0;overflow-wrap:anywhere}
@@ -870,13 +870,28 @@ function profilePlaceholder(name){
 function profileAvatar(user,photo){return photo||user.photoURL||"";}
 function setProfileImage(image,photo,name){
  if(!image)return;
+ const oldFallback=image.nextElementSibling;
+ if(oldFallback?.classList.contains("profileImageFallback"))oldFallback.remove();
+ image.style.display="";
  image.referrerPolicy="no-referrer";
  image.loading="eager";
+ image.decoding="async";
  image.onerror=()=>{
   image.onerror=null;
-  image.src=profilePlaceholder(name);
+  image.style.display="none";
+  const fallback=document.createElement("div");
+  fallback.className="profileImageFallback";
+  fallback.textContent=(name||"U").trim().charAt(0).toUpperCase()||"U";
+  image.insertAdjacentElement("afterend",fallback);
+  console.warn("Profile photo could not be loaded in this WebView.");
  };
- image.src=photo||profilePlaceholder(name);
+ if(photo&&typeof photo==="string"&&(photo.startsWith("https://")||photo.startsWith("data:image/")))image.src=photo;
+ else{
+  image.onerror=null;image.style.display="none";
+  const fallback=document.createElement("div");fallback.className="profileImageFallback";
+  fallback.textContent=(name||"U").trim().charAt(0).toUpperCase()||"U";
+  image.insertAdjacentElement("afterend",fallback);
+ }
 }
 async function loadUserProfile(user){
  // Show Google account details immediately; Firestore custom values are optional overrides.
@@ -1060,7 +1075,7 @@ function startMyRooms(){
     }
    }
    const top=document.createElement("div");top.className="roomCardTop";
-   const avatar=document.createElement("img");avatar.className="roomCreatorAvatar";avatar.alt="Room creator profile";avatar.src=creatorPhoto||profilePlaceholder(creatorName);
+   const avatar=document.createElement("img");avatar.className="roomCreatorAvatar";avatar.alt="Room creator profile";avatar.referrerPolicy="no-referrer";avatar.loading="eager";avatar.onerror=()=>{avatar.onerror=null;avatar.style.display="none";const fallback=document.createElement("div");fallback.className="roomCreatorAvatar roomCreatorFallback";fallback.textContent=(creatorName||"U").trim().charAt(0).toUpperCase()||"U";avatar.insertAdjacentElement("afterend",fallback);};if(creatorPhoto&&(creatorPhoto.startsWith("https://")||creatorPhoto.startsWith("data:image/")))avatar.src=creatorPhoto;else{avatar.style.display="none";const fallback=document.createElement("div");fallback.className="roomCreatorAvatar roomCreatorFallback";fallback.textContent=(creatorName||"U").trim().charAt(0).toUpperCase()||"U";avatar.insertAdjacentElement("afterend",fallback);}
    const details=document.createElement("div");details.className="roomCreatorDetails";
    const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
    const by=document.createElement("div");by.className="roomCreatorLine";by.textContent="Created by "+creatorName;
@@ -1134,7 +1149,7 @@ async function setRoomMicrophone(room,enabled){
    .map(key=>key+"="+(settings[key]===undefined?"unknown":settings[key]?"ON":"OFF")).join(" · ");
   const supportNote=$("audioSupportNote");
   if(supportNote)supportNote.textContent="Requested: Noise Suppression "+(audioPreferences.noiseSuppression?"ON":"OFF")+" · Echo Cancellation "+(audioPreferences.echoCancellation?"ON":"OFF")+" · AGC "+(audioPreferences.autoGainControl?"ON":"OFF")+" · 48 kHz mono (best effort). Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
-  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · "+filterState+".";
+  status.textContent="Voice connected.";
  }catch(error){
   stream.getTracks().forEach(t=>t.stop());
   throw error;
@@ -1285,7 +1300,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomName),{roomName,name:roomSnap.data().name||roomName,role:roomSnap.data().creatorUid===auth.currentUser.uid?"created":"joined",updatedAt:serverTimestamp()},{merge:true}).catch(error=>{console.error("Could not save room to My Rooms:",error);status.textContent="Connected, but My Rooms could not be updated. Check Firestore rules.";});
  // Remember the room for this signed-in user so a refresh can restore it.
  localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
- $("roomInfo").textContent=(roomSnap.data().name||roomName)+" · "+roomName;
+ $("roomInfo").textContent=roomSnap.data().name||"Voice room connected";
  setupModeration(roomSnap.data());
  $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
  $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
