@@ -395,7 +395,10 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
   <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
-   <p class="audioSupportNote" id="audioSupportNote">Noise Suppression: requested ON · Echo Cancellation: requested ON · AGC: OFF. Join a room to check which settings your device actually supports.</p>
+   <div class="audioSettingRow"><div><strong>Noise Suppression</strong><small>Reduce background noise (device-supported)</small></div><input id="noiseSuppressionToggle" type="checkbox" checked aria-label="Noise Suppression"></div>
+   <div class="audioSettingRow"><div><strong>Echo Cancellation</strong><small>Reduce speaker audio picked up by the mic</small></div><input id="echoCancellationToggle" type="checkbox" checked aria-label="Echo Cancellation"></div>
+   <div class="audioSettingRow"><div><strong>Auto Gain Control (AGC)</strong><small>Automatically adjust microphone volume</small></div><input id="autoGainControlToggle" type="checkbox" aria-label="Auto Gain Control"></div>
+   <p class="audioSupportNote" id="audioSupportNote">Default: Noise Suppression ON · Echo Cancellation ON · AGC OFF. Change these switches to test your microphone. Actual device support is shown after joining.</p>
   </div>
   <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
   <div id="unbanSettingsPanel" style="display:none">
@@ -929,16 +932,38 @@ async function stopLocalMicrophone(room=activeRoom){
 }
 // Android/WebView voice processing: enable built-in echo cancellation and noise suppression.
 // Keep automatic gain control off to avoid unnecessary voice-level pumping.
-const audioPreferences={echoCancellation:true,noiseSuppression:true,autoGainControl:false};
+const AUDIO_PREFS_KEY="kvkAudioPreferences";
+let savedAudioPreferences={};
+try{savedAudioPreferences=JSON.parse(localStorage.getItem(AUDIO_PREFS_KEY)||"{}")||{};}catch(_){}
+const audioPreferences={
+ echoCancellation:typeof savedAudioPreferences.echoCancellation==="boolean"?savedAudioPreferences.echoCancellation:true,
+ noiseSuppression:typeof savedAudioPreferences.noiseSuppression==="boolean"?savedAudioPreferences.noiseSuppression:true,
+ autoGainControl:typeof savedAudioPreferences.autoGainControl==="boolean"?savedAudioPreferences.autoGainControl:false
+};
+function syncAudioPreferenceControls(){
+ const controls={noiseSuppressionToggle:"noiseSuppression",echoCancellationToggle:"echoCancellation",autoGainControlToggle:"autoGainControl"};
+ for(const [id,key] of Object.entries(controls)){const el=$(id);if(el)el.checked=audioPreferences[key];}
+}
+async function updateAudioPreference(key,value){
+ audioPreferences[key]=!!value;
+ localStorage.setItem(AUDIO_PREFS_KEY,JSON.stringify(audioPreferences));
+ if(activeRoom&&micEnabled){
+  const note=$("audioSupportNote");if(note)note.textContent="Applying microphone settings…";
+  try{await setRoomMicrophone(activeRoom,true);}
+  catch(error){console.error("Could not apply microphone setting:",error);status.textContent="Audio setting could not be applied: "+error.message;}
+ }else{
+  const note=$("audioSupportNote");if(note)note.textContent="Saved. These settings will apply when your microphone is enabled.";
+ }
+}
 async function setRoomMicrophone(room,enabled){
  await stopLocalMicrophone(room);
  if(!enabled)return;
  // Use the platform/WebRTC voice processor; 48 kHz mono remains a best-effort request.
  const stream=await navigator.mediaDevices.getUserMedia({
   audio:{
-   echoCancellation:true,
-   noiseSuppression:true,
-   autoGainControl:false,
+   echoCancellation:audioPreferences.echoCancellation,
+   noiseSuppression:audioPreferences.noiseSuppression,
+   autoGainControl:audioPreferences.autoGainControl,
    channelCount:{ideal:1},
    sampleRate:{ideal:48000}
   },
@@ -950,14 +975,15 @@ async function setRoomMicrophone(room,enabled){
   await room.localParticipant.publishTrack(track,{name:"microphone"});
   localMicStream=stream;localPublishedMicTrack=track;
   const settings=track.getSettings?.()||{};
-  console.info("KVK HUB raw microphone diagnostics:",settings);
+  syncAudioPreferenceControls();
+  console.info("KVK HUB microphone diagnostics:",settings);
   const rate=settings.sampleRate?Math.round(settings.sampleRate/1000)+" kHz":"not reported";
   const channels=settings.channelCount??"not reported";
   const filterState=["echoCancellation","noiseSuppression","autoGainControl"]
    .map(key=>key+"="+(settings[key]===undefined?"unknown":settings[key]?"ON":"OFF")).join(" · ");
   const supportNote=$("audioSupportNote");
-  if(supportNote)supportNote.textContent="Requested: noise suppression ON, echo cancellation ON, AGC OFF, 48 kHz mono. Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
-  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · noise suppression and echo cancellation requested ON.";
+  if(supportNote)supportNote.textContent="Requested: Noise Suppression "+(audioPreferences.noiseSuppression?"ON":"OFF")+" · Echo Cancellation "+(audioPreferences.echoCancellation?"ON":"OFF")+" · AGC "+(audioPreferences.autoGainControl?"ON":"OFF")+" · 48 kHz mono (best effort). Actual: "+rate+", "+channels+" channel(s). "+filterState+".";
+  status.textContent="Microphone connected · "+rate+" · "+channels+" channel(s) · "+filterState+".";
  }catch(error){
   stream.getTracks().forEach(t=>t.stop());
   throw error;
@@ -1307,8 +1333,12 @@ $("audioSettingsBtn").onclick=()=>{
  const opening=panel.style.display==="none";
  panel.style.display=opening?"block":"none";
  $("audioSettingsChevron").textContent=opening?"−":"＋";
- // Diagnostics appear after microphone connection.
+ if(opening)syncAudioPreferenceControls();
 };
+syncAudioPreferenceControls();
+$("noiseSuppressionToggle").onchange=event=>updateAudioPreference("noiseSuppression",event.target.checked);
+$("echoCancellationToggle").onchange=event=>updateAudioPreference("echoCancellation",event.target.checked);
+$("autoGainControlToggle").onchange=event=>updateAudioPreference("autoGainControl",event.target.checked);
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
  if(!code){status.textContent="Enter a room ID!";return;}
