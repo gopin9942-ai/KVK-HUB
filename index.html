@@ -866,6 +866,7 @@ async function clearRemoteVolumePreference(targetUid){
  try{await deleteDoc(ref);}catch(error){console.warn("Could not clear departed participant volume:",error);}
 }
 function attachRemoteAudio(track,identity){
+ kvkDiag("remote-audio-track-attached");
  const audioEl=track.attach();
  audioEl.autoplay=true;
  audioEl.playsInline=true;
@@ -875,9 +876,10 @@ function attachRemoteAudio(track,identity){
  remoteAudioGains.set(identity,savedValue);
  audioEl.volume=volumeToMediaVolume(savedValue);
  audioEl.muted=(savedValue===0);
+ ["playing","waiting","stalled","pause","error","ended"].forEach(n=>audioEl.addEventListener(n,()=>kvkDiag("remote-audio-"+n,{readyState:audioEl.readyState,networkState:audioEl.networkState,paused:audioEl.paused,muted:audioEl.muted})));
  document.body.appendChild(audioEl);
  // LiveKit speaker events drive speaking indicators without another AudioContext.
- audioEl.play().catch(()=>{});
+ audioEl.play().then(()=>kvkDiag("remote-audio-play-resolved")).catch(e=>kvkDiag("remote-audio-play-rejected",{name:e?.name,message:e?.message}));
 }
 
 let selectedProfilePhoto=null;
@@ -1252,23 +1254,29 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   updateParticipantIndicators();
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
+  kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown"});
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
  room.on(RoomEvent.TrackUnsubscribed,track=>{
+  kvkDiag("livekit-track-unsubscribed",{kind:track.kind});
   track.detach().forEach(el=>el.remove());
  });
  room.on(RoomEvent.Reconnecting,()=>{
+  kvkDiag("livekit-reconnecting");
   if(activeRoom===room)status.textContent="Network interrupted. Staying in "+roomName+"; trying to reconnect...";
  });
  room.on(RoomEvent.Reconnected,()=>{
+  kvkDiag("livekit-reconnected");
   if(activeRoom===room){
    status.textContent="Voice reconnected.";
    room.startAudio().catch(()=>{});
    updateNativeVoiceService();
   }
  });
- room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
+ room.on(RoomEvent.Disconnected,()=>{kvkDiag("livekit-disconnected");if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
+ kvkDiag("livekit-connect-start");
  await room.connect(data.serverUrl,data.token);
+ kvkDiag("livekit-connect-complete");
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
  // Try to start remote audio automatically after the user taps Join.
