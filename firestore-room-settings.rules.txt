@@ -1,0 +1,11 @@
+// Merge this condition into your existing match /rooms/{roomId} rule.
+// Do not replace your entire deployed Firestore ruleset with this snippet.
+allow update: if request.auth != null
+  && (resource.data.creatorUid == request.auth.uid
+      || resource.data.createdBy == request.auth.uid)
+  && request.resource.data.diff(resource.data).affectedKeys()
+      .hasOnly(['roomDisplayName', 'roomPhotoURL', 'updatedAt'])
+  && request.resource.data.roomDisplayName is string
+  && request.resource.data.roomDisplayName.size() > 0
+  && request.resource.data.roomDisplayName.size() <= 50
+  && request.resource.data.roomPhotoURL is string;
