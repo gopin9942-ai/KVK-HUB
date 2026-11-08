@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101321">
+<title>KVK VOICE APP</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#101321;color:white}
+header{text-align:center;padding:25px 15px;background:#191f35}
+header h1{color:#45d9ff;margin:0} header p{color:#aab5d0}
+main{max-width:520px;margin:auto;padding:20px}
+.card{background:#1b2239;border:1px solid #303954;border-radius:16px;padding:20px;margin-top:18px}
+button{width:100%;;padding:13px;margin-top:12px;border:0;border-radius:10px;background:#35c9f4;color:#101321;font-size:15px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.secondary{background:#303954;color:white}
+input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid #46516e;background:#101321;color:white;font-size:15px}
+#loginPage,#homePage,#roomPage{display:none}
+#status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere;min-height:22px}
+.small{color:#aab5d0;font-size:13px;line-height:1.5}
+#roomInfo{overflow-wrap:anywhere;color:#45d9ff}
+.roomItem{background:#10182b;border:1px solid #35415f;border-radius:12px;padding:14px;margin-top:12px}
+.roomItem strong{display:block;color:#fff;overflow-wrap:anywhere}
+.roomMeta{font-size:13px;color:#aab5d0;margin-top:6px}
+.roomItem button{margin-top:10px}
+.empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{border-color:rgba(54,214,160,.75);background:linear-gradient(145deg,rgba(54,214,160,.13),#10182b 72%);box-shadow:0 0 0 1px rgba(54,214,160,.16),0 0 22px rgba(54,214,160,.14);transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.participantTile.is-speaking .avatar{outline:3px solid #6fffd0;outline-offset:4px;box-shadow:0 0 0 5px rgba(54,214,160,.32),0 0 0 10px rgba(54,214,160,.18),0 0 30px rgba(54,214,160,.95);filter:drop-shadow(0 0 10px rgba(54,214,160,.8));animation:none}@keyframes voicePulse{0%,100%{box-shadow:0 0 0 3px rgba(54,214,160,.18),0 0 12px rgba(54,214,160,.42)}50%{box-shadow:0 0 0 6px rgba(54,214,160,.30),0 0 28px rgba(54,214,160,.82)}}@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none}}
+header{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 15px;background:linear-gradient(135deg,#191f35,#202b49);border-bottom:1px solid #303954}
+.brandMark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#35c9f4,#2876a8);box-shadow:0 0 22px #35c9f455;font-size:25px}
+.brandCopy{text-align:left}.brandCopy h1{font-size:25px;letter-spacing:1.4px}.brandCopy p{margin:4px 0 0;font-size:10px;font-weight:800;letter-spacing:2px;color:#aab5d0}
+@media(max-width:600px){
+ html,body{width:100%;height:100%;min-height:100%;overflow:hidden}
+ body{min-height:100dvh;display:flex;flex-direction:column}
+ header{flex:0 0 auto;padding:9px 12px;gap:9px}
+ .brandMark{width:39px;height:39px;border-radius:12px;font-size:21px}
+ .brandCopy h1{font-size:21px}.brandCopy p{font-size:9px;letter-spacing:1.5px}
+ main{width:100%;max-width:520px;flex:1;min-height:0;display:flex;flex-direction:column;padding:9px 10px 5px}
+ #homePage{flex:1;min-height:0;display:none;grid-template-rows:auto auto minmax(0,1fr);gap:8px;overflow:hidden}
+ #homePage[style*="display: block"]{display:grid!important}
+ #homePage>.card{min-height:0;margin:0;padding:11px 12px;border-radius:13px}
+ #homePage>.card:first-child h2{font-size:18px;margin:0 0 3px}
+ #homePage>.card:first-child>#userName{font-size:12px;margin:3px 0}
+ #homePage .profileTop{margin-top:7px;padding:8px;gap:9px;border-radius:11px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:43px;height:43px}
+ #homePage .profileTop strong{font-size:13px}
+ #homePage .profileTop small{font-size:10px}
+ #homePage .profileMenuButton{width:34px;height:34px}
+ #homePage>.card:nth-child(2) h2{font-size:16px;margin:0 0 4px}
+ #homePage>.card:nth-child(2) p{font-size:11px;line-height:1.3;margin:3px 0}
+ #homePage>.card:nth-child(2) input{padding:10px;margin-top:7px;font-size:14px}
+ #homePage>.card:nth-child(2) button{padding:10px;margin-top:7px;font-size:13px}
+ #homePage>.card:nth-child(2) .small:last-child{display:none}
+ #homePage>.card:nth-child(3){display:flex;flex-direction:column;overflow:hidden}
+ #homePage>.card:nth-child(3) h2{font-size:16px;margin:0 0 3px}
+ #homePage>.card:nth-child(3)>p{font-size:11px;line-height:1.25;margin:2px 0 5px}
+ #refreshRoomsBtn{width:auto;align-self:flex-start;padding:7px 10px;margin:2px 0 5px;font-size:11px}
+ #myRoomList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #myRoomList .roomItem{padding:8px 9px;margin-top:6px}
+ #myRoomList .roomMeta{font-size:11px;margin-top:3px}
+ #myRoomList .roomItem button{padding:8px;margin-top:6px;font-size:12px}
+ #myRoomList .empty{padding:8px;font-size:12px}
+ #status{flex:0 0 auto;margin:3px 0 0;min-height:18px;font-size:11px;line-height:1.3}
+ #loginPage{margin:0;padding:18px}
+ #loginPage h2{font-size:20px}
+ #loginPage p{font-size:13px}
+ #loginPage button{padding:12px}
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.card{margin:0;padding:13px}
+}
+@media(max-width:600px) and (max-height:680px){
+ header{padding:6px 10px}
+ .brandMark{width:34px;height:34px;font-size:18px}
+ .brandCopy h1{font-size:19px}
+ main{padding:6px 8px 3px}
+ #homePage{gap:6px}
+ #homePage>.card{padding:8px 10px}
+ #homePage>.card:first-child h2{font-size:16px}
+ #homePage .profileTop{margin-top:4px;padding:6px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:37px;height:37px}
+ #homePage>.card:nth-child(2) input{padding:8px;margin-top:5px}
+ #homePage>.card:nth-child(2) button{padding:8px;margin-top:5px}
+ #status{font-size:10px}
+}.participantName{font-size:13px;margin:8px 0}.participantAdminBadge{position:absolute;top:8px;right:8px;z-index:5;padding:5px 8px;border-radius:999px;background:#174b3b;border:1px solid #48d6a0;color:#8fffd0;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 8px #0005}
+.tileAdminMenu{position:absolute;top:6px;right:6px;z-index:30}
+.tileAdminDots{width:30px;height:30px;margin:0;padding:0;border-radius:8px;background:#303954;color:#fff;font-size:21px;line-height:1}
+.tileAdminDropdown{position:absolute;right:0;top:34px;min-width:120px;padding:6px;background:#202943;border:1px solid #46516e;border-radius:9px;box-shadow:0 8px 24px #0008}
+.tileAdminDropdown[hidden]{display:none}
+.tileAdminDropdown button{width:100%;margin:0;padding:9px;text-align:left;background:#8f3445;color:#fff;font-size:13px}
+.tileAdminDropdown button.muteToggleAction{background:#303954;color:#fff;margin-bottom:5px}
+.adminMemberRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.adminMemberDetails{min-width:0;overflow-wrap:anywhere}
+.adminMenuWrap{position:relative;flex:0 0 auto}
+.adminDots{width:40px;height:40px;margin:0;padding:0;background:#303954;color:#fff;font-size:24px;line-height:1;border-radius:10px}
+.adminActionMenu{position:absolute;right:0;top:44px;z-index:20;min-width:135px;padding:7px;background:#202943;border:1px solid #46516e;border-radius:10px;box-shadow:0 8px 24px #0008}
+.adminActionMenu[hidden]{display:none}
+.adminActionMenu button{width:100%;margin:0 0 5px;padding:10px;text-align:left}
+.adminActionMenu button:last-child{margin-bottom:0}
+.adminActionMenu .dangerAction{background:#8f3445;color:#fff}
+.settingsPanel{background:#151d31;border:1px solid #35415f;border-radius:11px;margin:8px 0 10px;padding:11px;max-width:100%;font-size:13px}
+.settingsHeading{font-size:14px;font-weight:700;margin-bottom:10px;color:#45d9ff}
+.settingsSubheading{font-size:12px;color:#aab5d0;font-weight:700;margin:4px 0 6px}
+.settingsPanel .roomItem{padding:8px 9px;margin-top:7px;border-radius:9px}
+.settingsPanel .roomMeta{font-size:11px}
+.settingsPanel .adminMemberRow{gap:7px}
+.settingsPanel .adminMemberDetails strong{font-size:12px}
+.settingsPanel button{font-size:12px;padding:8px 10px;margin-top:7px;border-radius:8px}
+.settingsPanel .deleteChannelAction{width:auto;background:#8f3445;color:#fff;margin-top:12px}
+.deleteConfirmBox{margin-top:10px;padding:10px;border:1px solid #8f3445;border-radius:9px;background:#291a28}
+.deleteCountdownText{font-size:12px;color:#ffd4d9;line-height:1.5}
+.deleteConfirmButtons{display:flex;gap:8px}
+.deleteConfirmButtons button{width:auto;flex:1;margin-top:8px}
+.confirmDeleteAction{background:#8f3445;color:#fff}
+.cancelDeleteAction{background:#303954;color:#fff}
+.profileTop{display:flex;align-items:center;gap:12px;cursor:pointer;background:#151d31;border:1px solid #35415f;border-radius:14px;padding:12px;margin-top:12px}
+.profileTop img,.profilePlaceholder{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#303954;display:flex;align-items:center;justify-content:center;font-size:22px}
+.profileTop .profileText{flex:1;min-width:0}
+.profileTop strong{display:block}
+.profileTop small{color:#aab5d0;overflow-wrap:anywhere}
+.profileEditor{display:none;background:#151d31;border:1px solid #35415f;border-radius:14px;padding:14px;margin-top:10px}
+.profileEditor img{width:88px;height:88px;border-radius:50%;object-fit:cover;display:block;margin:8px auto}
+.profileEditor label{display:block;color:#aab5d0;font-size:13px;margin-top:10px}
+.profileEditor input{margin-top:6px}
+.profileUid{font-size:12px;color:#aab5d0;overflow-wrap:anywhere;background:#101321;padding:10px;border-radius:8px;margin-top:8px}
+.profileTop{cursor:default}
+.profileMenuWrap{position:relative;flex:0 0 auto}
+.profileMenuButton{width:40px;height:40px;padding:0;margin:0;background:#303954;color:#fff;font-size:20px}
+.profileMenu{position:absolute;right:0;top:46px;z-index:40;min-width:155px;padding:7px;background:#202943;border:1px solid #46516e;border-radius:10px;box-shadow:0 8px 24px #0008}
+.profileMenu[hidden]{display:none}
+.profileMenu button{width:100%;margin:0 0 5px;padding:10px;text-align:left;background:#303954;color:#fff;font-size:13px}
+.profileMenu button:last-child{margin-bottom:0;background:#8f3445}
+#profileTopId{display:block;color:#aab5d0;font-size:11px;overflow-wrap:anywhere;margin-top:4px}
+
+
+.passwordModalOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,18,.78);backdrop-filter:blur(7px)}
+.passwordModal{width:min(100%,420px);padding:22px;background:#1b2239;border:1px solid #46516e;border-radius:18px;box-shadow:0 18px 60px #0009}
+.passwordModal h2{margin:0 0 8px;color:#45d9ff;font-size:21px}
+.passwordModal p{margin:0;color:#aab5d0;font-size:13px;line-height:1.5}
+.passwordModal input{margin-top:16px}
+.passwordModalError{min-height:19px;margin-top:8px!important;color:#ff9aa8!important}
+.passwordModalActions{display:flex;gap:10px;margin-top:8px}
+.passwordModalActions button{flex:1}
+
+/* KVK HUB visual refresh — preview branch */
+:root{color-scheme:dark;--cyan:#54dcff;--mint:#78f0d0;--ink:#0a1020;--panel:#151f35;--line:rgba(148,177,221,.17);--muted:#9eacc7}
+html,body{min-height:100%;background:radial-gradient(ellipse at 50% -20%,#253b61 0%,#10182b 42%,#090e1b 100%)}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.01em}
+header{background:rgba(13,20,37,.76);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:14px 18px}
+.brandMark{border-radius:16px;background:linear-gradient(145deg,#62e6ff,#3486ca);box-shadow:0 8px 28px #35c9f455}
+.brandCopy h1{font-weight:850;letter-spacing:.12em}
+.brandCopy p{letter-spacing:.2em}
+main{max-width:760px;padding:16px 18px 12px}
+.card{background:linear-gradient(145deg,rgba(27,41,67,.94),rgba(17,27,47,.96));border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 14px 38px rgba(0,0,0,.18);margin-top:0}
+button{border-radius:12px;min-height:44px;font-weight:750;letter-spacing:.01em;background:linear-gradient(135deg,#61e1fa,#36b9e8);box-shadow:0 7px 18px rgba(43,174,219,.16);transition:transform .16s ease,filter .16s ease}
+button:active{transform:scale(.985)}button.secondary{background:#263650;color:#e6f2ff;border:1px solid #405473;box-shadow:none}
+input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13px 14px}
+#bootSplash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;background:radial-gradient(ellipse at 50% 38%,#1b3d62 0%,#101a30 43%,#080d19 100%);transition:opacity .35s ease,visibility .35s ease}
+#bootSplash.done{opacity:0;visibility:hidden;pointer-events:none}
+.splashOrb{width:104px;height:104px;display:grid;place-items:center;border-radius:32px;color:#092036;background:linear-gradient(145deg,#70edff,#3a9fe0);box-shadow:0 0 0 10px #54dcff12,0 0 55px #35c9f466}
+.splashOrb svg{width:65px;height:65px}
+.splashTitle{font-size:clamp(38px,9vw,54px);font-weight:900;letter-spacing:.13em;color:#f4fbff;text-shadow:0 4px 28px #54dcff35}
+.splashTagline{font-size:clamp(11px,2.8vw,14px);font-weight:800;letter-spacing:.28em;color:#aebfd9}
+.splashTagline span{color:var(--cyan);padding:0 4px}
+.splashLoader{width:112px;height:3px;border-radius:9px;background:#ffffff18;overflow:hidden;margin-top:13px}
+.splashLoader i{display:block;width:42%;height:100%;border-radius:9px;background:var(--cyan);animation:splashLoad 1.2s ease-in-out infinite alternate}
+@keyframes splashLoad{from{transform:translateX(-10%)}to{transform:translateX(150%)}}
+#status{font-size:12px;color:var(--cyan);margin:7px 0 0;min-height:16px}
+#homePage[style*="display: block"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:13px}
+#homePage>.card:first-child{grid-column:1;grid-row:1}
+#homePage>.roomHubCard{grid-column:2;grid-row:1}
+#homePage>.myRoomsCard{grid-column:1 / -1;grid-row:2;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#homePage>.card h2{font-size:21px;letter-spacing:-.025em;margin:0 0 7px}
+#homePage>.card:first-child h2{font-size:23px}
+#homePage .profileTop{border-radius:14px;background:rgba(9,17,32,.58);border-color:#344765}
+#homePage .profileMenuButton{min-width:40px}
+.sectionEyebrow{font-size:9px;line-height:1.3;letter-spacing:.2em;font-weight:850;color:#72dff5;margin-bottom:5px}
+.roomHint{margin:0 0 14px}
+.roomInputLabel{display:block;font-size:9px;letter-spacing:.18em;color:#a9b8d2;font-weight:800;margin:0 0 -5px}
+.roomHubCard input{margin-top:10px}
+.roomActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.roomActions button{margin-top:10px;padding:10px 8px;font-size:13px;white-space:nowrap}
+.actionIcon{font-size:17px;margin-right:5px}
+.roomFootnote{font-size:10px;color:#91a2bf;margin:10px 0 0}
+.myRoomsHeading{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.myRoomsHeading h2{margin:0!important}
+.refreshButton{width:39px;height:39px;min-height:39px;margin:0;padding:0;font-size:22px}
+#myRoomList{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+#myRoomList .roomItem{margin-top:8px;padding:11px 13px;border-radius:13px;background:#0e192b;border-color:#31445f}
+#myRoomList .roomItem button{width:auto;min-height:36px;padding:8px 13px;margin:8px 6px 0 0;font-size:12px}
+#loginPage{max-width:440px;margin:40px auto;padding:26px}
+#loginPage h2{font-size:24px;letter-spacing:-.03em}
+#roomPage{min-height:0}
+@media(max-width:600px){
+ html,body{height:100%;min-height:100%;overflow:hidden}
+ body{min-height:100dvh}
+ header{padding:9px 12px}
+ main{padding:10px 10px 5px;gap:9px}
+ #homePage[style*="display: block"]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);gap:9px}
+ #homePage>.card:first-child{grid-column:1;grid-row:1;padding:11px 13px}
+ #homePage>.roomHubCard{grid-column:1;grid-row:2;padding:12px 13px}
+ #homePage>.myRoomsCard{grid-column:1;grid-row:3;padding:11px 13px}
+ #homePage>.card h2{font-size:17px}
+ #homePage>.card:first-child h2{font-size:19px}
+ #homePage>.card:first-child>#userName{font-size:11px;margin:2px 0}
+ #homePage .profileTop{margin-top:6px;padding:7px 9px;gap:9px}
+ #homePage .profileTop img,#homePage .profilePlaceholder{width:38px;height:38px}
+ #homePage .profileTop strong{font-size:12px}
+ #homePage .profileTop small{font-size:9px}
+ #homePage .profileMenuButton{width:34px;height:34px;min-width:34px}
+ .sectionEyebrow{font-size:8px;margin-bottom:3px}
+ .roomHint{font-size:10px;margin:0 0 7px}
+ .roomInputLabel{font-size:8px}
+ .roomHubCard input{margin-top:8px;padding:10px 12px;font-size:13px}
+ .roomActions{gap:8px}
+ .roomActions button{min-height:39px;padding:8px 5px;font-size:12px;margin-top:8px}
+ .roomFootnote{font-size:9px;margin-top:6px}
+ .myRoomsHeading{margin-bottom:4px}
+ .refreshButton{width:34px;height:34px;min-height:34px}
+ #myRoomList .roomItem{padding:8px 9px;margin-top:6px}
+ #myRoomList .roomMeta{font-size:10px;margin-top:3px}
+ #myRoomList .roomItem button{min-height:32px;padding:6px 10px;margin-top:6px;font-size:11px}
+ #myRoomList .empty{font-size:11px;padding:8px}
+ #status{font-size:10px;min-height:14px;margin-top:2px}
+ #loginPage{margin:0;padding:18px}
+}
+@media(max-width:380px){
+ #homePage>.card:first-child,#homePage>.roomHubCard,#homePage>.myRoomsCard{padding:9px 10px}
+ .roomActions button{font-size:11px}
+ .splashOrb{width:88px;height:88px;border-radius:27px}
+ .splashOrb svg{width:56px;height:56px}
+}
+
+/* Room experience polish: compact cards, profile-first members and subtle speaker glow */
+#roomPage{width:100%;max-width:760px;margin:0 auto}
+.roomScreenCard{padding:18px!important}
+.roomTopbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.roomTitleGroup h2{font-size:20px;margin:0 0 4px}
+.roomTitleGroup .small{margin:0;font-size:11px}
+.roomSettingsIcon{width:42px;min-width:42px;height:42px;min-height:42px;padding:0;margin:0;font-size:20px}
+.roomSettingsSheet{margin:12px 0!important;padding:13px!important;border-radius:16px}
+.roomSettingRow,.audioSettingRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 8px;border-bottom:1px solid #ffffff12}
+.roomSettingRow strong,.audioSettingRow strong{display:block;font-size:12px}
+.roomSettingRow small,.audioSettingRow small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.compactAction{width:auto;min-height:35px;padding:7px 11px;margin:0;font-size:11px}
+.settingsMenuButton{width:100%;display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:11px 12px;background:#263650;color:#eef8ff;box-shadow:none}
+.audioSettingsPanel{padding:3px 7px 8px;background:#0c1729;border:1px solid #ffffff12;border-radius:12px}
+.audioSettingRow input{width:40px;height:22px;min-width:40px;margin:0;padding:0;accent-color:#43d0ec}
+.audioSupportNote{font-size:9px;line-height:1.5;color:#93a7c5;margin:10px 5px 4px}
+.peopleHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 7px}
+.peopleHeading h3{font-size:16px;margin:0}
+.memberCount{font-size:10px;color:#b8c8df;background:#263b58;padding:6px 9px;border-radius:99px;margin:0}
+.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
+.participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
+.participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
+.participantTile .avatarFallback{border-radius:50%;}
+.participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}
+.participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
+.participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
+.volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
+.volumePanel label{font-size:9px}
+.volumePanel input{margin:6px 0 0}
+.tileAdminMenu{top:0;right:0}
+.tileAdminDots{width:25px;height:25px;min-height:25px;font-size:17px}
+.callControlBar{position:sticky;bottom:8px;z-index:4;display:flex;justify-content:center;align-items:center;gap:24px;width:min(100%,390px);margin:15px auto 0;padding:11px 16px;border-radius:22px;background:rgba(8,17,32,.92);border:1px solid #ffffff22;box-shadow:0 12px 30px #0007;backdrop-filter:blur(14px)}
+.callControl{position:relative;width:56px;height:56px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px;margin:0;border-radius:50%;background:#293e5e;color:#f4f8ff;border:1px solid #ffffff20;box-shadow:none}
+.callControlIcon{font-size:21px;line-height:1.1}
+.callControl small{font-size:8px;color:#d5e3f4}
+.disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
+.callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
+@media(max-width:600px){
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.roomScreenCard{padding:13px!important}
+ .participantGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}
+ .participantTile .avatar{width:52px;height:52px}
+ .participantTile .participantName{font-size:10px}
+ .roomTopbar{padding-bottom:10px}
+ .callControlBar{position:sticky;bottom:5px;margin-top:10px;padding:9px 14px}
+}
+@media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.polishedRoomItem{padding:13px!important;margin-top:10px!important;background:linear-gradient(145deg,#101d32,#0c1729)!important;border:1px solid #354a67!important;border-radius:16px!important}
+.roomCardTop{display:flex;align-items:center;gap:11px;min-width:0}
+.roomCreatorAvatar{width:45px;height:45px;flex:none;border-radius:50%;object-fit:cover;border:2px solid #69dff366;background:#2c405e}
+.roomCreatorDetails{min-width:0;flex:1}
+.roomCreatorDetails>strong{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roomCreatorLine{font-size:10px;color:#a9bad3;margin-top:4px}
+.creatorRole{display:inline-block;margin-top:5px;padding:2px 7px;border-radius:99px;background:#174b3b;color:#8fffd0;font-size:8px;font-weight:900;letter-spacing:.1em}
+.polishedRoomItem .roomMeta{font-size:10px;margin-top:9px}
+.roomCardActions{display:flex;justify-content:flex-end;margin-top:6px}
+.roomCardActions .roomJoinAction{width:auto;min-height:34px;padding:7px 14px;margin:0;font-size:11px}
+@media(max-width:600px){.polishedRoomItem{padding:9px!important}.roomCreatorAvatar{width:40px;height:40px}.roomCreatorDetails>strong{font-size:12px}.roomCardActions .roomJoinAction{min-height:31px;padding:6px 12px}}
+
+/* Room experience polish: compact cards, profile-first members and subtle speaker glow */
+#roomPage{width:100%;max-width:760px;margin:0 auto}
+.roomScreenCard{padding:18px!important}
+.roomTopbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.roomTitleGroup h2{font-size:20px;margin:0 0 4px}
+.roomTitleGroup .small{margin:0;font-size:11px}
+.roomSettingsIcon{width:42px;min-width:42px;height:42px;min-height:42px;padding:0;margin:0;font-size:20px}
+.roomSettingsSheet{margin:12px 0!important;padding:13px!important;border-radius:16px}
+.roomSettingRow,.audioSettingRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 8px;border-bottom:1px solid #ffffff12}
+.roomSettingRow strong,.audioSettingRow strong{display:block;font-size:12px}
+.roomSettingRow small,.audioSettingRow small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.compactAction{width:auto;min-height:35px;padding:7px 11px;margin:0;font-size:11px}
+.settingsMenuButton{width:100%;display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:11px 12px;background:#263650;color:#eef8ff;box-shadow:none}
+.audioSettingsPanel{padding:3px 7px 8px;background:#0c1729;border:1px solid #ffffff12;border-radius:12px}
+.audioSettingRow input{width:40px;height:22px;min-width:40px;margin:0;padding:0;accent-color:#43d0ec}
+.audioSupportNote{font-size:9px;line-height:1.5;color:#93a7c5;margin:10px 5px 4px}
+.peopleHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 7px}
+.peopleHeading h3{font-size:16px;margin:0}
+.memberCount{font-size:10px;color:#b8c8df;background:#263b58;padding:6px 9px;border-radius:99px;margin:0}
+.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
+.participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
+.participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
+
+.participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
+.participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 4px #67e3f333,0 0 18px #55d8edbb,0 0 27px #55d8ed66!important;filter:none!important;animation:softSpeakerGlow 1.7s ease-in-out infinite!important}
+.participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
+.participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
+.volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
+.volumePanel label{font-size:9px}
+.volumePanel input{margin:6px 0 0}
+.tileAdminMenu{top:0;right:0}
+.tileAdminDots{width:25px;height:25px;min-height:25px;font-size:17px}
+.callControlBar{position:sticky;bottom:8px;z-index:4;display:flex;justify-content:center;align-items:center;gap:24px;width:min(100%,390px);margin:15px auto 0;padding:11px 16px;border-radius:22px;background:rgba(8,17,32,.92);border:1px solid #ffffff22;box-shadow:0 12px 30px #0007;backdrop-filter:blur(14px)}
+.callControl{position:relative;width:56px;height:56px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px;margin:0;border-radius:50%;background:#293e5e;color:#f4f8ff;border:1px solid #ffffff20;box-shadow:none}
+.callControlIcon{font-size:21px;line-height:1.1}
+.callControl small{font-size:8px;color:#d5e3f4}
+.disconnectControl{width:62px;height:62px;min-height:62px;background:linear-gradient(145deg,#ff7182,#d83a57);border:0}
+.callControl.is-muted{background:#67404c;border-color:#ff7d8c88}
+@keyframes softSpeakerGlow{0%,100%{box-shadow:0 0 0 4px #67e3f32b,0 0 12px #55d8ed88,0 0 20px #55d8ed44}50%{box-shadow:0 0 0 6px #67e3f355,0 0 22px #55d8eddd,0 0 32px #55d8ed77}}
+@media(max-width:600px){
+ #roomPage{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ #roomPage>.roomScreenCard{padding:13px!important}
+ .participantGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}
+ .participantTile .avatar{width:52px;height:52px}
+ .participantTile .participantName{font-size:10px}
+ .roomTopbar{padding-bottom:10px}
+ .callControlBar{position:sticky;bottom:5px;margin-top:10px;padding:9px 14px}
+}
+@media(max-width:360px){.participantGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="24" y="7" width="16" height="31" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M15 29v3a17 17 0 0 0 34 0v-3M32 49v8m-10 0h20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
+<header><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
+<main>
+<section id="loginPage" class="card">
+<h2>Welcome to KVK HUB 🎙️</h2><p>Sign in to connect with your friends.</p>
+<button id="loginBtn">Continue with Google</button>
+</section>
+<section id="homePage">
+<div class="card"><h2>Welcome!</h2><p id="userName"></p>
+<div class="profileTop">
+ <img id="profileTopPhoto" alt="Profile photo" src="">
+ <div class="profileText"><strong id="profileTopName">Your Profile</strong><small id="profileTopId"></small></div>
+ <div class="profileMenuWrap">
+  <button type="button" class="profileMenuButton" id="profileMenuButton" aria-label="Profile menu">⚙</button>
+  <div class="profileMenu" id="profileMenu" hidden>
+   <button type="button" id="openUserSettingsBtn">User Settings</button>
+   <button type="button" id="logoutBtn">Logout</button>
+  </div>
+ </div>
+</div>
+<div class="profileEditor" id="profileEditor">
+ <div class="settingsHeading">User Settings</div>
+ <img id="profilePreview" alt="Profile preview" src="">
+ <label>Profile Photo<input id="profilePhotoInput" type="file" accept="image/*"></label>
+ <label>Name<input id="profileNameInput" maxlength="40" placeholder="Your name"></label>
+ <label>KVK User ID<input id="profileNameIdInput" maxlength="24" placeholder="Choose your KVK ID"></label>
+ <div class="settingsSubheading">Permanent Account ID</div><div class="profileUid" id="profileUid"></div>
+ <p class="small">KVK User ID is your editable profile ID. Permanent Account ID is issued by Google/Firebase and cannot be changed.</p>
+ <button id="saveProfileBtn">Save Profile</button>
+ <button class="secondary" id="closeProfileBtn">Close</button>
+</div></div>
+<div class="card roomHubCard"><div class="sectionEyebrow">YOUR VOICE SPACE</div><h2>Rooms</h2><p class="small roomHint">Jump into a room or start your own.</p>
+<label class="roomInputLabel" for="roomCode">ROOM ID</label><input id="roomCode" placeholder="Enter room ID" maxlength="40" autocomplete="off">
+<div class="roomActions"><button id="joinBtn"><span class="actionIcon">↗</span> Join Room</button><button class="secondary" id="createBtn"><span class="actionIcon">＋</span> Create Room</button></div>
+<p class="roomFootnote">Private rooms are protected with a password.</p>
+</div>
+<div class="card myRoomsCard">
+<div class="myRoomsHeading"><div><div class="sectionEyebrow">QUICK ACCESS</div><h2>My Rooms</h2></div><button id="refreshRoomsBtn" class="secondary refreshButton" aria-label="Refresh My Rooms">↻</button></div>
+<div id="myRoomList"><div class="empty">Loading your rooms...</div></div>
+</div>
+
+</section>
+<section id="roomPage">
+<div class="card roomScreenCard">
+ <div class="roomTopbar">
+  <div class="roomTitleGroup"><div class="sectionEyebrow">LIVE VOICE SPACE</div><h2>🎙️ Voice Room</h2><p id="roomInfo" class="small">Room connected</p></div>
+  <button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button>
+ </div>
+ <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
+  <div class="settingsHeading">Room Settings</div>
+  <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
+  <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
+  <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
+   <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Reduce background noise, if supported</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
+   <label class="audioSettingRow"><span><strong>Echo Cancellation</strong><small>Reduce speaker-to-microphone echo</small></span><input id="echoCancellationToggle" type="checkbox"></label>
+   <label class="audioSettingRow"><span><strong>Auto Gain Control</strong><small>Keep microphone level consistent</small></span><input id="autoGainControlToggle" type="checkbox"></label>
+   <p class="audioSupportNote" id="audioSupportNote">These options depend on browser and microphone support. Actual settings will be checked when the microphone is enabled.</p>
+  </div>
+  <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
+  <div id="unbanSettingsPanel" style="display:none">
+   <div class="settingsSubheading">Banned Users</div>
+   <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
+  </div>
+  <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
+  <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
+  <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
+   <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
+   <div class="deleteConfirmButtons"><button id="confirmDeleteChannelBtn" class="confirmDeleteAction" disabled>Confirm Delete</button><button id="cancelDeleteChannelBtn" class="cancelDeleteAction">Cancel</button></div>
+  </div>
+ </div>
+ <div class="peopleHeading"><div><div class="sectionEyebrow">PEOPLE IN THIS ROOM</div><h3>Members</h3></div><p id="voiceMembers" class="memberCount">Connecting...</p></div>
+ <div id="participantGrid" class="participantGrid"></div>
+ <div id="moderationPanel" style="display:none"></div>
+ <div class="callControlBar">
+  <button id="muteBtn" class="callControl muteControl" aria-label="Mute microphone"><span class="callControlIcon">🎙</span><small id="muteBtnLabel">Mute</small></button>
+  <button id="leaveBtn" class="callControl disconnectControl" aria-label="Disconnect call"><span class="callControlIcon">☎</span><small>Leave</small></button>
+ </div>
+</div>
+</section>
+
+<div id="passwordModalOverlay" class="passwordModalOverlay" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+ <div class="passwordModal">
+  <h2 id="passwordModalTitle">Room Password</h2>
+  <p id="passwordModalDescription">Enter your room password to continue.</p>
+  <form id="passwordModalForm">
+   <input id="passwordModalInput" type="password" minlength="3" maxlength="128" autocomplete="new-password" placeholder="Enter password" required>
+   <p id="passwordModalError" class="passwordModalError"></p>
+   <div class="passwordModalActions">
+    <button type="button" id="passwordModalCancel" class="secondary">Cancel</button>
+    <button type="submit" id="passwordModalSubmit">Continue</button>
+   </div>
+  </form>
+ </div>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+</main>
+<script type="module">
+import {loginWithGoogle,logoutUser,auth,authReady,db,onAuthStateChanged} from "./firebase.js";
+import {Room,RoomEvent} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
+import {
+ collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
+
+let nativeKvkCall=null;
+let nativeKvkCallListenerReady=false;
+async function getNativeKvkCall(){
+ if(nativeKvkCall)return nativeKvkCall;
+ if(!window.Capacitor)return null;
+ try{
+  const module=await import("./native-call.js");
+  const nativePlugin=module.KvkCall;
+  if(!nativePlugin)return null;
+  // Capacitor plugin proxies behave like thenables. Never return the proxy
+  // itself from an async function: Promise resolution would call plugin.then().
+  nativeKvkCall={
+   requestNotificationPermission:(...args)=>nativePlugin.requestNotificationPermission(...args),
+   start:(...args)=>nativePlugin.start(...args),
+   update:(...args)=>nativePlugin.update(...args),
+   stop:(...args)=>nativePlugin.stop(...args),
+   addListener:(...args)=>nativePlugin.addListener(...args)
+  };
+ }catch(error){console.warn("Could not load native KVK bridge:",error);}
+ return nativeKvkCall;
+}
+async function startNativeVoiceService(roomName){
+ const plugin=await getNativeKvkCall();
+ if(!plugin)return;
+ try{
+  const permission=await plugin.requestNotificationPermission();
+  if(permission?.granted===false)status.textContent="Notification permission is off. KVK HUB will try to keep the room active in background.";
+  if(!nativeKvkCallListenerReady){
+   await plugin.addListener("notificationAction",async event=>{
+    try{
+     if(event?.action==="MUTE"&&activeRoom&&micEnabled)await changeMicrophoneState(false);
+     else if(event?.action==="UNMUTE"&&activeRoom&&!micEnabled)await changeMicrophoneState(true);
+     else if(event?.action==="DISCONNECT"&&activeRoom)await leaveVoiceRoom();
+    }catch(error){console.error("Notification action failed:",error);}
+   });
+   nativeKvkCallListenerReady=true;
+  }
+  await plugin.start({roomName,micEnabled});
+ }catch(error){console.warn("Native foreground voice service unavailable:",error);status.textContent="Voice connected, but Android background service could not start: "+(error.message||error);}
+}
+async function updateNativeVoiceService(){
+ const plugin=await getNativeKvkCall();
+ if(!plugin||!activeRoom)return;
+ try{await plugin.update({roomName:currentRoomCode||"Voice Room",micEnabled});}
+ catch(error){console.warn("Could not update KVK notification:",error);}
+}
+async function stopNativeVoiceService(){
+ const plugin=await getNativeKvkCall();
+ if(!plugin)return;
+ try{await plugin.stop();}catch(error){console.warn("Could not stop KVK foreground service:",error);}
+}
+
+
+function askRoomConfirmation({title="Please Confirm",description="Are you sure?",confirmText="Confirm",cancelText="Cancel"}={}){
+ return new Promise(resolve=>{
+  const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
+  const error=$("passwordModalError"),submit=$("passwordModalSubmit"),cancel=$("passwordModalCancel");
+  $("passwordModalTitle").textContent=title;
+  $("passwordModalDescription").textContent=description;
+  input.style.display="none";input.required=false;input.value="";
+  error.style.display="none";cancel.textContent=cancelText;submit.textContent=confirmText;
+  overlay.style.display="flex";
+  const finish=value=>{
+   overlay.style.display="none";input.style.display="";input.required=true;error.style.display="";
+   cancel.textContent="Cancel";submit.textContent="Continue";
+   form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);
+   input.removeEventListener("keydown",onKeyDown);resolve(value);
+  };
+  const onCancel=()=>finish(false);
+  const onKeyDown=event=>{if(event.key==="Escape"){event.preventDefault();finish(false);}};
+  const onSubmit=event=>{event.preventDefault();finish(true);};
+  form.addEventListener("submit",onSubmit);cancel.addEventListener("click",onCancel);input.addEventListener("keydown",onKeyDown);
+  submit.focus();
+ });
+}
+
+function askRoomPassword({title="Room Password",description="Enter your room password to continue.",confirmText="Continue",minLength=3}={}){
+ return new Promise(resolve=>{
+  const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
+  const error=$("passwordModalError"),submit=$("passwordModalSubmit"),cancel=$("passwordModalCancel");
+  $("passwordModalTitle").textContent=title;
+  $("passwordModalDescription").textContent=description;
+  submit.textContent=confirmText;input.value="";input.minLength=String(minLength);
+  input.placeholder="At least "+minLength+" characters";
+  error.textContent="";overlay.style.display="flex";
+  const finish=value=>{overlay.style.display="none";form.removeEventListener("submit",onSubmit);cancel.removeEventListener("click",onCancel);input.removeEventListener("keydown",onKeyDown);resolve(value);};
+  const onCancel=()=>finish(null);
+  const onKeyDown=event=>{if(event.key==="Escape"){event.preventDefault();finish(null);}};
+  const onSubmit=event=>{
+   event.preventDefault();
+   const value=input.value;
+   if(value.trim().length<minLength){error.textContent="Password must be at least "+minLength+" characters.";input.focus();return;}
+   if(value.length>128){error.textContent="Password must be 128 characters or fewer.";input.focus();return;}
+   finish(value);
+  };
+  form.addEventListener("submit",onSubmit);cancel.addEventListener("click",onCancel);input.addEventListener("keydown",onKeyDown);
+  setTimeout(()=>input.focus(),0);
+ });
+}
+
+async function workerAdminRequest(path,body={}){
+ if(!auth.currentUser)throw new Error("Please login first.");
+ const idToken=await auth.currentUser.getIdToken();
+ const response=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},body:JSON.stringify(body)});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok){
+  const error=new Error(data.error||("Moderation request failed ("+response.status+")"));
+  error.code=data.code||null;
+  error.status=response.status;
+  throw error;
+ }
+ return data;
+}
+function moderationArray(data,keys){
+ for(const key of keys)if(Array.isArray(data?.[key]))return data[key];
+ if(Array.isArray(data?.data))return data.data;
+ return [];
+}
+async function refreshModeration(){
+ if(!currentRoomCode||!auth.currentUser)return;
+ const bannedBox=$("adminBanned");
+ bannedBox.textContent="Loading banned users...";
+ try{
+  const bannedData=await workerAdminRequest("/banned-users",{roomName:currentRoomCode});
+  const banned=moderationArray(bannedData,["bannedUsers","banned","users","items"]);
+  bannedBox.replaceChildren();
+  if(!banned.length){const e=document.createElement("div");e.className="empty";e.textContent="No banned users.";bannedBox.append(e);}
+  for(const entry of banned){
+   const identity=typeof entry==="string"?entry:(entry.identity||entry.targetIdentity||entry.uid||"");
+   if(!identity)continue;
+   // The Worker uses the Firebase UID as the LiveKit identity for room tokens.
+   // Older /banned-users responses contain only that identity string.
+   let profileData=typeof entry==="object"?entry:{};
+   let profileUid=profileData.targetUid||profileData.firebaseUid||profileData.profileUid||profileData.uid||identity;
+   profileData={...profileData,displayName:profileData.displayName||profileData.targetName||profileData.name||"",photoDataUrl:profileData.photoDataUrl||profileData.targetPhotoURL||"",publicId:profileData.publicId||profileData.targetPublicId||profileData.kvkUserId||""};
+   let presenceData={};
+   try{
+    // Durable profile snapshot written when the member is banned.
+    const savedBanProfile=await getDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));
+    if(savedBanProfile.exists())profileData={...profileData,...savedBanProfile.data()};
+    // Resolve the Firebase UID from current presence only when no durable UID exists.
+    if(!profileUid||profileUid===identity){
+     const peopleSnap=await getDocs(collection(db,"rooms",currentRoomCode,"participants"));
+     const matched=peopleSnap.docs.find(person=>{
+      const personData=person.data();
+      return person.id===identity||personData.livekitIdentity===identity;
+     });
+     if(matched){profileUid=matched.id;presenceData=matched.data();}
+    }
+    if(profileUid){
+     const profileSnap=await getDoc(doc(db,"users",profileUid));
+     if(profileSnap.exists())profileData={...profileData,...profileSnap.data()};
+    }
+   }catch(profileError){console.warn("Could not load banned member profile:",profileError);}
+   const memberName=profileData.displayName||profileData.name||presenceData.name||"Member";
+   const memberPhoto=profileData.photoDataUrl||profileData.photoURL||profileData.photoUrl||presenceData.photoURL||"";
+   const publicId=profileData.publicId||profileData.kvkUserId||profileUid||identity;
+   const row=document.createElement("div");row.className="roomItem adminMemberRow";
+   const details=document.createElement("div");details.className="adminMemberDetails";details.style.cssText="flex:1;min-width:0";
+   const label=document.createElement("strong");label.textContent=memberName;
+   label.style.cssText="display:block;font-size:13px;line-height:1.3";
+   const metaLine=document.createElement("div");metaLine.style.cssText="display:flex;align-items:center;gap:8px;margin-top:4px;min-width:0";
+   const userId=document.createElement("div");userId.className="roomMeta";userId.style.cssText="margin:0;overflow-wrap:anywhere";
+   userId.textContent=publicId?(String(publicId).startsWith("@")?publicId:"@"+publicId):"User ID: "+identity;
+   const avatar=document.createElement("img");avatar.alt="";avatar.style.cssText="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#303954";
+   if(memberPhoto){avatar.src=memberPhoto;avatar.onerror=()=>{avatar.style.display="none";};}
+   else{avatar.style.display="none";}
+   metaLine.append(userId);
+   const sub=document.createElement("div");sub.className="roomMeta";sub.textContent="Banned from this room";
+   details.append(label,metaLine,sub);
+   const unban=document.createElement("button");unban.className="secondary";unban.textContent="Unban";unban.style.width="auto";unban.onclick=async()=>{const ok=await moderationAction("/unban",identity);if(ok){try{await deleteDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity));}catch(e){console.warn("Could not clear saved ban profile:",e);}}};
+   row.style.cssText="display:flex;align-items:center;gap:12px";
+   row.append(avatar,details,unban);bannedBox.append(row);
+  }
+ }catch(error){
+  console.error("Banned users refresh failed:",error);
+  bannedBox.textContent="Could not load banned list: "+error.message;
+ }
+}
+async function moderationAction(path,targetIdentity,extra={}){
+ if(!currentRoomCode)return;
+ try{
+  await workerAdminRequest(path,{roomName:currentRoomCode,targetIdentity,...extra});
+  status.textContent="Moderation action completed.";
+  await refreshModeration();
+  return true;
+ }catch(error){console.error(error);status.textContent="ADMIN ERROR: "+error.message;return false;}
+}
+let isRoomAdmin=false;
+let roomOwnerUid=null;
+let deleteCountdownTimer=null;
+let deleteCountdownRemaining=0;
+const adminMuteState=new Map();
+function identityAudioIsMuted(identity){
+ if(!activeRoom)return false;
+ let participant=null;
+ if(activeRoom.localParticipant?.identity===identity)participant=activeRoom.localParticipant;
+ else participant=[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity)||null;
+ if(!participant)return false;
+ const audioPublications=[...participant.audioTrackPublications.values()];
+ return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
+}
+function setupModeration(roomData){
+ roomOwnerUid=roomData?.creatorUid||roomData?.createdBy||null;
+ isRoomAdmin=!!auth.currentUser&&roomOwnerUid===auth.currentUser.uid;
+ $("moderationPanel").style.display="none";
+ // Room Settings is available to every participant; admin-only actions stay hidden.
+ $("roomSettingsBtn").style.display="block";
+ $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
+ $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
+ $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
+ $("copyRoomCodeBtn").style.display="inline-flex";
+}
+
+const $=id=>document.getElementById(id);
+const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
+// Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
+let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+// Use Android/WebView built-in voice processing only; no custom AI audio worklet.
+let localMicStream=null,localPublishedMicTrack=null;
+$("echoCancellationToggle").checked=true;
+let stopRoomsListener=null,stopRoomPeopleListener=null;
+const participantProfiles=new Map();
+let activeSpeakerIds=new Set();
+const participantTiles=new Map();
+const remoteAudioGains=new Map();
+const roomPresenceStops=new Map();
+// 100 on the slider is capped at 50% media-element volume.
+// This is a software limit, not a calibrated dB safety guarantee.
+const MAX_REMOTE_VOLUME=0.5;
+function volumeToMediaVolume(value){
+ const n=Number(value);
+ const clamped=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+ return (clamped/100)*MAX_REMOTE_VOLUME;
+}
+function loadRemoteVolume(identity){
+ const stored=localStorage.getItem("kvkRemoteVolume:"+identity);
+ if(stored===null)return 100;
+ const n=Number(stored);
+ return Number.isFinite(n)?Math.max(0,Math.min(100,n)):100;
+}
+function setRemoteVolume(identity,value){
+ const n=Number(value);
+ const safeValue=Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+ const mediaVolume=volumeToMediaVolume(safeValue);
+ remoteAudioGains.set(identity,safeValue);
+ localStorage.setItem("kvkRemoteVolume:"+identity,String(safeValue));
+ document.querySelectorAll(".remoteAudio").forEach(audioEl=>{
+  if(audioEl.dataset.identity===identity){
+   audioEl.muted=(safeValue===0);
+   audioEl.volume=mediaVolume;
+  }
+ });
+}
+function attachRemoteAudio(track,identity){
+ const audioEl=track.attach();
+ audioEl.autoplay=true;
+ audioEl.playsInline=true;
+ audioEl.className="remoteAudio";
+ audioEl.dataset.identity=identity;
+ const savedValue=remoteAudioGains.get(identity)??loadRemoteVolume(identity);
+ remoteAudioGains.set(identity,savedValue);
+ audioEl.volume=volumeToMediaVolume(savedValue);
+ audioEl.muted=(savedValue===0);
+ document.body.appendChild(audioEl);
+ // LiveKit speaker events drive speaking indicators without another AudioContext.
+ audioEl.play().catch(()=>{});
+}
+
+let selectedProfilePhoto=null;
+function profilePlaceholder(name){
+ const letter=(name||"U").trim().charAt(0).toUpperCase()||"U";
+ return "data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88"><rect width="100%" height="100%" fill="#303954"/><text x="50%" y="58%" text-anchor="middle" dominant-baseline="middle" font-size="42" fill="white">'+letter+'</text></svg>');
+}
+function profileAvatar(user,photo){return photo||user.photoURL||"";}
+async function loadUserProfile(user){
+ // Show Google account details immediately; Firestore custom values are optional overrides.
+ const googleName=user.displayName||user.email?.split("@")[0]||"Google User";
+ const googlePhoto=user.photoURL||"";
+ $("profileUid").textContent=user.uid||"Unavailable";
+ $("profileTopName").textContent=googleName;
+ $("profileNameInput").value=googleName;
+ $("profileTopPhoto").src=googlePhoto||profilePlaceholder(googleName);
+ $("profilePreview").src=$("profileTopPhoto").src;
+ $("userName").textContent="Hello, "+googleName;
+ selectedProfilePhoto=null;
+ try{
+  const snap=await getDoc(doc(db,"users",user.uid));
+  const data=snap.exists()?snap.data():{};
+  const name=(typeof data.displayName==="string"&&data.displayName.trim())?data.displayName.trim():googleName;
+  const customPhoto=(typeof data.photoDataUrl==="string"&&data.photoDataUrl.startsWith("data:image/"))?data.photoDataUrl:"";
+  const publicId=(typeof data.publicId==="string"&&data.publicId.trim())?data.publicId.trim():"";
+  const photo=profileAvatar(user,customPhoto);
+  $("profileTopName").textContent=name;
+  $("profileNameInput").value=name;
+  $("profileNameIdInput").value=publicId;
+  $("profileTopId").textContent=publicId?"@"+publicId:"";
+  $("profileTopPhoto").src=photo||profilePlaceholder(name);
+  $("profilePreview").src=$("profileTopPhoto").src;
+  $("userName").textContent="Hello, "+name;
+  selectedProfilePhoto=customPhoto||null;
+ }catch(error){
+  console.error("Profile read failed; showing Google account defaults:",error);
+  // Keep the Google name, photo and permanent UID visible even if Firestore rules deny profile reads.
+  status.textContent="Google profile loaded. Custom profile could not be loaded: "+error.message;
+ }
+}
+async function saveProfile(){
+ const user=auth.currentUser;if(!user)return;
+ const name=$("profileNameInput").value.trim();
+ const publicId=$("profileNameIdInput").value.trim().replace(/^@/,"");
+ if(!name){status.textContent="Please enter your name.";return;}
+ if(publicId&&!/^[a-zA-Z0-9_]{3,24}$/.test(publicId)){status.textContent="KVK User ID must be 3–24 letters, numbers or underscores.";return;}
+ const button=$("saveProfileBtn");button.disabled=true;
+ try{
+  await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,publicId,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
+  await loadUserProfile(user);
+  $("profileEditor").style.display="none";
+  $("userName").textContent="Hello, "+name;
+  status.textContent="Profile saved successfully.";
+ }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
+ finally{button.disabled=false;}
+}
+$("profileMenuButton").onclick=()=>{
+ const menu=$("profileMenu");menu.hidden=!menu.hidden;
+};
+$("openUserSettingsBtn").onclick=()=>{
+ $("profileMenu").hidden=true;
+ $("profileEditor").style.display="block";
+};
+$("closeProfileBtn").onclick=()=>{$("profileEditor").style.display="none";};
+document.addEventListener("click",event=>{
+ if(!$("profileMenu").contains(event.target)&&event.target!==$("profileMenuButton"))$("profileMenu").hidden=true;
+});
+$("saveProfileBtn").onclick=saveProfile;
+$("logoutBtn").onclick=async()=>{
+ const button=$("logoutBtn");
+ button.disabled=true;
+ $("profileMenu").hidden=true;
+ status.textContent="Logging out...";
+ try{
+  // Disconnect any active voice room before clearing the signed-in Firebase session.
+  if(currentRoomCode||activeRoom)await leaveVoiceRoom();
+  await logoutUser();
+  status.textContent="Logged out successfully. Please sign in again.";
+ }catch(error){
+  console.error("Logout failed:",error);
+  status.textContent="Logout failed: "+(error.code||error.message||"Unknown error");
+ }finally{
+  button.disabled=false;
+ }
+};
+$("profilePhotoInput").onchange=async event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ if(!file.type.startsWith("image/")){status.textContent="Choose an image file.";return;}
+ if(file.size>8*1024*1024){status.textContent="Choose an image smaller than 8 MB.";return;}
+ try{
+  const image=await createImageBitmap(file);
+  const canvas=document.createElement("canvas");const scale=Math.min(1,512/Math.max(image.width,image.height));
+  canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
+  canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
+  selectedProfilePhoto=canvas.toDataURL("image/jpeg",0.78);
+  $("profilePreview").src=selectedProfilePhoto;
+  status.textContent="Photo selected. Press Save Profile.";
+ }catch(error){status.textContent="Could not read that image.";console.error(error);}
+};
+function showHome(user){
+ loginPage.style.display="none";homePage.style.display="block";roomPage.style.display="none";
+ $("userName").textContent="Hello, "+(user.displayName||"User");
+ loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
+ status.textContent="You are logged in!";
+ startMyRooms();
+}
+function showLogin(){
+ stopMyRooms();
+ loginPage.style.display="block";homePage.style.display="none";roomPage.style.display="none";
+ status.textContent="Please login to continue.";
+}
+function stopMyRooms(){
+ if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
+}
+function startMyRooms(){
+ stopMyRooms();
+ const list=$("myRoomList");
+ list.innerHTML='<div class="empty">Loading your rooms...</div>';
+ const uid=auth.currentUser?.uid;
+ if(!uid){list.textContent="Please login to view your rooms.";return;}
+ stopRoomsListener=onSnapshot(collection(db,"users",uid,"myRooms"),async snapshot=>{
+  const rooms=[];
+  // Remove stale My Rooms entries when their Firestore room document no longer exists.
+  for(const d of snapshot.docs){
+   const room={id:d.id,...d.data()};
+   room.isRoomAdmin=false;
+   try{
+    const roomSnap=await getDoc(doc(db,"rooms",room.id));
+    if(!roomSnap.exists()){
+     await deleteDoc(doc(db,"users",uid,"myRooms",room.id));
+     continue;
+    }
+    const roomData=roomSnap.data()||{};
+    room.roomData=roomData;
+    room.isRoomAdmin=roomData.creatorUid===uid||roomData.createdBy===uid;
+   }catch(checkError){
+    console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);
+   }
+   rooms.push(room);
+  }
+  rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
+  list.replaceChildren();
+  if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
+  for(const room of rooms){
+   const item=document.createElement("article");item.className="roomItem polishedRoomItem";
+   const roomData=room.roomData||{};
+   const creatorUid=roomData.creatorUid||roomData.createdBy||"";
+   let creatorName=roomData.createdByName||roomData.creatorName||(room.isRoomAdmin?(auth.currentUser?.displayName||"You"):"Room creator");
+   let creatorPhoto=roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
+   if(creatorUid){
+    try{
+     const creatorSnap=await getDoc(doc(db,"users",creatorUid));
+     if(creatorSnap.exists()){
+      const creator=creatorSnap.data()||{};
+      creatorName=creator.displayName||creatorName;
+      creatorPhoto=creator.photoDataUrl||creator.photoURL||creatorPhoto;
+     }
+    }catch(profileError){console.warn("Creator profile lookup failed:",profileError);}
+    if(!creatorPhoto){
+     try{const presenceSnap=await getDoc(doc(db,"rooms",room.id,"participants",creatorUid));if(presenceSnap.exists()){const presence=presenceSnap.data()||{};creatorName=presence.name||creatorName;creatorPhoto=presence.photoURL||"";}}catch(presenceError){console.warn("Creator presence profile lookup failed:",presenceError);}
+    }
+    if(creatorUid===auth.currentUser?.uid){
+     creatorName=auth.currentUser.displayName||creatorName;
+     creatorPhoto=creatorPhoto||auth.currentUser.photoURL||"";
+     try{const ownProfile=await getDoc(doc(db,"users",creatorUid));if(ownProfile.exists()){const own=ownProfile.data()||{};creatorName=own.displayName||creatorName;creatorPhoto=own.photoDataUrl||own.photoURL||creatorPhoto;}}catch(_){}
+    }
+   }
+   const top=document.createElement("div");top.className="roomCardTop";
+   const avatar=document.createElement("img");avatar.className="roomCreatorAvatar";avatar.alt="Room creator profile";avatar.src=creatorPhoto||profilePlaceholder(creatorName);
+   const details=document.createElement("div");details.className="roomCreatorDetails";
+   const name=document.createElement("strong");name.textContent=room.name||room.roomName||room.id;
+   const by=document.createElement("div");by.className="roomCreatorLine";by.textContent="Created by "+creatorName;
+   const role=document.createElement("span");role.className="creatorRole";role.textContent=room.isRoomAdmin?"ADMIN":"HOST";
+   details.append(name,by,role);top.append(avatar,details);
+   const meta=document.createElement("div");meta.className="roomMeta";meta.textContent=(room.role==="created"?"Your room":"Joined room")+" · "+room.id;
+   const actions=document.createElement("div");actions.className="roomCardActions";
+   const join=document.createElement("button");join.textContent="Join Room";join.className="roomJoinAction";join.onclick=async()=>{try{await connectVoiceRoom(room.id);}catch(e){status.textContent="JOIN ERROR: "+e.message;console.error(e);}};
+   actions.append(join);
+   item.append(top,meta,actions);
+   list.append(item);
+  }
+ },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
+}
+async function stopLocalMicrophone(room=activeRoom){
+ const track=localPublishedMicTrack;localPublishedMicTrack=null;
+ if(track&&room){try{await room.localParticipant.unpublishTrack(track,false);}catch(e){console.warn("Microphone unpublish:",e);}}
+ if(track){try{track.stop();}catch(e){}}
+ if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
+}
+const audioPreferenceDefaults={noiseSuppression:true,echoCancellation:true,autoGainControl:true};
+const audioPreferences={};
+for(const [key,defaultValue] of Object.entries(audioPreferenceDefaults)){
+ const stored=localStorage.getItem("kvkAudio:"+key);
+ audioPreferences[key]=stored===null?defaultValue:stored==="true";
+}
+function syncAudioPreferenceControls(){
+ const map={noiseSuppression:"noiseSuppressionToggle",echoCancellation:"echoCancellationToggle",autoGainControl:"autoGainControlToggle"};
+ for(const [key,id] of Object.entries(map)){const control=$(id);if(control)control.checked=!!audioPreferences[key];}
+}
+syncAudioPreferenceControls();
+async function setRoomMicrophone(room,enabled){
+ await stopLocalMicrophone(room);
+ if(!enabled)return;
+ // Ask the browser/device for its selected built-in voice processing; constraints are best-effort.
+ const stream=await navigator.mediaDevices.getUserMedia({
+  audio:{
+   echoCancellation:audioPreferences.echoCancellation,
+   noiseSuppression:audioPreferences.noiseSuppression,
+   autoGainControl:audioPreferences.autoGainControl,
+   channelCount:{ideal:1}
+  },
+  video:false
+ });
+ const track=stream.getAudioTracks()[0];
+ if(!track){stream.getTracks().forEach(t=>t.stop());throw new Error("No microphone audio track found.");}
+ try{
+  await room.localParticipant.publishTrack(track,{name:"microphone"});
+  localMicStream=stream;localPublishedMicTrack=track;
+  const settings=track.getSettings?.()||{};
+  console.info("KVK HUB microphone processing settings:",settings);
+  const labels={noiseSuppression:"Noise suppression",echoCancellation:"Echo cancellation",autoGainControl:"Auto gain"};
+  const activeFilters=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]===true).map(key=>labels[key]);
+  const unsupported=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]!==true).map(key=>labels[key]);
+  const supportNote=$("audioSupportNote");
+  if(supportNote)supportNote.textContent=activeFilters.length
+   ? "Device reports active: "+activeFilters.join(", ")+(unsupported.length?". Not confirmed: "+unsupported.join(", "):".")
+   : "The device did not confirm the selected processing options. Support varies by browser, Android version and microphone.";
+  status.textContent=activeFilters.length
+   ? "Microphone connected. Active device processing: "+activeFilters.join(", ")+"."
+   : "Microphone connected. Device processing was not confirmed; check Audio Settings.";
+ }catch(error){
+  stream.getTracks().forEach(t=>t.stop());
+  throw error;
+ }
+}
+async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
+ if(!auth.currentUser)throw new Error("Please login first.");
+ const roomRef=doc(db,"rooms",roomName);
+ const roomSnap=await getDoc(roomRef);
+ if(!roomSnap.exists())throw new Error("Room not found. Ask the host to check the Room ID.");
+ const roomDetails=roomSnap.data();
+ if(roomDetails.isPublic!==false)throw new Error("Public rooms are disabled. Use a password-protected room.");
+ if(activeRoom)await leaveVoiceRoom();
+ // Authorization is remembered by the Worker for this Firebase UID.
+ // Password is requested only when the Worker has no saved room access.
+ remoteAudioGains.clear();
+ status.textContent="Connecting to voice room...";
+ const requestRoomToken=async password=>{
+  const idToken=await auth.currentUser.getIdToken();
+  const response=await fetch(WORKER_URL+"/token",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},
+   body:JSON.stringify({roomName,...(password?{password}:{})})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){
+   const error=new Error(data.error||"Token request failed ("+response.status+")");
+   error.code=data.code||null;
+   error.status=response.status;
+   throw error;
+  }
+  return data;
+ };
+ let data;
+ try{
+  data=await requestRoomToken(providedPassword||"");
+ }catch(error){
+  if(error.code!=="PASSWORD_REQUIRED")throw error;
+  let password=providedPassword||await askRoomPassword({title:"Join Private Room",description:"இந்த private room-ல் சேர password உள்ளிடவும்.",confirmText:"Join Room",minLength:3});
+  if(password===null||!password.trim())throw new Error("Private room password is required.");
+  let attempts=0;
+  while(true){
+   try{data=await requestRoomToken(password);break;}
+   catch(passwordError){
+    if(passwordError.code!=="INVALID_PASSWORD"||++attempts>=3)throw passwordError;
+    password=await askRoomPassword({title:"Incorrect Password",description:"Password தவறு. மீண்டும் உள்ளிடவும்.",confirmText:"Try Again",minLength:3});
+    if(password===null||!password.trim())throw new Error("Private room password is required.");
+   }
+  }
+ }
+ if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
+ const room=new Room();
+ // LiveKit reports room-wide active speakers and participant-level speaking changes.
+ // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
+ room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
+  activeSpeakerIds=new Set(speakers.flatMap(p=>[p.identity,p.sid].filter(Boolean)));
+  for(const participant of speakers){
+   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
+   if(profile)profile.level=Number(participant.audioLevel)||0;
+  }
+  updateParticipantIndicators();
+ });
+ room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
+  if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
+ });
+ room.on(RoomEvent.TrackUnsubscribed,track=>{
+  track.detach().forEach(el=>el.remove());
+ });
+ room.on(RoomEvent.Disconnected,()=>{if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin."; }});
+ await room.connect(data.serverUrl,data.token);
+ // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
+ activeRoom=room;
+ // Try to start remote audio automatically after the user taps Join.
+ room.startAudio().catch(()=>{});
+ // If autoplay is blocked, the next tap or key press unlocks audio without a separate button.
+ const unlockRoomAudio=()=>{
+  if(activeRoom!==room)return;
+  room.startAudio().then(()=>{
+   Promise.all([...document.querySelectorAll(".remoteAudio")].map(el=>el.play().catch(()=>{})));
+   document.removeEventListener("pointerdown",unlockRoomAudio);
+   document.removeEventListener("keydown",unlockRoomAudio);
+  }).catch(()=>{});
+ };
+ document.addEventListener("pointerdown",unlockRoomAudio);
+ document.addEventListener("keydown",unlockRoomAudio);
+ // A server-side admin mute must not prevent joining the room.
+ // Join first with the restricted token; only try to publish a microphone
+ // when the Worker says this participant is not locked.
+ if(data.muted){
+  micEnabled=false;
+  localStorage.setItem("kvkMicEnabled","false");
+  status.textContent="You joined successfully. Your microphone is locked by the room admin.";
+ }else if(restoreMode){
+  // Rejoin silently after refresh; never turn the microphone on without a fresh user action.
+  micEnabled=false;
+  localStorage.setItem("kvkMicEnabled","false");
+  status.textContent="Reconnected to the room. Your microphone is OFF; tap Unmute when ready.";
+ }else{
+  try{
+   await setRoomMicrophone(room,micEnabled);
+  }catch(e){
+   await room.disconnect();
+   throw new Error("Microphone permission/device error: "+e.message);
+  }
+ }
+ activeRoom=room;currentRoomCode=roomName;
+ // Save created and joined rooms in the user's My Rooms list.
+ setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomName),{roomName,name:roomSnap.data().name||roomName,role:roomSnap.data().creatorUid===auth.currentUser.uid?"created":"joined",updatedAt:serverTimestamp()},{merge:true}).catch(error=>{console.error("Could not save room to My Rooms:",error);status.textContent="Connected, but My Rooms could not be updated. Check Firestore rules.";});
+ // Remember the room for this signed-in user so a refresh can restore it.
+ localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
+ $("roomInfo").textContent=(roomSnap.data().name||roomName)+" · "+roomName;
+ setupModeration(roomSnap.data());
+ $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
+ $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
+ $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
+ syncAudioPreferenceControls();
+ homePage.style.display="none";roomPage.style.display="block";
+ await startNativeVoiceService(roomName);
+ try{
+  const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
+  const updatePresence=async()=>{
+   let profile={displayName:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",publicId:""};
+   try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
+   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,lastSeen:serverTimestamp()},{merge:true});
+  };
+  // Create this user's presence document before subscribing to the roster.
+  // Firestore rules allow roster reads to existing room participants; subscribing
+  // before this write completes causes a permanent permission-denied listener.
+  try{
+   await updatePresence();
+   presenceTimer=setInterval(()=>updatePresence().catch(error=>{
+    console.error("Presence heartbeat failed:",error);
+    $("voiceMembers").textContent="Presence sync error: "+(error.code||error.message||"Firestore error");
+   }),25000);
+  }catch(presenceError){
+   console.error("Initial presence write failed:",presenceError);
+   $("voiceMembers").textContent="Presence sync failed: "+(presenceError.code||presenceError.message||"Firestore error");
+   status.textContent="Voice connected, but your member presence could not sync. "+(presenceError.code||presenceError.message||"Check Firestore rules.");
+  }
+  stopRoomPeopleListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
+   const present=new Set();
+   for(const snap of people.docs){
+    const d=snap.data(),seen=d.lastSeen?.toMillis?.()||0;
+    if(Date.now()-seen<90000){
+     present.add(snap.id);
+     const prior=participantProfiles.get(snap.id);
+     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});
+    }
+   }
+   for(const id of [...participantProfiles.keys()]){
+    if(!present.has(id)){participantProfiles.delete(id);participantTiles.get(id)?.remove();participantTiles.delete(id);}
+   }
+   renderParticipants();
+  },err=>{
+   console.error("Participant roster listener failed:",err);
+   $("participantGrid").textContent="Participant list unavailable: "+(err.code||err.message||"Firestore error");
+  });
+  stopPresenceListener=onSnapshot(collection(db,"rooms",roomName,"participants"),people=>{
+   const now=Date.now();
+   const online=people.docs.filter(p=>now-(p.data().lastSeen?.toMillis?.()||0)<90000).length;
+   $("voiceMembers").textContent=online+" member(s) online";
+  },err=>{
+   console.error("Member count listener failed:",err);
+   $("voiceMembers").textContent="Member count unavailable: "+(err.code||err.message||"Firestore error");
+  });
+
+ }catch(e){console.error("Presence setup error:",e);$("voiceMembers").textContent="Member count unavailable: "+(e.code||e.message||"Firestore error");}
+ if(status.textContent==="Connecting..."||status.textContent==="Joining room...")status.textContent="Voice connected! Share the room code with friends.";
+}
+function isProfileSpeaking(profile){
+ const isLocal=profile.uid===auth.currentUser?.uid;
+ const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
+ const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
+ return activeSpeakerIds.has(identity)||!!(participant&&(activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
+}
+function renderParticipants(){
+ const grid=$("participantGrid");if(!grid)return;
+ const people=[...participantProfiles.values()];
+ if(!people.length){if(!grid.querySelector(".empty")){grid.replaceChildren();const e=document.createElement("div");e.className="empty";e.textContent="Waiting for participants...";grid.append(e);}return;}
+ grid.querySelector(".empty")?.remove();
+ for(const p of people){
+  let tile=participantTiles.get(p.uid);
+  if(!tile){
+   tile=document.createElement("div");tile.className="participantTile";
+   const img=document.createElement("img");img.className="avatar";img.alt="Profile photo";
+   const fallback=document.createElement("div");fallback.className="avatar avatarFallback";fallback.textContent=(p.name||"U").trim().charAt(0).toUpperCase()||"U";fallback.style.cssText="display:none;margin:0 auto;background:#35415f;color:#fff;align-items:center;justify-content:center;font-size:25px;font-weight:bold;";
+   if(p.photoURL){img.src=p.photoURL;img.onerror=()=>{img.style.display="none";fallback.style.display="flex";};}else{img.style.display="none";fallback.style.display="flex";}
+   const name=document.createElement("div");name.className="participantName";
+   const panel=document.createElement("div");panel.className="volumePanel";
+   const volumeLabel=document.createElement("label");const volumeText=document.createElement("span");const volumeValue=document.createElement("span");volumeLabel.append(volumeText,volumeValue);
+   const initialAudioIdentity=p.livekitIdentity||p.uid;
+   const slider=document.createElement("input");slider.type="range";slider.min="0";slider.max="100";slider.step="1";slider.value=String(remoteAudioGains.get(initialAudioIdentity)??loadRemoteVolume(initialAudioIdentity));
+   volumeText.textContent="Volume";volumeValue.textContent=slider.value+"%";
+   slider.addEventListener("input",()=>{
+    const value=Number(slider.value);
+    const latestProfile=participantProfiles.get(p.uid);
+    const currentAudioIdentity=latestProfile?.livekitIdentity||p.livekitIdentity||p.uid;
+    setRemoteVolume(currentAudioIdentity,value);
+    volumeValue.textContent=value+"%";
+   });
+   panel.append(volumeLabel,slider);
+   tile.append(img,fallback,name,panel);
+   if(roomOwnerUid&&p.uid===roomOwnerUid){
+    const adminBadge=document.createElement("div");adminBadge.className="participantAdminBadge";adminBadge.textContent="👑 ADMIN";adminBadge.setAttribute("aria-label","Room admin");
+    tile.insertBefore(adminBadge,panel);
+   }
+   if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
+    const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
+    const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
+    const dropdown=document.createElement("div");dropdown.className="tileAdminDropdown";dropdown.hidden=true;
+    const muteButton=document.createElement("button");muteButton.type="button";muteButton.className="muteToggleAction";
+    const banButton=document.createElement("button");banButton.type="button";banButton.textContent="Ban user";
+    const kickButton=document.createElement("button");kickButton.type="button";kickButton.textContent="Kick user";kickButton.style.background="#8f6b2f";kickButton.style.color="#fff";
+    const getTargetIdentity=()=>{const profile=participantProfiles.get(p.uid);return profile?.livekitIdentity||p.livekitIdentity||p.uid;};
+    const syncMuteLabel=()=>{const identity=getTargetIdentity();const muted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);muteButton.textContent=muted?"Unmute":"Mute";};
+    syncMuteLabel();
+    muteButton.onclick=async event=>{
+     event.stopPropagation();const identity=getTargetIdentity();const currentlyMuted=adminMuteState.has(identity)?adminMuteState.get(identity):identityAudioIsMuted(identity);
+     muteButton.disabled=true;
+     try{const succeeded=await moderationAction(currentlyMuted?"/unmute":"/mute",identity);if(succeeded){adminMuteState.set(identity,!currentlyMuted);syncMuteLabel();dropdown.hidden=false;}}
+     finally{muteButton.disabled=false;}
+    };
+    kickButton.onclick=async event=>{
+     event.stopPropagation();dropdown.hidden=true;
+     const identity=getTargetIdentity();
+     const profile=participantProfiles.get(p.uid)||p;
+     const memberName=profile.name||"this member";
+     const confirmed=await askRoomConfirmation({title:"Kick Member",description:"Kick "+memberName+" from this room? They can rejoin later without entering the room password again.",confirmText:"Kick User"});
+     if(!confirmed)return;
+     kickButton.disabled=true;kickButton.textContent="Kicking...";
+     try{
+      const succeeded=await moderationAction("/kick",identity);
+      if(succeeded){
+       participantProfiles.delete(p.uid);
+       participantTiles.get(p.uid)?.remove();
+       participantTiles.delete(p.uid);
+       status.textContent=memberName+" was disconnected from the room. They can rejoin.";
+      }
+     }finally{kickButton.disabled=false;kickButton.textContent="Kick user";}
+    };
+    banButton.onclick=async event=>{
+     event.stopPropagation();dropdown.hidden=true;
+     const identity=getTargetIdentity();const profile=participantProfiles.get(p.uid)||p;
+     let savedProfile={uid:profile.uid||p.uid,displayName:profile.name||"User",photoURL:profile.photoURL||"",publicId:profile.publicId||""};
+     try{const snap=await getDoc(doc(db,"users",savedProfile.uid));if(snap.exists())savedProfile={...savedProfile,...snap.data()};}catch(e){console.warn("Could not read member profile before ban:",e);}
+     const ok=await moderationAction("/ban",identity,{targetUid:savedProfile.uid,targetName:savedProfile.displayName,targetPhotoURL:savedProfile.photoDataUrl||savedProfile.photoURL||"",targetPublicId:savedProfile.publicId||""});
+     if(ok){try{await setDoc(doc(db,"rooms",currentRoomCode,"bannedProfiles",identity),{uid:savedProfile.uid,displayName:savedProfile.displayName||"Member",photoDataUrl:savedProfile.photoDataUrl||null,photoURL:savedProfile.photoURL||"",publicId:savedProfile.publicId||"",livekitIdentity:identity,updatedAt:serverTimestamp()},{merge:true});await refreshModeration();}catch(e){console.error("Could not save banned profile snapshot:",e);status.textContent="User banned, but profile details could not be saved. Check Firestore rules.";}}
+    };
+    dropdown.append(muteButton,kickButton,banButton);
+    dots.onclick=event=>{event.stopPropagation();dropdown.hidden=!dropdown.hidden;};
+    menuWrap.append(dots,dropdown);tile.append(menuWrap);
+   }
+   tile.addEventListener("click",e=>{if(e.target===slider||e.target.closest(".tileAdminMenu"))return;panel.classList.toggle("open");});
+   participantTiles.set(p.uid,tile);grid.append(tile);
+  }
+  const children=tile.children;
+  children[2].textContent=p.name||"User";
+  const isSpeaking=isProfileSpeaking(p);
+  tile.classList.toggle("is-speaking",isSpeaking);
+  tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
+ }
+}
+function updateParticipantIndicators(){
+ for(const [id,tile] of participantTiles){
+  const p=participantProfiles.get(id);if(!p)continue;
+  const isSpeaking=isProfileSpeaking(p);
+  tile.dataset.livekitIdentity=speakingIdentity;
+  tile.dataset.speaking=isSpeaking?"yes":"no";
+  tile.classList.toggle("is-speaking",isSpeaking);
+  tile.style.setProperty("--voice-level",String(isSpeaking?Math.min(1,Math.max(0,p.level)):0));
+ }
+}
+function clearPresence(){
+ if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
+ if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
+ if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
+ participantProfiles.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
+ if(currentRoomCode&&auth.currentUser){
+  deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
+ }
+}
+async function leaveVoiceRoom(){
+ await stopNativeVoiceService();
+ if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
+ clearPresence();
+ if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
+ currentRoomCode=null;roomPage.style.display="none";homePage.style.display="block";status.textContent="You left the room.";
+}
+$("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
+onAuthStateChanged(auth,async user=>{
+ try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
+ $("bootSplash").classList.add("done");
+ if(!user){showLogin();return;}
+ showHome(user);
+ const inviteRoom=new URLSearchParams(location.search).get("room");
+ if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom))$("roomCode").value=inviteRoom;
+ const savedRoom=localStorage.getItem("kvkActiveRoom:"+user.uid);
+ if(savedRoom){
+  status.textContent="Restoring your previous room...";
+  try{await connectVoiceRoom(savedRoom,true);status.textContent="Welcome back! Reconnected to "+savedRoom+". Your microphone is OFF.";}
+  catch(error){console.error("Room restore failed:",error);showHome(user);status.textContent="Login successful, but the previous room could not be restored: "+error.message;}
+ }
+});
+$("refreshRoomsBtn").onclick=()=>{startMyRooms();status.textContent="Refreshing My Rooms...";};
+function stopDeleteCountdown(){
+ if(deleteCountdownTimer){clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;}
+ deleteCountdownRemaining=0;
+ $("deleteConfirmBox").style.display="none";
+ $("confirmDeleteChannelBtn").disabled=true;
+ $("confirmDeleteChannelBtn").textContent="Confirm Delete";
+ $("deleteChannelBtn").disabled=false;
+}
+$("roomSettingsBtn").onclick=()=>{
+ const panel=$("roomSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ if(!opening){
+  stopDeleteCountdown();
+  $("unbanSettingsPanel").style.display="none";
+  $("audioSettingsPanel").style.display="none";
+  $("audioSettingsChevron").textContent="＋";
+  $("unbanSettingsBtn").innerHTML="🛡 Unban Settings <span>＋</span>";
+ }
+};
+$("audioSettingsBtn").onclick=()=>{
+ const panel=$("audioSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("audioSettingsChevron").textContent=opening?"−":"＋";
+ syncAudioPreferenceControls();
+};
+for(const [key,id] of [["noiseSuppression","noiseSuppressionToggle"],["echoCancellation","echoCancellationToggle"],["autoGainControl","autoGainControlToggle"]]){
+ const control=$(id);
+ control.onchange=async()=>{
+  const previous=audioPreferences[key];
+  audioPreferences[key]=control.checked;
+  localStorage.setItem("kvkAudio:"+key,String(control.checked));
+  if(localPublishedMicTrack&&typeof localPublishedMicTrack.applyConstraints==="function"){
+   try{
+    await localPublishedMicTrack.applyConstraints({[key]:control.checked});
+    const actual=localPublishedMicTrack.getSettings?.()||{};
+    const confirmed=actual[key]===control.checked;
+    $("audioSupportNote").textContent=confirmed
+     ? (control.checked?"Enabled and confirmed by device: ":"Disabled and confirmed by device: ")+key+"."
+     : "The browser accepted the request but did not confirm the selected value. Device support may vary.";
+   }catch(error){
+    audioPreferences[key]=previous;control.checked=previous;localStorage.setItem("kvkAudio:"+key,String(previous));
+    $("audioSupportNote").textContent="This device/browser could not apply that option: "+(error.message||"unsupported");
+   }
+  }else{
+   $("audioSupportNote").textContent="Saved. This option will be requested next time you enable your microphone; device support will then be checked.";
+  }
+ };
+}
+$("unbanSettingsBtn").onclick=()=>{
+ const panel=$("unbanSettingsPanel");
+ const opening=panel.style.display==="none";
+ panel.style.display=opening?"block":"none";
+ $("unbanSettingsBtn").textContent=opening?"Hide Unban Settings":"Unban Settings";
+ if(opening)refreshModeration();
+};
+$("deleteChannelBtn").onclick=()=>{
+ if(!isRoomAdmin||!currentRoomCode)return;
+ stopDeleteCountdown();
+ $("deleteConfirmBox").style.display="block";
+ $("deleteCountdownText").textContent="Accidental delete protection: wait 5 seconds before confirming.";
+ const confirmButton=$("confirmDeleteChannelBtn");
+ confirmButton.disabled=true;
+ deleteCountdownRemaining=5;
+ $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+ deleteCountdownTimer=setInterval(()=>{
+  deleteCountdownRemaining--;
+  if(deleteCountdownRemaining>0){
+   $("deleteCountdownText").textContent="Confirm delete will unlock in "+deleteCountdownRemaining+" seconds.";
+  }else{
+   clearInterval(deleteCountdownTimer);deleteCountdownTimer=null;
+   $("deleteCountdownText").textContent="Please check carefully. You can now confirm deleting this channel.";
+   confirmButton.disabled=false;
+  }
+ },1000);
+};
+$("cancelDeleteChannelBtn").onclick=stopDeleteCountdown;
+$("confirmDeleteChannelBtn").onclick=async()=>{
+ if(!isRoomAdmin||!currentRoomCode||deleteCountdownRemaining>0||$("confirmDeleteChannelBtn").disabled)return;
+ const roomToDelete=currentRoomCode;
+ const button=$("confirmDeleteChannelBtn");
+ button.disabled=true;button.textContent="Deleting...";
+ $("deleteChannelBtn").disabled=true;
+ try{
+  await workerAdminRequest("/delete-room",{roomName:roomToDelete});
+  await deleteDoc(doc(db,"rooms",roomToDelete));
+  await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToDelete));
+  stopDeleteCountdown();
+  await leaveVoiceRoom();
+  status.textContent="Channel deleted.";
+ }catch(error){
+  console.error("Delete channel failed:",error);
+  status.textContent="Could not delete channel: "+error.message;
+  stopDeleteCountdown();
+ }finally{
+  button.textContent="Confirm Delete";
+  $("deleteChannelBtn").disabled=false;
+ }
+};
+$("joinBtn").onclick=async()=>{
+ const code=$("roomCode").value.trim();
+ if(!code){status.textContent="Enter a room ID!";return;}
+ if(!/^[a-zA-Z0-9_-]{3,40}$/.test(code)){status.textContent="Use 3–40 letters, numbers, - or _.";return;}
+ try{await connectVoiceRoom(code);}catch(e){console.error(e);status.textContent="JOIN ERROR: "+e.message;}
+};
+$("createBtn").onclick=async()=>{
+ const password=await askRoomPassword({title:"Create Private Room",description:"Set a password for your new room. Password must be at least 3 characters.",confirmText:"Create Room",minLength:3});
+ if(password===null)return;
+ const code="kvk-room-"+Math.random().toString(36).slice(2,8);
+ const button=$("createBtn");button.disabled=true;status.textContent="Creating your password-protected room...";
+ const creatorProfileSnap=await getDoc(doc(db,"users",auth.currentUser.uid)).catch(()=>null);
+ const creatorProfile=creatorProfileSnap?.exists()?creatorProfileSnap.data()||{}:{};
+ const creatorName=creatorProfile.displayName||auth.currentUser.displayName||"User";
+ const rawCreatorPhoto=creatorProfile.photoDataUrl||creatorProfile.photoURL||auth.currentUser.photoURL||"";
+ const creatorPhotoSnapshot=rawCreatorPhoto.startsWith("data:image/")?(rawCreatorPhoto.length<=180000?rawCreatorPhoto:(auth.currentUser.photoURL||"")):rawCreatorPhoto;
+ let firestoreCreated=false,workerCreated=false;
+ try{
+  await setDoc(doc(db,"rooms",code),{
+   name:creatorName+"\u0027s room",
+   isPublic:false,createdBy:auth.currentUser.uid,creatorUid:auth.currentUser.uid,
+   createdByName:creatorName,creatorPhotoURL:creatorPhotoSnapshot,createdAt:serverTimestamp()
+  });
+  firestoreCreated=true;
+  await workerAdminRequest("/create-private-room",{roomName:code,password});
+  workerCreated=true;
+  await setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",code),{
+   roomName:code,name:creatorName+"\u0027s room",
+   role:"created",updatedAt:serverTimestamp()
+  },{merge:true});
+  $("roomCode").value=code;
+  const inviteUrl=new URL(location.href);inviteUrl.search="";inviteUrl.hash="";inviteUrl.searchParams.set("room",code);
+  try{await navigator.clipboard.writeText(inviteUrl.toString());status.textContent="Room created. Invite link copied! Share the password separately.";}
+  catch(copyError){status.textContent="Room created. Invite link: "+inviteUrl.toString()+" — share the password separately.";}
+  await connectVoiceRoom(code,false,password);
+ }catch(e){
+  console.error("Create room failed:",e);status.textContent="CREATE ROOM ERROR: "+e.message;
+  if(firestoreCreated&&!activeRoom){
+   try{if(workerCreated)await workerAdminRequest("/delete-room",{roomName:code});}catch(cleanupError){console.error(cleanupError);}
+   try{await deleteDoc(doc(db,"rooms",code));}catch(cleanupError){console.error(cleanupError);}
+  }
+ }finally{button.disabled=false;}
+};
+async function changeMicrophoneState(nextEnabled){
+ if(!activeRoom)return;
+ try{
+  if(localPublishedMicTrack){
+   // Preserve the already-authorized capture session so background notification
+   // Unmute does not need a new getUserMedia permission/capture request.
+   if(localMicStream){
+    for(const inputTrack of localMicStream.getAudioTracks())inputTrack.enabled=nextEnabled;
+   }
+   localPublishedMicTrack.enabled=nextEnabled;
+  }else if(nextEnabled){
+   // First-time microphone permission/capture still needs a visible user action.
+   await setRoomMicrophone(activeRoom,true);
+  }
+  micEnabled=nextEnabled;
+  localStorage.setItem("kvkMicEnabled",String(micEnabled));
+  $("muteBtnLabel").textContent=micEnabled?"Mute":"Unmute";
+  $("muteBtn").classList.toggle("is-muted",!micEnabled);
+  $("muteBtn").setAttribute("aria-label",micEnabled?"Mute microphone":"Unmute microphone");
+  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled?"🎙":"🔇";
+  await updateNativeVoiceService();
+ }catch(e){
+  console.error(e);status.textContent="Microphone Error: "+e.message;
+  micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
+  $("muteBtnLabel").textContent="Unmute";
+  $("muteBtn").classList.add("is-muted");
+  $("muteBtn").querySelector(".callControlIcon").textContent="🔇";
+  await updateNativeVoiceService();
+ }
+}
+$("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
+
+$("copyRoomCodeBtn").onclick=async()=>{
+ const code=currentRoomCode;
+ if(!code)return;
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code);}
+  else{
+   const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
+   const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+  }
+  status.textContent="Room code copied! Now you can send it to your friends.";
+ }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
+};
+$("leaveBtn").onclick=async()=>{
+ try{await leaveVoiceRoom();status.textContent="Disconnected. Your room access is saved.";}
+ catch(error){console.error("Disconnect failed:",error);status.textContent="Could not disconnect: "+error.message;}
+};
+$("leaveRoomSettingsBtn").onclick=async()=>{
+ if(!currentRoomCode||!auth.currentUser)return;
+ const roomToLeave=currentRoomCode;
+ if(!confirm("Leave this room? You will need the room password next time."))return;
+ const button=$("leaveRoomSettingsBtn");button.disabled=true;button.textContent="Leaving...";
+ try{await workerAdminRequest("/leave-room",{roomName:roomToLeave});await deleteDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomToLeave));await leaveVoiceRoom();status.textContent="You left the room. It was removed from My Rooms. Password required next time."; }
+ catch(error){console.error("Leave room failed:",error);status.textContent="Could not leave room: "+error.message;}
+ finally{button.disabled=false;button.textContent="Leave Room";}
+};
+window.addEventListener("pagehide",()=>{if(currentRoomCode&&auth.currentUser)deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(()=>{});});
+window.addEventListener("error",e=>{status.textContent="APP ERROR: "+(e.message||"Unknown JavaScript error");});
+window.addEventListener("unhandledrejection",e=>{status.textContent="APP ERROR: "+(e.reason?.message||String(e.reason||"Unknown promise error"));});
+</script>
+</body>
+</html>
