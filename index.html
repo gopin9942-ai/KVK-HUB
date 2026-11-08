@@ -1306,8 +1306,7 @@ $("audioSettingsBtn").onclick=()=>{
  const opening=panel.style.display==="none";
  panel.style.display=opening?"block":"none";
  $("audioSettingsChevron").textContent=opening?"−":"＋";
- syncAudioPreferenceControls();
-};
+ // Diagnostics appear after microphone connection.
 };
 $("joinBtn").onclick=async()=>{
  const code=$("roomCode").value.trim();
