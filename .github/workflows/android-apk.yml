@@ -81,22 +81,22 @@ jobs:
           path = files[0]
           content = path.read_text()
           newline = chr(10)
-          for item in ["import android.media.AudioManager;", "import android.os.Bundle;", "import android.view.KeyEvent;"]:
+          for item in ["import android.media.AudioManager;", "import android.view.KeyEvent;"]:
               if item not in content:
                   content = content.replace("package com.kvkhub.voice;", "package com.kvkhub.voice;" + newline + newline + item, 1)
+          # The foreground-service generator already creates onCreate(); add the
+          # Media hint inside that method rather than declaring a duplicate.
+          create_super = "super.onCreate(savedInstanceState);"
+          if create_super not in content:
+              raise SystemExit("Could not find the existing MainActivity onCreate()")
+          if "setVolumeControlStream(AudioManager.STREAM_MUSIC);" not in content:
+              content = content.replace(create_super, create_super + newline + "        setVolumeControlStream(AudioManager.STREAM_MUSIC);", 1)
           marker = "public class MainActivity extends BridgeActivity {"
           if marker not in content:
               raise SystemExit("Could not find MainActivity class declaration")
           if "public boolean dispatchKeyEvent(KeyEvent event)" in content:
               raise SystemExit("A custom volume-key handler already exists; refusing to overwrite it")
           methods = """
-              // Keep hardware volume controls associated with Media while this Activity is visible.
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  setVolumeControlStream(AudioManager.STREAM_MUSIC);
-              }
-
               @Override
               public void onResume() {
                   super.onResume();
@@ -109,8 +109,8 @@ jobs:
                   if (hasFocus) setVolumeControlStream(AudioManager.STREAM_MUSIC);
               }
 
-              // Explicitly route foreground volume-key presses to Media without changing
-              // WebRTC's audio mode, microphone capture, or output routing.
+              // Route foreground hardware volume-key presses to Media only.
+              // Do not change WebRTC audio mode, microphone capture, or routing.
               @Override
               public boolean dispatchKeyEvent(KeyEvent event) {
                   int keyCode = event.getKeyCode();
