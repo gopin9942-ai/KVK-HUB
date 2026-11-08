@@ -259,10 +259,10 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
 .participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#263b58;border:1px solid #526784;color:#c8d8ee;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
 .participantRoleBadge.is-admin{background:#174b3b;border-color:#48d6a0;color:#8fffd0}
-.participantSpeakingStatus{display:none;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px;border-radius:999px;background:#123c36;border:1px solid #42d6a4;color:#70f0c3;font-size:8px;font-weight:800;letter-spacing:.04em;line-height:1.4}
-.participantTile.is-speaking .participantSpeakingStatus{display:block}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
-@media(prefers-reduced-motion:reduce){.participantSpeakingStatus{transition:none!important}}
+.participantTile.is-speaking .avatar{outline-color:#62f5c5;box-shadow:0 0 0 3px #45e8b555,0 0 14px #42f0bdcc,0 0 26px #42f0bd66;animation:participantSpeakingGlow 1.15s ease-in-out infinite alternate}
+@keyframes participantSpeakingGlow{from{box-shadow:0 0 0 2px #45e8b544,0 0 9px #42f0bd99}to{box-shadow:0 0 0 4px #45e8b577,0 0 18px #42f0bdff,0 0 30px #42f0bd77}}
+@media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar{animation:none!important}}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
 .volumePanel{max-width:140px;margin:8px auto 0;padding:7px;background:#101a2c;border:1px solid #ffffff15;border-radius:10px}
@@ -817,7 +817,7 @@ let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
-let activeSpeakerIds=new Set();
+let speakingParticipantIds=new Set();
 const participantTiles=new Map();
 const remoteAudioGains=new Map();
 const remoteVolumeLoaded=new Set();
@@ -1271,24 +1271,28 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   disconnectOnPageLeave:false,
   reconnectPolicy:{nextRetryDelayInMs:()=>7000}
  });
- // Participant-level speaking events refresh the profile indicator directly.
- // Indicator-only: no microphone capture, track, or audio routing changes.
+ // Speaking glow uses only LiveKit's participant speaking-state event.
+ // This is visual state only; it does not access or modify audio tracks or routing.
  const speakingIndicatorBound=new WeakSet();
+ const refreshParticipantSpeaking=participant=>{
+  if(!participant)return;
+  const ids=[participant.identity,participant.sid].filter(Boolean);
+  if(participant.isSpeaking)ids.forEach(id=>speakingParticipantIds.add(id));
+  else ids.forEach(id=>speakingParticipantIds.delete(id));
+  const profile=[...participantProfiles.values()].find(p=>p.livekitIdentity===participant.identity||p.uid===participant.identity);
+  if(profile)profile.level=Number(participant.audioLevel)||0;
+  updateParticipantIndicators();
+ };
  const bindSpeakingIndicator=participant=>{
   if(!participant||speakingIndicatorBound.has(participant))return;
   speakingIndicatorBound.add(participant);
-  participant.on(ParticipantEvent.IsSpeakingChanged,()=>updateParticipantIndicators());
+  participant.on(ParticipantEvent.IsSpeakingChanged,()=>refreshParticipantSpeaking(participant));
+  refreshParticipantSpeaking(participant);
  };
  bindSpeakingIndicator(room.localParticipant);
  room.on(RoomEvent.ParticipantConnected,participant=>bindSpeakingIndicator(participant));
- // LiveKit reports room-wide active speakers and participant-level speaking changes.
- // Keep both event paths in sync; do not infer remote speech from a local microphone analyser.
- room.on(RoomEvent.ActiveSpeakersChanged,speakers=>{
-  activeSpeakerIds=new Set(speakers.flatMap(p=>[p.identity,p.sid].filter(Boolean)));
-  for(const participant of speakers){
-   const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity);
-   if(profile)profile.level=Number(participant.audioLevel)||0;
-  }
+ room.on(RoomEvent.ParticipantDisconnected,participant=>{
+  [participant.identity,participant.sid].filter(Boolean).forEach(id=>speakingParticipantIds.delete(id));
   updateParticipantIndicators();
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
@@ -1447,9 +1451,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
 function isProfileSpeaking(profile){
  if(currentAppScreen!=="room"||!activeRoom||activeRoom.state!=="connected")return false;
  const isLocal=profile.uid===auth.currentUser?.uid;
- const identity=isLocal?(activeRoom?.localParticipant?.identity||profile.livekitIdentity||profile.uid):(profile.livekitIdentity||profile.uid);
- const participant=isLocal?activeRoom?.localParticipant:[...(activeRoom?.remoteParticipants?.values?.()||[])].find(p=>p.identity===identity||p.identity===profile.uid);
- return activeSpeakerIds.has(identity)||!!(participant&&(activeSpeakerIds.has(participant.sid)||participant.isSpeaking===true));
+ const participant=isLocal?activeRoom.localParticipant:[...(activeRoom.remoteParticipants?.values?.()||[])].find(p=>p.identity===(profile.livekitIdentity||profile.uid)||p.identity===profile.uid);
+ return !!(participant&&(speakingParticipantIds.has(participant.identity)||speakingParticipantIds.has(participant.sid)));
 }
 function renderParticipants(){
  const grid=$("participantGrid");if(!grid)return;
@@ -1481,8 +1484,7 @@ function renderParticipants(){
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
    const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge"+(roomOwnerUid&&p.uid===roomOwnerUid?" is-admin":"");roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
-   const speakingStatus=document.createElement("div");speakingStatus.className="participantSpeakingStatus";speakingStatus.textContent="◖)) SPEAKING";speakingStatus.setAttribute("aria-label","Currently speaking");
-   tile.append(img,fallback,name,roleBadge,speakingStatus,panel);
+   tile.append(img,fallback,name,roleBadge,panel);
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
     const dots=document.createElement("button");dots.type="button";dots.className="tileAdminDots";dots.textContent="⋮";dots.setAttribute("aria-label","Member options");
@@ -1553,7 +1555,7 @@ function clearPresence(){
  if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
- participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
+ participantProfiles.clear();livekitIdentityToUid.clear();speakingParticipantIds.clear();participantTiles.clear();roomOwnerUid=null;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
  }
