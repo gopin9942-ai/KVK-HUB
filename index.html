@@ -1389,7 +1389,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   const updatePresence=async()=>{
    let profile={displayName:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",publicId:""};
    try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
-   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,lastSeen:serverTimestamp()},{merge:true});
+   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,roomRole:roomOwnerUid===auth.currentUser.uid?"admin":"member",lastSeen:serverTimestamp()},{merge:true});
   };
   // Create this user's presence document before subscribing to the roster.
   // Firestore rules allow roster reads to existing room participants; subscribing
@@ -1422,7 +1422,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
     if(Date.now()-seen<90000||liveKitConnected){
      present.add(snap.id);
      const prior=participantProfiles.get(snap.id);
-     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",level:prior?.level||0});
+     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",role:d.roomRole==="admin"?"admin":"member",level:prior?.level||0});
     }
    }
    for(const id of [...participantProfiles.keys()]){
@@ -1548,7 +1548,7 @@ function renderParticipants(){
    function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
-   const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge"+(roomOwnerUid&&p.uid===roomOwnerUid?" is-admin":"");roleBadge.textContent=roomOwnerUid&&p.uid===roomOwnerUid?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",roomOwnerUid&&p.uid===roomOwnerUid?"Room admin":"Room member");
+   const roleBadge=document.createElement("div");const participantIsAdmin=p.role==="admin"||(roomOwnerUid&&p.uid===roomOwnerUid);roleBadge.className="participantRoleBadge"+(participantIsAdmin?" is-admin":"");roleBadge.textContent=participantIsAdmin?"👑 ADMIN":"MEMBER";roleBadge.setAttribute("aria-label",participantIsAdmin?"Room admin":"Room member");
    tile.append(img,fallback,name,roleBadge,panel);
    if(isRoomAdmin&&p.uid!==auth.currentUser?.uid){
     const menuWrap=document.createElement("div");menuWrap.className="tileAdminMenu";
