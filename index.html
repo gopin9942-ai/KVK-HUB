@@ -559,6 +559,18 @@ function initializeAppNavigation(){
  });
  updateAppBackButton();
 }
+async function initializeNativeBackButton(){
+ if(!window.Capacitor)return;
+ try{
+  const nativeModule=await import("./native-call.js");
+  const nativeApp=nativeModule.NativeApp;
+  if(!nativeApp)return;
+  await nativeApp.addListener("backButton",()=>{
+   if(appNavDepth>0)history.back();
+   else nativeApp.exitApp();
+  });
+ }catch(error){console.warn("Native Android back-button handler unavailable:",error);}
+}
 function askRoomConfirmation({title="Please Confirm",description="Are you sure?",confirmText="Confirm",cancelText="Cancel"}={}){
  return new Promise(resolve=>{
   const overlay=$("passwordModalOverlay"),form=$("passwordModalForm"),input=$("passwordModalInput");
@@ -722,6 +734,7 @@ function setupModeration(roomData){
 
 const $=id=>document.getElementById(id);
 initializeAppNavigation();
+initializeNativeBackButton();
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 // Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
