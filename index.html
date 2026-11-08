@@ -395,10 +395,8 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
   <div class="roomSettingRow"><div><strong>Room Code</strong><small>View and share this room code</small></div><button id="copyRoomCodeBtn" class="secondary compactAction">Copy Code</button></div>
   <button id="audioSettingsBtn" class="secondary settingsMenuButton"><span>🎧 Audio Settings</span><span id="audioSettingsChevron">＋</span></button>
   <div id="audioSettingsPanel" class="audioSettingsPanel" style="display:none">
-   <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Reduce background noise, if supported</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
-   <label class="audioSettingRow"><span><strong>Echo Cancellation</strong><small>Reduce speaker-to-microphone echo</small></span><input id="echoCancellationToggle" type="checkbox"></label>
-   <label class="audioSettingRow"><span><strong>Auto Gain Control</strong><small>Keep microphone level consistent</small></span><input id="autoGainControlToggle" type="checkbox"></label>
-   <p class="audioSupportNote" id="audioSupportNote">These options depend on browser and microphone support. Actual settings will be checked when the microphone is enabled.</p>
+   <label class="audioSettingRow"><span><strong>Noise Suppression</strong><small>Browser microphone noise reduction (if supported)</small></span><input id="noiseSuppressionToggle" type="checkbox"></label>
+   <p class="audioSupportNote" id="audioSupportNote">Only Noise Suppression is requested. Echo Cancellation and Auto Gain Control are disabled for this test.</p>
   </div>
   <button id="unbanSettingsBtn" class="secondary settingsMenuButton">🛡 Unban Settings <span>＋</span></button>
   <div id="unbanSettingsPanel" style="display:none">
@@ -686,7 +684,6 @@ const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),sta
 let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
 // Use Android/WebView built-in voice processing only; no custom AI audio worklet.
 let localMicStream=null,localPublishedMicTrack=null;
-$("echoCancellationToggle").checked=true;
 let stopRoomsListener=null,stopRoomPeopleListener=null;
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
@@ -931,14 +928,14 @@ async function stopLocalMicrophone(room=activeRoom){
  if(track){try{track.stop();}catch(e){}}
  if(localMicStream){try{localMicStream.getTracks().forEach(t=>t.stop());}catch(e){}localMicStream=null;}
 }
-const audioPreferenceDefaults={noiseSuppression:true,echoCancellation:true,autoGainControl:true};
+const audioPreferenceDefaults={noiseSuppression:true};
 const audioPreferences={};
 for(const [key,defaultValue] of Object.entries(audioPreferenceDefaults)){
  const stored=localStorage.getItem("kvkAudio:"+key);
  audioPreferences[key]=stored===null?defaultValue:stored==="true";
 }
 function syncAudioPreferenceControls(){
- const map={noiseSuppression:"noiseSuppressionToggle",echoCancellation:"echoCancellationToggle",autoGainControl:"autoGainControlToggle"};
+ const map={noiseSuppression:"noiseSuppressionToggle"};
  for(const [key,id] of Object.entries(map)){const control=$(id);if(control)control.checked=!!audioPreferences[key];}
 }
 syncAudioPreferenceControls();
@@ -948,9 +945,9 @@ async function setRoomMicrophone(room,enabled){
  // Ask the browser/device for its selected built-in voice processing; constraints are best-effort.
  const stream=await navigator.mediaDevices.getUserMedia({
   audio:{
-   echoCancellation:audioPreferences.echoCancellation,
-   noiseSuppression:audioPreferences.noiseSuppression,
-   autoGainControl:audioPreferences.autoGainControl,
+   echoCancellation:false,
+   noiseSuppression:true,
+   autoGainControl:false,
    channelCount:{ideal:1}
   },
   video:false
@@ -962,7 +959,7 @@ async function setRoomMicrophone(room,enabled){
   localMicStream=stream;localPublishedMicTrack=track;
   const settings=track.getSettings?.()||{};
   console.info("KVK HUB microphone processing settings:",settings);
-  const labels={noiseSuppression:"Noise suppression",echoCancellation:"Echo cancellation",autoGainControl:"Auto gain"};
+  const labels={noiseSuppression:"Noise suppression"};
   const activeFilters=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]===true).map(key=>labels[key]);
   const unsupported=Object.keys(labels).filter(key=>audioPreferences[key]&&settings[key]!==true).map(key=>labels[key]);
   const supportNote=$("audioSupportNote");
