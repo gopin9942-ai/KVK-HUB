@@ -82,10 +82,10 @@ jobs:
           content = path.read_text()
           if "import android.media.AudioManager;" not in content:
               content = content.replace("package com.kvkhub.voice;\n", "package com.kvkhub.voice;\n\nimport android.media.AudioManager;\n", 1)
+          marker = "public class MainActivity extends BridgeActivity {"
+          if marker not in content:
+              raise SystemExit("Could not find MainActivity class declaration")
           if "setVolumeControlStream(AudioManager.STREAM_MUSIC)" not in content:
-              marker = "public class MainActivity extends BridgeActivity {"
-              if marker not in content:
-                  raise SystemExit("Could not find MainActivity class declaration")
               content = content.replace(marker, marker + """
               @Override
               public void onResume() {
@@ -93,8 +93,41 @@ jobs:
                   setVolumeControlStream(AudioManager.STREAM_MUSIC);
               }
               """, 1)
+          # Isolated experiment: consume hardware volume keys and explicitly
+          # adjust STREAM_MUSIC. Do not alter MODE_IN_COMMUNICATION or LiveKit.
+          if "volumeControlTestKeyHandler" not in content:
+              handler = '''
+              // volumeControlTestKeyHandler: test-only explicit Media stream routing.
+              @Override
+              public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+                  int direction;
+                  if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
+                      direction = AudioManager.ADJUST_RAISE;
+                  } else if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+                      direction = AudioManager.ADJUST_LOWER;
+                  } else {
+                      return super.onKeyDown(keyCode, event);
+                  }
+                  AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+                  if (audio != null) {
+                      audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
+                          AudioManager.FLAG_SHOW_UI);
+                  }
+                  return true;
+              }
+
+              @Override
+              public boolean onKeyUp(int keyCode, android.view.KeyEvent event) {
+                  if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+                      keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+                      return true;
+                  }
+                  return super.onKeyUp(keyCode, event);
+              }
+              '''
+              content = content.replace(marker, marker + handler, 1)
           path.write_text(content)
-          print(f"Configured Media volume keys without changing Android audio mode in {path}")
+          print(f"TEST ONLY: hardware volume keys explicitly adjust STREAM_MUSIC in {path}")
           PY
 
       - name: Add Android microphone permissions
