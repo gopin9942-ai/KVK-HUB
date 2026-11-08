@@ -360,14 +360,14 @@ header{position:relative}
 .youtubePromoRow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 2px;padding:10px 12px;border:1px solid rgba(255,65,85,.28);border-radius:13px;background:linear-gradient(105deg,rgba(255,55,75,.13),rgba(23,35,58,.78) 65%)}.youtubePromoCopy{display:flex;flex-direction:column;gap:3px;min-width:0}.youtubePromoCopy strong{font-size:11px;letter-spacing:.14em;color:#fff}.youtubePromoCopy small{font-size:10px;color:#aebbd3}.youtubePromoRow .youtubeChannelLink{min-height:36px;padding:0 12px;background:#e62135;border-color:#ff5262;color:#fff;font-size:11px;box-shadow:0 5px 15px rgba(230,33,53,.2)}.youtubePromoRow .youtubeChannelLink svg{color:#fff;width:17px;height:17px}@media(max-width:600px){.youtubePromoRow{margin:6px 0 1px;padding:7px 9px;gap:7px}.youtubePromoCopy strong{font-size:9px}.youtubePromoCopy small{font-size:9px}.youtubePromoRow .youtubeChannelLink{min-height:32px;padding:0 9px;font-size:10px}.youtubePromoRow .youtubeChannelLink svg{width:15px;height:15px}}
 .roomTopActions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .roomCodeQuickCopy{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:104px;min-width:104px;height:42px;min-height:42px;padding:0 10px;margin:0;border:1px solid #45d9ff55;border-radius:12px;background:linear-gradient(135deg,#263e5d,#1d304b);color:#eafaff;font-size:12px;font-weight:700;line-height:1;text-align:center;white-space:nowrap;vertical-align:middle}
-/* Speaking indicator visual reinforcement: UI only; LiveKit media/audio path is unchanged. */
+/* Subtle speaking indicator: soft profile outline only; audio path unchanged. */
 .participantTile.is-speaking .avatar,
 .participantTile.is-speaking .avatarFallback{
- outline:3px solid #65f0c5!important;
- outline-offset:4px!important;
- box-shadow:0 0 0 4px #65f0c544,0 0 15px 5px #65f0c5dd,0 0 30px 9px #65f0c577!important;
- filter:brightness(1.08) drop-shadow(0 0 7px #65f0c5aa)!important;
- transform:scale(1.045);
+ outline:1.5px solid #65f0c588!important;
+ outline-offset:2px!important;
+ box-shadow:0 0 0 2px #65f0c51a,0 0 7px #65f0c544!important;
+ filter:none!important;
+ transform:none!important;
 }
 @media(prefers-reduced-motion:reduce){
  .participantTile.is-speaking .avatar,.participantTile.is-speaking .avatarFallback{animation:none!important;transform:none}
