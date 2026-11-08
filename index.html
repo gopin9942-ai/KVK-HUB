@@ -853,6 +853,7 @@ let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",cu
 let localMicStream=null,localPublishedMicTrack=null;
 let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener=null;
 const quickRoomPresenceStops=new Map();
+const quickRoomMetadataStops=new Map();
 let myRoomsRenderVersion=0;
 const participantProfiles=new Map();
 const livekitIdentityToUid=new Map();
@@ -1110,6 +1111,8 @@ function stopMyRooms(){
  if(stopRoomsListener){stopRoomsListener();stopRoomsListener=null;}
  for(const stop of quickRoomPresenceStops.values()){try{stop();}catch(e){}}
  quickRoomPresenceStops.clear();
+ for(const stop of quickRoomMetadataStops.values()){try{stop();}catch(e){}}
+ quickRoomMetadataStops.clear();
  myRoomsRenderVersion++;
 }
 function initials(value){return String(value||"U").trim().split(/\\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
@@ -1184,6 +1187,8 @@ function startMyRooms(){
   if(renderVersion!==myRoomsRenderVersion)return;
   for(const stop of quickRoomPresenceStops.values()){try{stop();}catch(e){}}
   quickRoomPresenceStops.clear();
+  for(const stop of quickRoomMetadataStops.values()){try{stop();}catch(e){}}
+  quickRoomMetadataStops.clear();
   rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
   list.replaceChildren();
   if(!rooms.length){const empty=document.createElement("div");empty.className="empty";empty.textContent="No rooms saved yet. Create a room or join using a Room ID.";list.append(empty);return;}
@@ -1228,6 +1233,22 @@ function startMyRooms(){
     if(!online.length)count.textContent="0 online";
    },error=>{console.warn("Quick Access presence listener:",error);count.textContent="Online status unavailable";});
    quickRoomPresenceStops.set(room.id,stopPresence);
+   const stopMetadata=onSnapshot(doc(db,"rooms",room.id),roomSnapshot=>{
+    if(!roomSnapshot.exists())return;
+    const latest=roomSnapshot.data()||{};
+    room.roomData={...room.roomData,...latest};
+    roomName.textContent=latest.roomDisplayName||latest.name||room.name||room.id;
+    const nextPhoto=latest.roomPhotoURL||"";
+    const currentPhoto=roomImage.tagName==="IMG"?(roomImage.getAttribute("src")||""):"";
+    if(nextPhoto!==currentPhoto){
+     let replacement;
+     if(nextPhoto){
+      replacement=document.createElement("img");replacement.className="roomPreviewPhoto";replacement.alt="Room photo";replacement.src=nextPhoto;replacement.onerror=()=>replacement.replaceWith(makeRoomFallback());
+     }else replacement=makeRoomFallback();
+     roomImage.replaceWith(replacement);roomImage=replacement;
+    }
+   },error=>console.warn("Quick Access room metadata listener:",error));
+   quickRoomMetadataStops.set(room.id,stopMetadata);
   }
  },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
 }
