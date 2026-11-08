@@ -250,7 +250,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:17px 8px;margin:14px 0 20px}
 .participantTile{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 2px!important;text-align:center;cursor:default}
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
-.participantTile .avatarFallback{display:flex!important}
+.participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
 .participantTile.is-speaking .avatar{outline:2px solid #70e4f3;outline-offset:3px;box-shadow:0 0 0 5px #67e3f31b,0 0 13px #55d8ed75!important;filter:none!important;animation:softSpeakerGlow 2.2s ease-in-out infinite!important}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
@@ -1052,7 +1052,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  setDoc(doc(db,"users",auth.currentUser.uid,"myRooms",roomName),{roomName,name:roomSnap.data().name||roomName,role:roomSnap.data().creatorUid===auth.currentUser.uid?"created":"joined",updatedAt:serverTimestamp()},{merge:true}).catch(error=>{console.error("Could not save room to My Rooms:",error);status.textContent="Connected, but My Rooms could not be updated. Check Firestore rules.";});
  // Remember the room for this signed-in user so a refresh can restore it.
  localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
- $("roomInfo").textContent="Room connected";
+ $("roomInfo").textContent=(roomSnap.data().name||roomName)+" · "+roomName;
  setupModeration(roomSnap.data());
  $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
  $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
