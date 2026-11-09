@@ -398,6 +398,8 @@ header{position:relative}
 .roomSettingsPhotoPreview{width:76px;height:76px;border-radius:15px;object-fit:cover;background:#303954;display:block;margin-top:8px}
 .roomSettingsDialog .roomSettingsButtons{display:flex;gap:9px;margin-top:16px}
 .roomSettingsDialog .roomSettingsButtons button{margin:0;flex:1}
+.roomPreviewDelete{width:auto;min-height:31px;padding:6px 10px;margin:0;border-radius:9px;background:#713044;border:1px solid #a44d63;color:#ffe2e8;font-size:10px;font-weight:800}.roomPreviewDelete:disabled{opacity:.55}
+.roomQuickDeleteText{font-size:12px;line-height:1.5;color:#d7e2f5;margin:8px 0 12px}.roomQuickDeleteCountdown{font-size:12px;color:#ffd4d9;margin:8px 0}
 @media(max-width:600px){.roomPreviewPhoto{width:47px;height:47px;flex-basis:47px}.roomPreviewName{font-size:12px}.roomPreviewSettings{width:29px;height:29px}}
 
 .participantRoleBadge.is-moderator{background:#493d20;border-color:#a98b45;color:#f4dda0}
@@ -1340,6 +1342,51 @@ function openQuickRoomSettings(room){
  buttons.append(cancel,save);dialog.append(heading,nameLabel,nameInput,photoLabel,photoInput,uploadStatus,preview,buttons);overlay.append(dialog);document.body.append(overlay);
  nameInput.focus();
 }
+async function deleteQuickAccessRoom(room,triggerButton){
+ const roomData=room?.roomData||{};
+ const uid=auth.currentUser?.uid;
+ if(!uid||!(roomData.creatorUid===uid||roomData.createdBy===uid)){
+  status.textContent="Only this room's admin can delete it.";return;
+ }
+ const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
+ const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","alertdialog");dialog.setAttribute("aria-modal","true");
+ const heading=document.createElement("h3");heading.textContent="Delete Room?";
+ const message=document.createElement("p");message.className="roomQuickDeleteText";message.textContent='You are about to permanently delete "'+(roomData.roomDisplayName||roomData.name||room.id)+'". This cannot be undone.';
+ const countdown=document.createElement("div");countdown.className="roomQuickDeleteCountdown";countdown.textContent="Delete will be available in 5 seconds.";
+ const buttons=document.createElement("div");buttons.className="roomSettingsButtons";
+ const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";
+ const confirm=document.createElement("button");confirm.type="button";confirm.className="confirmDeleteAction";confirm.textContent="Wait 5s...";confirm.disabled=true;
+ buttons.append(cancel,confirm);dialog.append(heading,message,countdown,buttons);overlay.append(dialog);document.body.append(overlay);
+ let remaining=5,finished=false,timer=null;
+ const close=()=>{if(finished)return;finished=true;if(timer)clearInterval(timer);overlay.remove();if(triggerButton?.isConnected)triggerButton.disabled=false;};
+ cancel.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
+ triggerButton.disabled=true;
+ timer=setInterval(()=>{
+  remaining--;
+  if(remaining<=0){clearInterval(timer);timer=null;countdown.textContent="Confirm only if you are sure. The room and its voice space will be deleted.";confirm.disabled=false;confirm.textContent="Delete Room";}
+  else{countdown.textContent="Please wait "+remaining+" seconds...";confirm.textContent="Wait "+remaining+"s...";}
+ },1000);
+ confirm.onclick=async()=>{
+  if(finished||remaining>0||confirm.disabled)return;
+  confirm.disabled=true;cancel.disabled=true;confirm.textContent="Deleting...";countdown.textContent="Deleting room from the voice service...";
+  try{
+   await workerAdminRequest("/delete-room",{roomName:room.id});
+   await deleteDoc(doc(db,"rooms",room.id));
+   await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId||room.id)).catch(error=>console.warn("Could not remove saved room entry:",error));
+   finished=true;if(timer)clearInterval(timer);overlay.remove();
+   if(activeRoom&&currentRoomCode===room.id){await leaveVoiceRoom();}
+   else{startMyRooms();}
+   status.textContent="Room "+room.id+" was permanently deleted.";
+  }catch(error){
+   console.error("Quick Access room deletion failed:",error);
+   countdown.textContent="Delete failed: "+(error.message||"Unknown error")+". The room may still exist; please retry.";
+   confirm.disabled=false;cancel.disabled=false;confirm.textContent="Try Again";
+   remaining=0;
+  }finally{
+   if(triggerButton?.isConnected)triggerButton.disabled=false;
+  }
+ };
+}
 function startMyRooms(){
  stopMyRooms();
  const list=$("myRoomList");
@@ -1402,6 +1449,8 @@ function startMyRooms(){
    if(room.isRoomAdmin){
     const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Settings";settings.setAttribute("aria-label","Room Settings");
     settings.onclick=e=>{e.stopPropagation();openQuickRoomSettings(room);};actions.append(settings);
+    const remove=document.createElement("button");remove.type="button";remove.className="roomPreviewDelete";remove.textContent="Delete";remove.title="Delete this room";
+    remove.onclick=async e=>{e.stopPropagation();await deleteQuickAccessRoom(room,remove);};actions.append(remove);
    }
    const join=document.createElement("button");join.type="button";join.className="roomPreviewJoin";join.textContent="Join";join.onclick=async e=>{e.stopPropagation();try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
    actions.append(join);
