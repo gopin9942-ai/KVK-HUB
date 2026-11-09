@@ -378,7 +378,7 @@ header{position:relative}
 .roomPreviewCard{display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0}
 .roomPreviewPhoto{width:54px;height:54px;flex:0 0 54px;border-radius:14px;object-fit:cover;background:#263854;border:1px solid #49617f}
 .roomPreviewFallback{display:grid;place-items:center;color:#65dfff;font-size:22px}
-.roomPreviewMain{flex:1;min-width:0}
+.roomPreviewMain{flex:1;min-width:0}.roomPreviewAvatars{display:flex;align-items:center;min-height:23px;margin-top:6px;padding-left:1px}.roomPreviewAvatars img,.roomPreviewAvatarFallback{width:23px;height:23px;flex:0 0 23px;border-radius:50%;object-fit:cover;border:2px solid #101d32;margin-right:-6px;background:#344762}.roomPreviewAvatarFallback{display:grid;place-items:center;font-size:8px;font-weight:800;color:#fff}.roomPreviewAvatarMore{height:20px;min-width:20px;padding:0 5px;margin-left:9px;border-radius:999px;background:#344762;border:1px solid #526987;color:#eaf4ff;font-size:8px;font-weight:800;display:grid;place-items:center}
 .roomPreviewName{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .roomPreviewSub{font-size:10px;color:#a9bad3;margin-top:5px}
 .roomPreviewPeople{display:flex;align-items:center;gap:0;margin-top:8px;min-height:25px}
@@ -1324,10 +1324,11 @@ function startMyRooms(){
    function makeRoomFallback(){const fallback=document.createElement("div");fallback.className="roomPreviewPhoto roomPreviewFallback";fallback.textContent="🎙";return fallback;}
    const main=document.createElement("div");main.className="roomPreviewMain";
    const roomName=document.createElement("strong");roomName.className="roomPreviewName";roomName.textContent=roomData.roomDisplayName||roomData.name||room.name||room.id;
+   const avatarStack=document.createElement("div");avatarStack.className="roomPreviewAvatars";avatarStack.setAttribute("aria-label","Online member profile photos");
    const people=document.createElement("div");people.className="roomPreviewPeople";
    const onlineDot=document.createElement("span");onlineDot.className="roomOnlineDot";onlineDot.setAttribute("aria-hidden","true");
    const count=document.createElement("span");count.className="roomPreviewCount";count.textContent="0 Members Online";
-   people.append(onlineDot,count);main.append(roomName,people);
+   people.append(onlineDot,count);main.append(roomName,avatarStack,people);
    const actions=document.createElement("div");actions.className="roomPreviewActions";
    if(room.isRoomAdmin){
     const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Settings";settings.setAttribute("aria-label","Room Settings");
@@ -1344,6 +1345,18 @@ function startMyRooms(){
      const seen=person.lastSeen?.toMillis?.()||0;
      return now-seen<90000;
     });
+    avatarStack.replaceChildren();
+    online.slice(0,5).forEach(person=>{
+     const photoURL=person.photoURL||person.photoDataUrl||person.avatarURL||"";
+     if(photoURL){
+      const avatar=document.createElement("img");avatar.alt=(person.name||person.displayName||"Member")+" profile";avatar.loading="lazy";avatar.referrerPolicy="no-referrer";avatar.src=photoURL;
+      avatar.onerror=()=>{const fallback=document.createElement("span");fallback.className="roomPreviewAvatarFallback";fallback.textContent=initials(person.name||person.displayName);avatar.replaceWith(fallback);};
+      avatarStack.append(avatar);
+     }else{
+      const fallback=document.createElement("span");fallback.className="roomPreviewAvatarFallback";fallback.textContent=initials(person.name||person.displayName);avatarStack.append(fallback);
+     }
+    });
+    if(online.length>5){const more=document.createElement("span");more.className="roomPreviewAvatarMore";more.textContent="+"+(online.length-5);avatarStack.append(more);}
     count.textContent=online.length+" "+(online.length===1?"Member":"Members")+" Online";
     onlineDot.classList.toggle("is-online",online.length>0);
     onlineDot.title=online.length>0?"Room has members online":"No members online";
