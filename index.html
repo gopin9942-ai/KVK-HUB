@@ -384,7 +384,7 @@ header{position:relative}
 .roomPreviewPeople{display:flex;align-items:center;gap:0;margin-top:8px;min-height:25px}
 .roomPreviewPeople img,.roomPreviewInitial{width:25px;height:25px;border-radius:50%;object-fit:cover;border:2px solid #101d32;margin-right:-6px;background:#344762}
 .roomPreviewInitial{display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
-.roomPreviewCount{font-size:10px;color:#a9bad3;margin-left:12px}
+.roomPreviewCount{font-size:10px;color:#a9bad3;margin-left:0}.roomOnlineDot{width:8px;height:8px;flex:none;border-radius:50%;background:#66758b;box-shadow:none}.roomOnlineDot.is-online{background:#35e69a;box-shadow:0 0 7px #35e69a88}
 .roomPreviewActions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}
 .roomPreviewSettings{width:31px;height:31px;padding:0;margin:0;border-radius:9px;background:#303954;color:#fff;font-size:17px}
 .roomPreviewJoin{width:auto!important;min-height:31px;padding:6px 11px!important;margin:0!important;font-size:11px!important}
@@ -1247,10 +1247,10 @@ function startMyRooms(){
    function makeRoomFallback(){const fallback=document.createElement("div");fallback.className="roomPreviewPhoto roomPreviewFallback";fallback.textContent="🎙";return fallback;}
    const main=document.createElement("div");main.className="roomPreviewMain";
    const roomName=document.createElement("strong");roomName.className="roomPreviewName";roomName.textContent=roomData.roomDisplayName||roomData.name||room.name||room.id;
-   const meta=document.createElement("div");meta.className="roomPreviewSub";meta.textContent=room.isRoomAdmin?"ADMIN":"MEMBER";
    const people=document.createElement("div");people.className="roomPreviewPeople";
-   const count=document.createElement("span");count.className="roomPreviewCount";count.textContent="0 online";
-   people.append(count);main.append(roomName,meta,people);
+   const onlineDot=document.createElement("span");onlineDot.className="roomOnlineDot";onlineDot.setAttribute("aria-hidden","true");
+   const count=document.createElement("span");count.className="roomPreviewCount";count.textContent="0 Members Online";
+   people.append(onlineDot,count);main.append(roomName,people);
    const actions=document.createElement("div");actions.className="roomPreviewActions";
    if(room.isRoomAdmin){
     const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Settings";settings.setAttribute("aria-label","Room Settings");
@@ -1267,14 +1267,9 @@ function startMyRooms(){
      const seen=person.lastSeen?.toMillis?.()||0;
      return now-seen<90000;
     });
-    people.replaceChildren();
-    online.slice(0,3).forEach(person=>{
-     if(person.photoURL&&(person.photoURL.startsWith("https://")||person.photoURL.startsWith("data:image/"))){
-      const img=document.createElement("img");img.src=person.photoURL;img.alt=person.name||"Member";img.referrerPolicy="no-referrer";img.onerror=()=>{const fallback=document.createElement("span");fallback.className="roomPreviewInitial";fallback.textContent=initials(person.name);img.replaceWith(fallback);};people.append(img);
-     }else{const fallback=document.createElement("span");fallback.className="roomPreviewInitial";fallback.textContent=initials(person.name);fallback.title=person.name||"Member";people.append(fallback);}
-    });
-    count.textContent=online.length+" online"+(online.length>3?" · +"+(online.length-3):"");
-    if(!online.length)count.textContent="0 online";
+    count.textContent=online.length+" "+(online.length===1?"Member":"Members")+" Online";
+    onlineDot.classList.toggle("is-online",online.length>0);
+    onlineDot.title=online.length>0?"Room has members online":"No members online";
    },error=>{console.warn("Quick Access presence listener:",error);count.textContent="Online status unavailable";});
    quickRoomPresenceStops.set(room.id,stopPresence);
    const stopMetadata=onSnapshot(doc(db,"rooms",room.id),roomSnapshot=>{
