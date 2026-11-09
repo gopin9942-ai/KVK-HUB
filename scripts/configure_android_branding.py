@@ -13,7 +13,7 @@ if not source.exists():
 # adaptive-icon safe area respected. Keep the full logo visible after masking.
 with Image.open(source) as opened:
     artwork = opened.convert("RGBA")
-artwork.thumbnail((680, 680), Image.Resampling.LANCZOS)
+artwork.thumbnail((900, 900), Image.Resampling.LANCZOS)
 foreground_image = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
 foreground_image.alpha_composite(
     artwork,
@@ -62,7 +62,7 @@ for density, size in {
 }.items():
     folder = res / f"mipmap-{density}"
     folder.mkdir(parents=True, exist_ok=True)
-    legacy_art = artwork.resize((int(size * 0.82), int(size * 0.82)), Image.Resampling.LANCZOS)
+    legacy_art = artwork.resize((int(size * 0.96), int(size * 0.82)), Image.Resampling.LANCZOS)
     icon = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     icon.alpha_composite(legacy_art, ((size - legacy_art.width) // 2, (size - legacy_art.height) // 2))
     icon.convert("RGB").save(folder / "ic_launcher.png", optimize=True)
