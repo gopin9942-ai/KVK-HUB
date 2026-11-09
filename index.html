@@ -399,6 +399,7 @@ header{position:relative}
 .roomSettingsDialog .roomSettingsButtons{display:flex;gap:9px;margin-top:16px}
 .roomSettingsDialog .roomSettingsButtons button{margin:0;flex:1}
 .roomPreviewDelete{width:auto;min-height:31px;padding:6px 10px;margin:0;border-radius:9px;background:#713044;border:1px solid #a44d63;color:#ffe2e8;font-size:10px;font-weight:800}.roomPreviewDelete:disabled{opacity:.55}
+ .quickRoomMenuAction{display:block;width:100%;min-height:42px;margin:8px 0;padding:11px 13px;border:1px solid #405875;border-radius:10px;background:#22334e;color:#eaf4ff;text-align:left;font-size:13px;font-weight:750}.quickRoomMenuAction:hover{background:#304866}.quickRoomMenuAction.quickRoomMenuDanger{background:#482432;border-color:#a44d63;color:#ffdce2}
 .roomQuickDeleteText{font-size:12px;line-height:1.5;color:#d7e2f5;margin:8px 0 12px}.roomQuickDeleteCountdown{font-size:12px;color:#ffd4d9;margin:8px 0}
 @media(max-width:600px){.roomPreviewPhoto{width:47px;height:47px;flex-basis:47px}.roomPreviewName{font-size:12px}.roomPreviewSettings{width:29px;height:29px}}
 
@@ -1274,6 +1275,25 @@ function stopMyRooms(){
  myRoomsRenderVersion++;
 }
 function initials(value){return String(value||"U").trim().split(/\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
+function openQuickRoomActions(room,triggerButton){
+ const roomData=room.roomData||{};
+ const uid=auth.currentUser?.uid;
+ if(!uid||!(roomData.creatorUid===uid||roomData.createdBy===uid)){
+  status.textContent="Only this room's admin can manage it.";return;
+ }
+ const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
+ const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");
+ const heading=document.createElement("h3");heading.textContent="Room Options";
+ const profile=document.createElement("button");profile.type="button";profile.className="quickRoomMenuAction";profile.textContent="⚙ Profile Settings";
+ const remove=document.createElement("button");remove.type="button";remove.className="quickRoomMenuAction quickRoomMenuDanger";remove.textContent="🗑 Delete Channel";
+ const closeButton=document.createElement("button");closeButton.type="button";closeButton.className="secondary";closeButton.textContent="Close";
+ const close=()=>overlay.remove();
+ profile.onclick=()=>{close();openQuickRoomSettings(room);};
+ remove.onclick=()=>{close();deleteQuickAccessRoom(room,triggerButton);};
+ closeButton.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
+ dialog.append(heading,profile,remove,closeButton);overlay.append(dialog);document.body.append(overlay);
+ profile.focus();
+}
 function openQuickRoomSettings(room){
  const roomData=room.roomData||{};
  if(!auth.currentUser||!(roomData.creatorUid===auth.currentUser.uid||roomData.createdBy===auth.currentUser.uid)){
@@ -1447,10 +1467,8 @@ function startMyRooms(){
    people.append(onlineDot,count);main.append(roomName,avatarStack,people);
    const actions=document.createElement("div");actions.className="roomPreviewActions";
    if(room.isRoomAdmin){
-    const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Settings";settings.setAttribute("aria-label","Room Settings");
-    settings.onclick=e=>{e.stopPropagation();openQuickRoomSettings(room);};actions.append(settings);
-    const remove=document.createElement("button");remove.type="button";remove.className="roomPreviewDelete";remove.textContent="Delete";remove.title="Delete this room";
-    remove.onclick=async e=>{e.stopPropagation();await deleteQuickAccessRoom(room,remove);};actions.append(remove);
+    const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Options";settings.setAttribute("aria-label","Room Options");
+    settings.onclick=e=>{e.stopPropagation();openQuickRoomActions(room,settings);};actions.append(settings);
    }
    const join=document.createElement("button");join.type="button";join.className="roomPreviewJoin";join.textContent="Join";join.onclick=async e=>{e.stopPropagation();try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
    actions.append(join);
