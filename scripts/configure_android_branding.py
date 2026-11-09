@@ -25,6 +25,12 @@ foreground.mkdir(parents=True, exist_ok=True)
 foreground_file = foreground / "ic_launcher_foreground.png"
 foreground_image.save(foreground_file, format="PNG", optimize=True)
 
+# Capacitor generates a higher-priority anydpi vector with its blue logo.
+# Remove that competing resource so Android resolves our nodpi KVK PNG.
+capacitor_foreground_vector = res / "drawable-anydpi-v24" / "ic_launcher_foreground.xml"
+if capacitor_foreground_vector.exists():
+    capacitor_foreground_vector.unlink()
+
 adaptive = """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/kvk_icon_background"/>
     <foreground android:drawable="@drawable/ic_launcher_foreground"/>
