@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
-from PIL import Image
+from PIL import Image, ImageChops
 
 root = Path(__file__).resolve().parents[1]
 res = root / "android/app/src/main/res"
@@ -9,11 +9,42 @@ source = root / "kvk-logo.webp"
 if not source.exists():
     raise SystemExit("kvk-logo.webp is missing")
 
-# Rebuild the supplied artwork as a transparent square PNG with Android's
-# adaptive-icon safe area respected. Keep the full logo visible after masking.
+# Start from a clean slate: remove every old launcher icon in every resource
+# qualifier so Android cannot select a stale Capacitor/default icon.
+removed = []
+for candidate in list(res.rglob("ic_launcher*")):
+    if candidate.is_file():
+        removed.append(str(candidate.relative_to(res)))
+        candidate.unlink()
+print("Cleared old launcher resources:", removed)
+
+# The supplied logo file has a black canvas around the blue KVK artwork.
+# Crop that empty black area first; simply enlarging the full square image
+# would enlarge the black padding rather than the visible logo.
 with Image.open(source) as opened:
-    artwork = opened.convert("RGBA")
-artwork.thumbnail((900, 900), Image.Resampling.LANCZOS)
+    original = opened.convert("RGBA")
+
+rgb = original.convert("RGB")
+background = rgb.getpixel((0, 0))
+difference = ImageChops.difference(rgb, Image.new("RGB", rgb.size, background))
+mask = difference.convert("L").point(lambda value: 255 if value > 10 else 0)
+bbox = mask.getbbox()
+if bbox is None:
+    raise SystemExit("Could not detect visible KVK logo artwork")
+
+left, top, right, bottom = bbox
+pad_x = max(2, int((right - left) * 0.07))
+pad_y = max(2, int((bottom - top) * 0.07))
+left = max(0, left - pad_x)
+top = max(0, top - pad_y)
+right = min(original.width, right + pad_x)
+bottom = min(original.height, bottom + pad_y)
+artwork = original.crop((left, top, right, bottom))
+
+# Adaptive icons are masked by Android. Keep the artwork inside the central
+# safe circle, but make the visible logo itself large instead of scaling its
+# original black square canvas.
+artwork.thumbnail((650, 650), Image.Resampling.LANCZOS)
 foreground_image = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
 foreground_image.alpha_composite(
     artwork,
@@ -24,16 +55,6 @@ foreground = res / "drawable-nodpi"
 foreground.mkdir(parents=True, exist_ok=True)
 foreground_file = foreground / "ic_launcher_foreground.png"
 foreground_image.save(foreground_file, format="PNG", optimize=True)
-
-# Remove every competing Capacitor foreground vector from all resource
-# qualifiers. An anydpi vector has higher priority than our nodpi PNG and can
-# make Android show the old headset/default symbol despite correct PNG assets.
-removed_foreground_vectors = []
-for candidate in res.rglob("ic_launcher_foreground*.xml"):
-    removed_foreground_vectors.append(str(candidate.relative_to(res)))
-    candidate.unlink()
-if removed_foreground_vectors:
-    print("Removed competing launcher vectors:", removed_foreground_vectors)
 
 adaptive = """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/kvk_icon_background"/>
@@ -52,7 +73,7 @@ values.mkdir(parents=True, exist_ok=True)
     encoding="utf-8"
 )
 
-# Legacy square icons for Android launchers that do not use adaptive icons.
+# Rebuild all legacy density icons from the cropped visible artwork too.
 for density, size in {
     "mdpi": 48,
     "hdpi": 72,
@@ -62,19 +83,17 @@ for density, size in {
 }.items():
     folder = res / f"mipmap-{density}"
     folder.mkdir(parents=True, exist_ok=True)
-    legacy_art = artwork.resize((int(size * 0.96), int(size * 0.82)), Image.Resampling.LANCZOS)
+    legacy_art = artwork.copy()
+    legacy_art.thumbnail((int(size * 0.92), int(size * 0.92)), Image.Resampling.LANCZOS)
     icon = Image.new("RGBA", (size, size), (0, 0, 0, 255))
-    icon.alpha_composite(legacy_art, ((size - legacy_art.width) // 2, (size - legacy_art.height) // 2))
+    icon.alpha_composite(
+        legacy_art,
+        ((size - legacy_art.width) // 2, (size - legacy_art.height) // 2)
+    )
     icon.convert("RGB").save(folder / "ic_launcher.png", optimize=True)
     icon.convert("RGB").save(folder / "ic_launcher_round.png", optimize=True)
 
-    # Capacitor also generates a default blue foreground asset in each density.
-    # Replace it with the same KVK artwork so no launcher/resource variant
-    # can fall back to the Capacitor mark.
-    density_foreground = foreground_image.resize((size * 4, size * 4), Image.Resampling.LANCZOS)
-    density_foreground.save(folder / "ic_launcher_foreground.png", format="PNG", optimize=True)
-
-# Explicitly point the generated Android manifest at our launcher resources.
+# Explicitly point the Android manifest at the rebuilt launcher resources.
 manifest = root / "android/app/src/main/AndroidManifest.xml"
 manifest_text = manifest.read_text(encoding="utf-8")
 manifest_text, icon_count = re.subn(
@@ -109,16 +128,29 @@ if strings.exists():
     app_name.text = "KVK HUB"
     tree.write(strings, encoding="utf-8", xml_declaration=True)
 
-# Fail early if the expected icon resources were not generated.
-for required in [
-    foreground_file,
-    v26 / "ic_launcher.xml",
-    v26 / "ic_launcher_round.xml",
-    res / "mipmap-mdpi/ic_launcher.png",
-]:
-    if not required.is_file():
-        raise SystemExit(f"Missing launcher resource: {required}")
+# Fail early if any competing launcher resource survived the clean rebuild.
+remaining = [
+    str(path.relative_to(res))
+    for path in res.rglob("ic_launcher*")
+    if path.is_file() and path not in {
+        foreground_file,
+        v26 / "ic_launcher.xml",
+        v26 / "ic_launcher_round.xml",
+        res / "mipmap-mdpi/ic_launcher.png",
+        res / "mipmap-mdpi/ic_launcher_round.png",
+        res / "mipmap-hdpi/ic_launcher.png",
+        res / "mipmap-hdpi/ic_launcher_round.png",
+        res / "mipmap-xhdpi/ic_launcher.png",
+        res / "mipmap-xhdpi/ic_launcher_round.png",
+        res / "mipmap-xxhdpi/ic_launcher.png",
+        res / "mipmap-xxhdpi/ic_launcher_round.png",
+        res / "mipmap-xxxhdpi/ic_launcher.png",
+        res / "mipmap-xxxhdpi/ic_launcher_round.png",
+    }
+]
+if remaining:
+    raise SystemExit(f"Unexpected competing launcher resources remain: {remaining}")
 if 'android:icon="@mipmap/ic_launcher"' not in manifest_text:
     raise SystemExit("Manifest does not reference the KVK HUB launcher icon")
 
-print("Configured KVK HUB adaptive + legacy launcher icons and explicit manifest references.")
+print("Cleaned and rebuilt KVK HUB launcher icons from tightly cropped logo artwork.")
