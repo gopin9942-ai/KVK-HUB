@@ -1118,7 +1118,7 @@ function stopMyRooms(){
  quickRoomMetadataStops.clear();
  myRoomsRenderVersion++;
 }
-function initials(value){return String(value||"U").trim().split(/\\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
+function initials(value){return String(value||"U").trim().split(/\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
 function openQuickRoomSettings(room){
  const roomData=room.roomData||{};
  if(!auth.currentUser||!(roomData.creatorUid===auth.currentUser.uid||roomData.createdBy===auth.currentUser.uid)){
@@ -1267,7 +1267,7 @@ function startMyRooms(){
     const latest=roomSnapshot.data()||{};
     room.roomData={...room.roomData,...latest};
     roomName.textContent=latest.roomDisplayName||latest.name||room.name||room.id;
-    const nextPhoto=latest.roomPhotoURL||"";
+    const nextPhoto=latest.roomPhotoURL||latest.creatorPhotoURL||latest.creatorPhotoDataUrl||room.roomData.creatorPhotoURL||room.roomData.creatorPhotoDataUrl||"";
     const currentPhoto=roomImage.tagName==="IMG"?(roomImage.getAttribute("src")||""):"";
     if(nextPhoto!==currentPhoto){
      let replacement;
