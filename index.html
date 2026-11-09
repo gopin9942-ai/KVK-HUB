@@ -526,7 +526,7 @@ import {loginWithGoogle,logoutUser,auth,authReady,db,roomStorage,onAuthStateChan
 import {
  collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,serverTimestamp,query,where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
+import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
 const WORKER_URL="https://kvk-voice-hub.bragathees3333.workers.dev";
 
@@ -1131,10 +1131,11 @@ function openQuickRoomSettings(room){
  const nameInput=document.createElement("input");nameInput.type="text";nameInput.maxLength=50;nameInput.value=roomData.roomDisplayName||roomData.name||room.id;nameInput.placeholder="Enter room name";
  const photoLabel=document.createElement("label");photoLabel.textContent="Room Photo";
  const photoInput=document.createElement("input");photoInput.type="file";photoInput.accept="image/*";
+ const uploadStatus=document.createElement("div");uploadStatus.className="roomPreviewSub";uploadStatus.setAttribute("aria-live","polite");uploadStatus.textContent="Choose a photo (optional).";
  const preview=document.createElement("img");preview.className="roomSettingsPhotoPreview";preview.alt="Room photo preview";
- const existingPhoto=roomData.roomPhotoURL||"";
+ const existingPhoto=roomData.roomPhotoURL||roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
  if(existingPhoto)preview.src=existingPhoto;else preview.style.display="none";
- photoInput.onchange=()=>{const file=photoInput.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){status.textContent="Please choose an image file.";photoInput.value="";return;}if(file.size>5*1024*1024){status.textContent="Choose an image smaller than 5 MB.";photoInput.value="";return;}preview.src=URL.createObjectURL(file);preview.style.display="block";};
+ photoInput.onchange=()=>{const file=photoInput.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){uploadStatus.textContent="Please choose an image file.";photoInput.value="";return;}if(file.size>5*1024*1024){uploadStatus.textContent="Choose an image smaller than 5 MB.";photoInput.value="";return;}preview.src=URL.createObjectURL(file);preview.style.display="block";uploadStatus.textContent="Selected: "+file.name+" ("+(file.size/1024/1024).toFixed(2)+" MB)";};
  const buttons=document.createElement("div");buttons.className="roomSettingsButtons";
  const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";
  const save=document.createElement("button");save.type="button";save.textContent="Save Changes";
@@ -1152,16 +1153,30 @@ function openQuickRoomSettings(room){
     if(!file.type.startsWith("image/")||file.size>5*1024*1024)throw new Error("Choose an image under 5 MB.");
     const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"room-photo";
     const imageRef=ref(roomStorage,"room-images/"+room.id+"/"+auth.currentUser.uid+"/"+Date.now()+"-"+safeName);
-    const uploaded=await uploadBytes(imageRef,file,{contentType:file.type});
+    uploadStatus.textContent="Uploading photo: 0%";
+    const uploadTask=uploadBytesResumable(imageRef,file,{contentType:file.type});
+    const uploaded=await new Promise((resolve,reject)=>{
+     let stallTimer=null,settled=false;
+     const finish=(fn,value)=>{if(settled)return;settled=true;if(stallTimer)clearTimeout(stallTimer);fn(value);};
+     const resetStallTimer=()=>{if(stallTimer)clearTimeout(stallTimer);stallTimer=setTimeout(()=>{uploadTask.cancel();finish(reject,new Error("Photo upload stopped responding. Check your connection and Storage rules, then try again."));},60000);};
+     resetStallTimer();
+     uploadTask.on("state_changed",snapshot=>{
+      resetStallTimer();
+      const percent=snapshot.totalBytes?Math.round(snapshot.bytesTransferred/snapshot.totalBytes*100):0;
+      uploadStatus.textContent="Uploading photo: "+percent+"%";
+     },error=>finish(reject,error),()=>finish(resolve,uploadTask.snapshot));
+    });
+    uploadStatus.textContent="Finishing photo save...";
     roomPhotoURL=await getDownloadURL(uploaded.ref);
    }
+   uploadStatus.textContent="Saving room details...";
    await setDoc(doc(db,"rooms",room.id),{roomDisplayName:displayName,roomPhotoURL,updatedAt:serverTimestamp()},{merge:true});
    room.roomData={...roomData,roomDisplayName:displayName,roomPhotoURL};
-   status.textContent="Room details saved and shared with members.";
+   status.textContent="Room details saved and shared with members.";uploadStatus.textContent="Saved successfully.";
    close();startMyRooms();
-  }catch(error){console.error("Room settings save failed:",error);status.textContent="Could not save room settings: "+(error.message||"Check Firebase rules.");save.disabled=false;cancel.disabled=false;save.textContent="Save Changes";}
+  }catch(error){console.error("Room settings save failed:",error);uploadStatus.textContent="Save failed: "+(error.message||"Unknown error");status.textContent="Could not save room settings. Check the message in Room Settings.";save.disabled=false;cancel.disabled=false;save.textContent="Save Changes";}
  };
- buttons.append(cancel,save);dialog.append(heading,nameLabel,nameInput,photoLabel,photoInput,preview,buttons);overlay.append(dialog);document.body.append(overlay);
+ buttons.append(cancel,save);dialog.append(heading,nameLabel,nameInput,photoLabel,photoInput,uploadStatus,preview,buttons);overlay.append(dialog);document.body.append(overlay);
  nameInput.focus();
 }
 function startMyRooms(){
@@ -1184,6 +1199,17 @@ function startMyRooms(){
     if(!roomSnap.exists()){await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId));continue;}
     room.roomData=roomSnap.data()||{};
     room.isRoomAdmin=room.roomData.creatorUid===uid||room.roomData.createdBy===uid;
+    if(!room.roomData.roomPhotoURL&&!room.roomData.creatorPhotoURL&&!room.roomData.creatorPhotoDataUrl){
+     const creatorUid=room.roomData.creatorUid||room.roomData.createdBy;
+     if(creatorUid){
+      try{
+       const creatorSnap=await getDoc(doc(db,"users",creatorUid));
+       const creator=creatorSnap.exists()?creatorSnap.data()||{}:{};
+       room.roomData.creatorPhotoURL=creator.photoDataUrl||creator.photoURL||"";
+       room.roomData.createdByName=room.roomData.createdByName||creator.displayName||"";
+      }catch(profileError){console.warn("Could not load room creator profile photo:",profileError);}
+     }
+    }
    }catch(checkError){console.warn("Could not verify saved room; keeping its My Rooms entry:",room.id,checkError);}
    rooms.push(room);
   }
@@ -1199,7 +1225,7 @@ function startMyRooms(){
    const roomData=room.roomData||{};
    const item=document.createElement("article");item.className="roomItem polishedRoomItem";
    const previewCard=document.createElement("div");previewCard.className="roomPreviewCard";previewCard.tabIndex=0;previewCard.setAttribute("role","button");previewCard.setAttribute("aria-label","Join "+(roomData.roomDisplayName||roomData.name||room.id));
-   const photo=roomData.roomPhotoURL||"";
+   const photo=roomData.roomPhotoURL||roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
    let roomImage;
    if(photo){roomImage=document.createElement("img");roomImage.className="roomPreviewPhoto";roomImage.alt="Room photo";roomImage.src=photo;roomImage.onerror=()=>{roomImage.replaceWith(makeRoomFallback());};}
    else roomImage=makeRoomFallback();
