@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'index.html'
+      - 'kvk-logo.svg'
+      - 'scripts/configure_android_branding.py'
       - 'native-call.js'
       - 'scripts/configure_android_foreground_service.py'
       - 'firebase.js'
@@ -47,7 +49,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp index.html firebase.js native-call.js www/
+          cp index.html firebase.js native-call.js kvk-logo.svg www/
           npx esbuild firebase.js --bundle --format=esm --outfile=www/firebase.js --external:https://www.gstatic.com/*
           npx esbuild native-call.js --bundle --format=esm --outfile=www/native-call.js
 
@@ -69,6 +71,9 @@ jobs:
 
       - name: Configure Android foreground voice service
         run: python3 scripts/configure_android_foreground_service.py
+
+      - name: Apply KVK HUB launcher icon and app name
+        run: python3 scripts/configure_android_branding.py
 
       - name: Route foreground hardware volume keys to Media stream
         run: |
