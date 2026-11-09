@@ -954,6 +954,25 @@ function identityAudioIsMuted(identity){
  const audioPublications=[...participant.audioTrackPublications.values()];
  return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
 }
+function participantMicIsEnabled(profile){
+ if(!profile||!activeRoom)return profile?.micEnabled===true;
+ const identity=profile.livekitIdentity||profile.uid;
+ const isLocal=identity===activeRoom.localParticipant?.identity||profile.uid===auth.currentUser?.uid;
+ const participant=isLocal?activeRoom.localParticipant:[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity||p.identity===profile.uid);
+ if(!participant)return profile.micEnabled===true;
+ if(isLocal)return !!micEnabled;
+ const publications=[...(participant.audioTrackPublications?.values?.()||[])];
+ const microphonePublications=publications.filter(publication=>publication.source==="microphone"||publication.kind==="audio");
+ if(microphonePublications.length)return microphonePublications.some(publication=>!publication.isMuted&&publication.track?.mediaStreamTrack?.enabled!==false);
+ if(typeof participant.isMicrophoneEnabled==="boolean")return participant.isMicrophoneEnabled;
+ return profile.micEnabled===true;
+}
+function syncParticipantMicState(participant,enabled){
+ if(!participant?.identity)return;
+ const profile=[...participantProfiles.values()].find(p=>(p.livekitIdentity||p.uid)===participant.identity||p.uid===participant.identity);
+ if(profile)profile.micEnabled=!!enabled;
+ renderParticipants();
+}
 async function refreshRoomRoles(showErrors=false){
  if(!currentRoomCode||!auth.currentUser)return;
  try{
@@ -1714,6 +1733,23 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   kvkDiag("room-active-speakers-changed",{count:(speakers||[]).length,includesLocal:(speakers||[]).includes(room.localParticipant)});
   updateParticipantIndicators();
  });
+ // Keep each member's microphone icon driven by LiveKit's actual track state.
+ // Firestore presence remains a fallback, not the live source of truth.
+ room.on(RoomEvent.TrackMuted,(publication,participant)=>{
+  if(publication?.kind==="audio")syncParticipantMicState(participant,false);
+ });
+ room.on(RoomEvent.TrackUnmuted,(publication,participant)=>{
+  if(publication?.kind==="audio")syncParticipantMicState(participant,true);
+ });
+ room.on(RoomEvent.ParticipantConnected,participant=>{
+  syncParticipantMicState(participant,participant.isMicrophoneEnabled===true);
+ });
+ room.on(RoomEvent.TrackPublished,(publication,participant)=>{
+  if(publication?.kind==="audio")syncParticipantMicState(participant,participant.isMicrophoneEnabled===true&&!publication.isMuted);
+ });
+ room.on(RoomEvent.TrackUnpublished,(publication,participant)=>{
+  if(publication?.kind==="audio")syncParticipantMicState(participant,false);
+ });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown",participantSid:participant?.sid||null,trackSid:publication?.trackSid||track?.sid||null,remoteParticipantCount:room.remoteParticipants.size});
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
@@ -1836,7 +1872,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
     if(Date.now()-seen<90000||liveKitConnected){
      present.add(snap.id);
      const prior=participantProfiles.get(snap.id);
-     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",role:roomRoles[snap.id]||(snap.id===roomOwnerUid?"admin":"member"),micEnabled:d.micEnabled===true,level:prior?.level||0});
+     const liveParticipant=activeRoom?[...activeRoom.remoteParticipants.values()].find(p=>p.identity===(d.livekitIdentity||snap.id))||(activeRoom.localParticipant?.identity===(d.livekitIdentity||snap.id)?activeRoom.localParticipant:null):null;
+    const liveMicState=liveParticipant&&typeof liveParticipant.isMicrophoneEnabled==="boolean"?liveParticipant.isMicrophoneEnabled:null;
+    participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",role:roomRoles[snap.id]||(snap.id===roomOwnerUid?"admin":"member"),micEnabled:liveMicState===null?(d.micEnabled===true):liveMicState,level:prior?.level||0});
     }
    }
    for(const id of [...participantProfiles.keys()]){
@@ -1999,7 +2037,7 @@ function renderParticipants(){
   roleBadge.textContent=targetRole==="admin"?"👑 ADMIN":targetRole==="moderator"?"✦ MODERATOR":"MEMBER";
   roleBadge.setAttribute("aria-label",targetRole==="admin"?"Room admin":targetRole==="moderator"?"Room moderator":"Room member");
   const mutedIcon=tile.querySelector(".participantMutedIcon");
-  if(mutedIcon)mutedIcon.style.display=latest.micEnabled===true?"none":"inline-flex";
+  if(mutedIcon)mutedIcon.style.display=participantMicIsEnabled(latest)?"none":"inline-flex";
   const oldMenu=tile.querySelector(".tileAdminMenu");if(oldMenu)oldMenu.remove();
   const isSelf=latest.uid===auth.currentUser?.uid;
   const canAdminManage=!isSelf&&isRoomAdmin&&targetRole!=="admin";
