@@ -991,7 +991,8 @@ async function setupModeration(roomData){
  isRoomModerator=false;
  $("moderationPanel").style.display="none";
  $("roomSettingsBtn").style.display="block";
- $("unbanSettingsBtn").style.display="none";
+ // Show Unban Settings immediately for the verified room owner; role refresh must not hide the owner controls.
+ $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
  $("roomCodeQuickCopyBtn").style.display="none";
@@ -2020,6 +2021,11 @@ function renderParticipants(){
      button.disabled=true;button.textContent=targetRole==="moderator"?"Removing...":"Appointing...";
      try{
       await workerAdminRequest("/set-moderator",{roomName:currentRoomCode,targetUid:latest.uid,action:targetRole==="moderator"?"remove":"appoint"});
+      // Reflect the confirmed role change immediately, even if the subsequent KV List refresh is unavailable.
+      if(targetRole==="moderator")delete roomRoles[latest.uid];
+      else roomRoles[latest.uid]="moderator";
+      latest.role=targetRole==="moderator"?"member":"moderator";
+      renderParticipants();
       await refreshRoomRoles(true);
       status.textContent=targetRole==="moderator"?"Moderator role removed.":"Moderator appointed successfully.";
       dropdown.hidden=true;
