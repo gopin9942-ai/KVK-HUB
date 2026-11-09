@@ -55,7 +55,7 @@ print(f"Cropped KVK artwork from {original.size} to {artwork.size}")
 # safe circle, but make the visible logo itself large instead of scaling its
 # original black square canvas.
 artwork = artwork.resize((artwork.width * 4, artwork.height * 4), Image.Resampling.LANCZOS)
-artwork.thumbnail((900, 900), Image.Resampling.LANCZOS)
+artwork.thumbnail((720, 720), Image.Resampling.LANCZOS)
 foreground_image = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
 foreground_image.alpha_composite(
     artwork,
