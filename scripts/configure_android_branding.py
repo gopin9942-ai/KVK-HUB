@@ -58,7 +58,11 @@ for density, size in {
     icon.convert("RGB").save(folder / "ic_launcher.png", optimize=True)
     icon.convert("RGB").save(folder / "ic_launcher_round.png", optimize=True)
 
-    # Capacitor also generates a default blue foreground asset in each density.\n    # Replace it with the same KVK artwork so no launcher/resource variant\n    # can fall back to the Capacitor mark.\n    density_foreground = foreground_image.resize((size * 4, size * 4), Image.Resampling.LANCZOS)\n    density_foreground.save(folder / "ic_launcher_foreground.png", format="PNG", optimize=True)
+    # Capacitor also generates a default blue foreground asset in each density.
+    # Replace it with the same KVK artwork so no launcher/resource variant
+    # can fall back to the Capacitor mark.
+    density_foreground = foreground_image.resize((size * 4, size * 4), Image.Resampling.LANCZOS)
+    density_foreground.save(folder / "ic_launcher_foreground.png", format="PNG", optimize=True)
 
 # Explicitly point the generated Android manifest at our launcher resources.
 manifest = root / "android/app/src/main/AndroidManifest.xml"
