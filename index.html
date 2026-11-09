@@ -18,7 +18,7 @@ button{width:100%;;padding:13px;margin-top:12px;border:0;border-radius:10px;back
 button:disabled{opacity:.55;cursor:wait}.secondary{background:#303954;color:white}
 input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid #46516e;background:#101321;color:white;font-size:15px}
 #loginPage,#homePage,#roomPage{display:none}
-#status{text-align:center;color:#45d9ff;margin-top:20px;overflow-wrap:anywhere;min-height:22px}
+#status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);left:50%;transform:translate(-50%,-10px);z-index:10050;width:max-content;max-width:min( calc(100vw - 28px), 440px );margin:0;padding:11px 16px;border:1px solid rgba(84,220,255,.3);border-radius:12px;background:rgba(18,29,49,.96);color:#eaf8ff;text-align:center;font-size:13px;line-height:1.4;overflow-wrap:anywhere;box-shadow:0 10px 32px #0008;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,transform .2s ease,visibility .2s ease}#status.toastVisible{opacity:1;visibility:visible;transform:translate(-50%,0)}@media(max-width:600px){#status{top:calc(env(safe-area-inset-top,0px) + 10px);font-size:12px;padding:10px 14px}}
 .small{color:#aab5d0;font-size:13px;line-height:1.5}
 #roomInfo{overflow-wrap:anywhere;color:#45d9ff}
 .roomItem{background:#10182b;border:1px solid #35415f;border-radius:12px;padding:14px;margin-top:12px}
@@ -617,6 +617,22 @@ header{
 <p id="status" role="status" aria-live="polite"></p>
 </main>
 <script>
+/* Show only useful feedback as a short top toast; routine status chatter stays hidden. */
+(()=>{
+ const el=document.getElementById("status");if(!el)return;
+ let hideTimer=null;
+ const important=/error|failed|could not|cannot|please enter|choose an image|must be|only .* can|only .* owner|only .* admin|permission is off|too long to start|network interrupted|disconnected from room|voice reconnected|voice connected|login successful|logged in successfully|profile updated successfully|room details updated successfully|room .* permanently deleted|room created|you left the room|moderator appointed|moderator role removed|member muted|member unmuted|was disconnected|copied!/i;
+ const routine=/connecting to google|connecting to voice|creating your|logging out|refreshing my rooms|you are logged in|google profile loaded|profile saved successfully|saved successfully|preparing your room photo|photo compressed|saving room details|selected:|photo selected|volume changed|returned to your active|quick access refreshed/i;
+ const observer=new MutationObserver(()=>{
+  const message=(el.textContent||"").trim();
+  clearTimeout(hideTimer);el.classList.remove("toastVisible");
+  if(!message||routine.test(message)||!important.test(message))return;
+  el.classList.add("toastVisible");
+  hideTimer=setTimeout(()=>{el.classList.remove("toastVisible");el.textContent="";},3200);
+ });
+ observer.observe(el,{childList:true,characterData:true,subtree:true});
+})();
+
 /* Keep a failed remote-module load from trapping users behind the boot splash. */
 window.setTimeout(()=>{
  const splash=document.getElementById("bootSplash");
@@ -1192,7 +1208,7 @@ async function saveProfile(){
   setProfileImage($("profileTopPhoto"),photo,name);
   setProfileImage($("profilePreview"),photo,name);
   if(appNavDepth>0)history.back();else handleAppBack();
-  status.textContent="Profile saved successfully.";
+  status.textContent="Profile updated successfully.";
  }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
  finally{button.disabled=false;button.textContent="Save Profile";}
 }
@@ -1257,7 +1273,7 @@ function showHome(user){
  resetAppNav();appScreenStack.length=0;setAppScreen("home");
  $("userName").textContent="Hello, "+(user.displayName||"User");
  loadUserProfile(user).catch(error=>{console.error(error);status.textContent="Profile load failed: "+error.message;});
- status.textContent="You are logged in!";
+ status.textContent="Login successful.";
  startMyRooms();
 }
 function showLogin(){
@@ -1355,7 +1371,7 @@ function openQuickRoomSettings(room){
    uploadStatus.textContent="Saving room details...";
    await setDoc(doc(db,"rooms",room.id),{roomDisplayName:displayName,roomPhotoURL,updatedAt:serverTimestamp()},{merge:true});
    room.roomData={...roomData,roomDisplayName:displayName,roomPhotoURL};
-   status.textContent="Room details saved and shared with members.";uploadStatus.textContent="Saved successfully.";
+   status.textContent="Room details updated successfully.";uploadStatus.textContent="Saved successfully.";
    close();startMyRooms();
   }catch(error){console.error("Room settings save failed:",error);uploadStatus.textContent="Save failed: "+(error.message||"Unknown error");status.textContent="Could not save room settings. Check the message in Room Settings.";save.disabled=false;cancel.disabled=false;save.textContent="Save Changes";}
  };
