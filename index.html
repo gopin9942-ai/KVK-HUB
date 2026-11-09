@@ -2310,12 +2310,17 @@ async function changeMicrophoneState(nextEnabled){
  if(!activeRoom)return;
  try{
   if(localPublishedMicTrack){
-   // Preserve the already-authorized capture session so background notification
-   // Unmute does not need a new getUserMedia permission/capture request.
-   if(localMicStream){
-    for(const inputTrack of localMicStream.getAudioTracks())inputTrack.enabled=nextEnabled;
+   // Use LiveKit LocalTrack mute/unmute so the state is broadcast to every room member.
+   const microphonePublication=[...(activeRoom.localParticipant.audioTrackPublications?.values?.()||[])].find(publication=>publication.source==="microphone");
+   const liveKitMicrophoneTrack=microphonePublication?.track;
+   if(liveKitMicrophoneTrack){
+    if(nextEnabled)await liveKitMicrophoneTrack.unmute();
+    else await liveKitMicrophoneTrack.mute();
+   }else{
+    // Fallback only if the LiveKit publication is not available yet.
+    if(localMicStream)for(const inputTrack of localMicStream.getAudioTracks())inputTrack.enabled=nextEnabled;
+    localPublishedMicTrack.enabled=nextEnabled;
    }
-   localPublishedMicTrack.enabled=nextEnabled;
   }else if(nextEnabled){
    // First-time microphone permission/capture still needs a visible user action.
    await setRoomMicrophone(activeRoom,true);
