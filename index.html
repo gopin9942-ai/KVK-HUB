@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#101321">
-<title>KVK VOICE APP</title>
+<title>KVK HUB</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#101321;color:white}
@@ -261,7 +261,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantRoleBadge.is-admin{background:#48252d;border-color:#a95763;color:#ffc5cb}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantTile.is-speaking .avatar,.avatar.is-speaking{outline:2px solid #62f5c5;outline-offset:1px;box-shadow:0 0 0 1.5px #45e8b555,0 0 7px #42f0bd88,0 0 13px #42f0bd55;animation:halfSpeakingGlow 1.15s ease-in-out infinite alternate}
-@keyframes halfSpeakingGlow{from{box-shadow:0 0 0 1px #45e8b544,0 0 5px #42f0bd66,0 0 9px #42f0bd44}to{box-shadow:0 0 0 2px #45e8b577,0 0 9px #42f0bd99,0 0 13px #42f0bd66}}to{box-shadow:0 0 10px 4px #42f0bdff,0 0 22px 8px #42f0bdcc,0 0 34px 12px #42f0bd88}}
+@keyframes halfSpeakingGlow{from{box-shadow:0 0 0 1px #45e8b544,0 0 5px #42f0bd66,0 0 9px #42f0bd44}to{box-shadow:0 0 0 2px #45e8b577,0 0 9px #42f0bd99,0 0 13px #42f0bd66}}
 @media(prefers-reduced-motion:reduce){.participantTile.is-speaking .avatar,.avatar.is-speaking{animation:none!important}}
 .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantAdminBadge{position:static!important;display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 7px!important;font-size:8px!important;letter-spacing:.08em}
@@ -409,6 +409,37 @@ header{position:relative}
 .tileAdminDropdown button.menuAction.muteToggleAction{color:#9fe8ff;background:#1d3a50}
 .tileAdminDots{border:1px solid #536985;background:rgba(29,43,66,.94);box-shadow:0 5px 16px #0005;transition:background .15s ease,transform .15s ease}
 .tileAdminDots:hover{background:#344b6b;transform:translateY(-1px)}
+
+/* KVK HUB UI polish: readable mobile text and consistent touch targets. */
+.sectionEyebrow{font-size:11px;letter-spacing:.14em}
+.roomInputLabel{font-size:11px;letter-spacing:.12em}
+.roomFootnote{font-size:12px;line-height:1.45}
+#homePage .profileTop small{font-size:11px}
+#homePage .youtubeChannelLink{font-size:11px;min-height:38px}
+#homePage .profileMenuButton{width:40px;height:40px;min-width:40px}
+#myRoomList .roomMeta{font-size:12px;line-height:1.4}
+#myRoomList .roomItem button{min-height:38px;font-size:13px}
+#myRoomList .empty{font-size:13px}
+.roomSettingsIcon{width:40px;height:40px;min-width:40px;padding:0}
+.advancedTools{margin:10px 0 4px;padding:9px 11px;border:1px solid #35415f;border-radius:10px;background:#111b2e}
+.advancedTools summary{min-height:28px;display:flex;align-items:center;color:#b9c9df;font-size:13px;font-weight:700;cursor:pointer}
+.advancedTools[open] summary{margin-bottom:5px;color:#54dcff}
+.advancedTools button{margin-top:5px}
+@media(max-width:600px){
+ .sectionEyebrow{font-size:10px;letter-spacing:.12em}
+ .roomInputLabel{font-size:10px}
+ .roomHint{font-size:12px;line-height:1.4}
+ .roomFootnote{font-size:11px}
+ #homePage .profileTop small{font-size:11px}
+ #homePage .profileMenuButton{width:40px;height:40px;min-width:40px}
+ #homePage .youtubeChannelLink{font-size:11px;min-height:38px}
+ #myRoomList .roomMeta{font-size:11px;line-height:1.4}
+ #myRoomList .roomItem button{min-height:36px;font-size:12px}
+ #myRoomList .empty{font-size:12px}
+ #status{font-size:12px;line-height:1.35}
+ .roomSettingsIcon{width:40px;height:40px;min-width:40px}
+}
+
 </style>
 </head>
 <body>
@@ -462,7 +493,7 @@ header{position:relative}
 <div class="card roomScreenCard">
  <div class="roomTopbar">
   <div class="roomTitleGroup"><div class="sectionEyebrow">LIVE VOICE SPACE</div><h2>🎙️ Voice Room</h2><p id="roomInfo" class="small">Room connected</p></div>
-  <div class="roomTopActions"><button id="roomCodeQuickCopyBtn" class="secondary roomCodeQuickCopy" type="button">Room Code</button><button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button></div>
+  <div class="roomTopActions"><button id="roomCodeQuickCopyBtn" class="secondary roomCodeQuickCopy" type="button">Room ID</button><button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button></div>
  </div>
  <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
   <div class="settingsHeading">Room Settings</div>
@@ -478,9 +509,9 @@ header{position:relative}
    <div class="settingsSubheading">Banned Users</div>
    <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
   </div>
-  <button id="copyVoiceDiagnosticsBtn" class="secondary settingsMenuButton" type="button">Copy Voice Diagnostics</button>
+  <details class="advancedTools"><summary>Advanced help</summary><button id="copyVoiceDiagnosticsBtn" class="secondary settingsMenuButton" type="button">Copy Voice Diagnostics</button></details>
    <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
-  <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Channel</button>
+  <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Room</button>
   <div id="deleteConfirmBox" class="deleteConfirmBox" style="display:none">
    <div id="deleteCountdownText" class="deleteCountdownText">Please wait 5 seconds...</div>
    <div class="deleteConfirmButtons"><button id="confirmDeleteChannelBtn" class="confirmDeleteAction" disabled>Confirm Delete</button><button id="cancelDeleteChannelBtn" class="cancelDeleteAction">Cancel</button></div>
@@ -1187,7 +1218,7 @@ function openQuickRoomSettings(room){
  const preview=document.createElement("img");preview.className="roomSettingsPhotoPreview";preview.alt="Room photo preview";
  const existingPhoto=roomData.roomPhotoURL||roomData.creatorPhotoURL||roomData.creatorPhotoDataUrl||"";
  if(existingPhoto)preview.src=existingPhoto;else preview.style.display="none";
- photoInput.onchange=()=>{const file=photoInput.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){uploadStatus.textContent="Please choose an image file.";photoInput.value="";return;}if(file.size>5*1024*1024){uploadStatus.textContent="Choose an image smaller than 5 MB.";photoInput.value="";return;}preview.src=URL.createObjectURL(file);preview.style.display="block";uploadStatus.textContent="Selected: "+file.name+" ("+(file.size/1024/1024).toFixed(2)+" MB)";};
+ photoInput.onchange=()=>{const file=photoInput.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){uploadStatus.textContent="Please choose an image file.";photoInput.value="";return;}if(file.size>10*1024*1024){uploadStatus.textContent="Choose an image smaller than 10 MB.";photoInput.value="";return;}preview.src=URL.createObjectURL(file);preview.style.display="block";uploadStatus.textContent="Selected: "+file.name+" ("+(file.size/1024/1024).toFixed(2)+" MB)";};
  const buttons=document.createElement("div");buttons.className="roomSettingsButtons";
  const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";
  const save=document.createElement("button");save.type="button";save.textContent="Save Changes";
@@ -2059,7 +2090,7 @@ $("roomCodeQuickCopyBtn").onclick=async()=>{
    const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
    const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
   }
-  status.textContent="Room code copied! Now you can send it to your friends.";
+  status.textContent="Room ID copied! Now you can send it to your friends.";
  }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
 };
 $("leaveBtn").onclick=async()=>{
