@@ -257,7 +257,7 @@ input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13p
 .participantTile .avatar{width:58px;height:58px;display:block;margin:0 auto;border:0;outline:2px solid #ffffff20;outline-offset:2px;box-shadow:none;filter:none;transition:box-shadow .2s ease,outline-color .2s ease}
 .participantTile .avatarFallback{border-radius:50%;}
 .participantTile .participantName{font-size:11px;font-weight:750;margin:8px 0 0;color:#f1f7ff;overflow-wrap:anywhere}
-.participantRoleBadge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:3px 8px;border-radius:999px;background:#203b59;border:1px solid #4d79a8;color:#b9d9ff;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}
+.participantBadgeRow{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px}.participantRoleBadge{display:block;width:max-content;max-width:100%;margin:0;padding:3px 8px;border-radius:999px;background:#203b59;border:1px solid #4d79a8;color:#b9d9ff;font-size:8px;font-weight:800;letter-spacing:.08em;line-height:1.4}.participantMutedIcon{display:none;width:15px;height:15px;flex:0 0 15px;color:#ff777f;align-items:center;justify-content:center}.participantMutedIcon svg{display:block;width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .participantRoleBadge.is-admin{background:#48252d;border-color:#a95763;color:#ffc5cb}
 body.room-speaking-active #roomPage .participantTile.is-speaking{background:transparent!important;border:0!important;box-shadow:none!important}
 .participantTile.is-speaking .avatar,.avatar.is-speaking{outline:2px solid #62f5c5;outline-offset:1px;box-shadow:0 0 0 1.5px #45e8b555,0 0 7px #42f0bd88,0 0 13px #42f0bd55;animation:halfSpeakingGlow 1.15s ease-in-out infinite alternate}
@@ -1568,7 +1568,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   const updatePresence=async()=>{
    let profile={displayName:auth.currentUser.displayName||"User",photoURL:auth.currentUser.photoURL||"",publicId:""};
    try{const profileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));if(profileSnap.exists()){const saved=profileSnap.data();profile={displayName:saved.displayName||profile.displayName,photoURL:saved.photoDataUrl||saved.photoURL||profile.photoURL,publicId:saved.publicId||""};}}catch(e){console.warn("Presence profile lookup failed:",e);}
-   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,roomRole:((roomDetails.creatorUid||roomDetails.createdBy)===auth.currentUser.uid)?"admin":"member",lastSeen:serverTimestamp()},{merge:true});
+   await setDoc(personRef,{uid:auth.currentUser.uid,livekitIdentity:room.localParticipant.identity,name:profile.displayName,photoURL:profile.photoURL,publicId:profile.publicId,roomRole:((roomDetails.creatorUid||roomDetails.createdBy)===auth.currentUser.uid)?"admin":"member",micEnabled:!!micEnabled,lastSeen:serverTimestamp()},{merge:true});
   };
   // Create this user's presence document before subscribing to the roster.
   // Firestore rules allow roster reads to existing room participants; subscribing
@@ -1601,7 +1601,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
     if(Date.now()-seen<90000||liveKitConnected){
      present.add(snap.id);
      const prior=participantProfiles.get(snap.id);
-     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",role:roomRoles[snap.id]||(snap.id===roomOwnerUid?"admin":"member"),level:prior?.level||0});
+     participantProfiles.set(snap.id,{uid:snap.id,livekitIdentity:d.livekitIdentity||snap.id,name:d.name||"User",photoURL:d.photoURL||"",publicId:d.publicId||"",role:roomRoles[snap.id]||(snap.id===roomOwnerUid?"admin":"member"),micEnabled:d.micEnabled===true,level:prior?.level||0});
     }
    }
    for(const id of [...participantProfiles.keys()]){
@@ -1744,8 +1744,11 @@ function renderParticipants(){
    function latestAudioIdentity(){const latest=participantProfiles.get(p.uid);return latest?.livekitIdentity||p.livekitIdentity||p.uid;}
    loadRemoteVolume(initialAudioIdentity,p.uid).then(value=>{if(slider.isConnected){slider.value=String(value);volumeValue.textContent=value+"%";}});
    panel.append(volumeLabel,slider);
+   const badgeRow=document.createElement("div");badgeRow.className="participantBadgeRow";
    const roleBadge=document.createElement("div");roleBadge.className="participantRoleBadge";
-   tile.append(img,fallback,name,roleBadge,panel);
+   const mutedIcon=document.createElement("span");mutedIcon.className="participantMutedIcon";mutedIcon.setAttribute("aria-label","Microphone muted");mutedIcon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 5.1 2.1M15 9V5a3 3 0 0 0-5.8-1M5 10v1a7 7 0 0 0 11.9 5M19 10v1a7 7 0 0 1-.5 2.6M12 18v4m-4 0h8M3 3l18 18"/></svg>';
+   badgeRow.append(roleBadge,mutedIcon);
+   tile.append(img,fallback,name,badgeRow,panel);
    tile.addEventListener("click",e=>{if(e.target===slider||e.target.closest(".tileAdminMenu"))return;panel.classList.toggle("open");});
    participantTiles.set(p.uid,tile);grid.append(tile);
   }
@@ -1760,6 +1763,8 @@ function renderParticipants(){
   roleBadge.classList.toggle("is-moderator",targetRole==="moderator");
   roleBadge.textContent=targetRole==="admin"?"👑 ADMIN":targetRole==="moderator"?"✦ MODERATOR":"MEMBER";
   roleBadge.setAttribute("aria-label",targetRole==="admin"?"Room admin":targetRole==="moderator"?"Room moderator":"Room member");
+  const mutedIcon=tile.querySelector(".participantMutedIcon");
+  if(mutedIcon)mutedIcon.style.display=latest.micEnabled===true?"none":"inline-flex";
   const oldMenu=tile.querySelector(".tileAdminMenu");if(oldMenu)oldMenu.remove();
   const isSelf=latest.uid===auth.currentUser?.uid;
   const canAdminManage=!isSelf&&isRoomAdmin&&targetRole!=="admin";
@@ -2005,6 +2010,11 @@ $("createBtn").onclick=async()=>{
   }
  }finally{button.disabled=false;}
 };
+async function syncMyMicPresence(){
+ if(!currentRoomCode||!auth.currentUser)return;
+ try{await setDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid),{micEnabled:!!micEnabled},{merge:true});}
+ catch(error){console.warn("Could not sync microphone status to room:",error);}
+}
 async function changeMicrophoneState(nextEnabled){
  if(!activeRoom)return;
  try{
@@ -2021,6 +2031,7 @@ async function changeMicrophoneState(nextEnabled){
   }
   micEnabled=nextEnabled;
   localStorage.setItem("kvkMicEnabled",String(micEnabled));
+  await syncMyMicPresence();
   $("muteBtnLabel").textContent=micEnabled?"Mute":"Unmute";
   $("muteBtn").classList.toggle("is-muted",!micEnabled);
   $("muteBtn").setAttribute("aria-label",micEnabled?"Mute microphone":"Unmute microphone");
@@ -2029,6 +2040,7 @@ async function changeMicrophoneState(nextEnabled){
  }catch(e){
   console.error(e);status.textContent="Microphone Error: "+e.message;
   micEnabled=false;localStorage.setItem("kvkMicEnabled","false");
+  await syncMyMicPresence();
   $("muteBtnLabel").textContent="Unmute";
   $("muteBtn").classList.add("is-muted");
   $("muteBtn").querySelector(".callControlIcon").textContent="🔇";
