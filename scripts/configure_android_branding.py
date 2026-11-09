@@ -25,11 +25,15 @@ foreground.mkdir(parents=True, exist_ok=True)
 foreground_file = foreground / "ic_launcher_foreground.png"
 foreground_image.save(foreground_file, format="PNG", optimize=True)
 
-# Capacitor generates a higher-priority anydpi vector with its blue logo.
-# Remove that competing resource so Android resolves our nodpi KVK PNG.
-capacitor_foreground_vector = res / "drawable-anydpi-v24" / "ic_launcher_foreground.xml"
-if capacitor_foreground_vector.exists():
-    capacitor_foreground_vector.unlink()
+# Remove every competing Capacitor foreground vector from all resource
+# qualifiers. An anydpi vector has higher priority than our nodpi PNG and can
+# make Android show the old headset/default symbol despite correct PNG assets.
+removed_foreground_vectors = []
+for candidate in res.rglob("ic_launcher_foreground*.xml"):
+    removed_foreground_vectors.append(str(candidate.relative_to(res)))
+    candidate.unlink()
+if removed_foreground_vectors:
+    print("Removed competing launcher vectors:", removed_foreground_vectors)
 
 adaptive = """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/kvk_icon_background"/>
