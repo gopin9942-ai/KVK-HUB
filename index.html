@@ -973,7 +973,7 @@ async function setupModeration(roomData){
  $("roomCodeQuickCopyBtn").style.display="inline-flex";
  await refreshRoomRoles(true);
  if(roomRoleRefreshTimer)clearInterval(roomRoleRefreshTimer);
- roomRoleRefreshTimer=setInterval(()=>refreshRoomRoles(false),15000);
+ roomRoleRefreshTimer=setInterval(()=>refreshRoomRoles(false),3000);
 }
 
 const $=id=>document.getElementById(id);
