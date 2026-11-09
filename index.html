@@ -440,7 +440,7 @@ header{position:relative}
  .roomSettingsIcon{width:40px;height:40px;min-width:40px}
 }
 
-</style>
+\n/* Keep the signed-in Home header quiet; the full brand intro stays on the start screen. */\n@media(min-width:0px){body.app-home-screen header{min-height:42px;padding:6px 12px;gap:0}body.app-home-screen header .brandMark{display:none}body.app-home-screen header .brandCopy{text-align:center}body.app-home-screen header .brandCopy h1{font-size:14px;letter-spacing:.12em;margin:0}body.app-home-screen header .brandCopy p{display:none}}\n</style>
 </head>
 <body>
 <div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="24" y="7" width="16" height="31" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M15 29v3a17 17 0 0 0 34 0v-3M32 49v8m-10 0h20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
@@ -646,6 +646,7 @@ let currentAppScreen="login";
 const appScreenStack=[];
 function setAppScreen(name){
  currentAppScreen=name;
+ document.body.classList.toggle("app-home-screen",name==="home");
  // Profile speaking analysis runs only while the actual room screen is open.
  if(name==="room"&&activeRoom&&activeRoom.state==="connected")syncVoiceMetersForRoom();
  else if(name!=="room"){stopAllVoiceMeters();activeSpeakerIds.clear();}
