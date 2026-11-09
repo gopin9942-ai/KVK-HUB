@@ -72,12 +72,6 @@ jobs:
       - name: Configure Android foreground voice service
         run: python3 scripts/configure_android_foreground_service.py
 
-      - name: Install image tooling for Android launcher assets
-        run: python3 -m pip install --disable-pip-version-check pillow
-
-      - name: Apply KVK HUB launcher icon and app name
-        run: python3 scripts/configure_android_branding.py
-
       - name: Route foreground hardware volume keys to Media stream
         run: |
           python3 - <<'PY'
@@ -166,6 +160,12 @@ jobs:
 
       - name: Sync web app and native plugins
         run: npx cap sync android
+
+      - name: Install image tooling for Android launcher assets
+        run: python3 -m pip install --disable-pip-version-check pillow
+
+      - name: Apply KVK HUB launcher icon and app name
+        run: python3 scripts/configure_android_branding.py
 
       - name: Configure stable Android signing
         env:
