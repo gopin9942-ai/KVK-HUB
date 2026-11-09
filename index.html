@@ -1007,7 +1007,7 @@ function kvkDiag(event,details={}){
 document.addEventListener("memorypressure",()=>kvkDiag("memorypressure-event"));
 function copyVoiceDiagnostics(){
  const a=JSON.parse(localStorage.getItem(KVK_DIAG_KEY)||"[]");
- const report=JSON.stringify({app:"KVK HUB",version:1,userAgent:navigator.userAgent,createdAt:new Date().toISOString(),entries:a},null,2);
+ const report=JSON.stringify({app:"KVK HUB",version:2,userAgent:navigator.userAgent,createdAt:new Date().toISOString(),entries:a},null,2);
  const el=document.createElement("textarea");el.value=report;el.style.cssText="position:fixed;left:-9999px;top:0";document.body.appendChild(el);el.select();let ok=false;try{ok=document.execCommand("copy");}catch(_){}el.remove();
  status.textContent=ok?"Voice diagnostics copied. Paste the report here.":"Could not copy diagnostics. Please try again.";
 }
@@ -1710,11 +1710,11 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   updateParticipantIndicators();
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
-  kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown"});
+  kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown",participantSid:participant?.sid||null,trackSid:publication?.trackSid||track?.sid||null,remoteParticipantCount:room.remoteParticipants.size});
   if(track.kind==="audio")attachRemoteAudio(track,participant.identity);
  });
- room.on(RoomEvent.TrackUnsubscribed,track=>{
-  kvkDiag("livekit-track-unsubscribed",{kind:track.kind});
+ room.on(RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
+  kvkDiag("livekit-track-unsubscribed",{kind:track.kind,participantSid:participant?.sid||null,trackSid:publication?.trackSid||track?.sid||null,remoteParticipantCount:room.remoteParticipants.size});
   if(track.kind==="audio")stopVoiceMeterForTrack(track.mediaStreamTrack);
   track.detach().forEach(el=>el.remove());
  });
@@ -1730,10 +1730,11 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
    updateNativeVoiceService();
   }
  });
- room.on(RoomEvent.Disconnected,()=>{kvkDiag("livekit-disconnected");if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
- kvkDiag("livekit-connect-start");
- await room.connect(data.serverUrl,data.token);
- kvkDiag("livekit-connect-complete");
+ room.on(RoomEvent.Disconnected,reason=>{kvkDiag("livekit-disconnected",{reason:reason??null,roomState:room.state||"unknown",roomSid:room.sid||null,remoteParticipantCount:room.remoteParticipants.size});if(activeRoom===room){if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);stopNativeVoiceService();stopLocalMicrophone(room).catch(console.error);document.querySelectorAll(".remoteAudio").forEach(el=>el.remove());clearPresence();activeRoom=null;currentRoomCode=null;resetAppNav();appScreenStack.length=0;closeRoomSettings();setAppScreen("home");syncActiveRoomShortcut();status.textContent="Disconnected from room. Tap Join Room whenever you want to rejoin.";}});
+ kvkDiag("livekit-connect-start",{restoreMode:!!restoreMode,roomState:room.state||"unknown",remoteParticipantCount:room.remoteParticipants.size});
+ try{await room.connect(data.serverUrl,data.token);}
+ catch(connectError){kvkDiag("livekit-connect-error",{name:connectError?.name||"Error",message:String(connectError?.message||connectError).slice(0,180),code:connectError?.code??null,roomState:room.state||"unknown"});throw connectError;}
+ kvkDiag("livekit-connect-complete",{roomSid:room.sid||null,localParticipantSid:room.localParticipant?.sid||null,remoteParticipantCount:room.remoteParticipants.size});
  // Set the active room before starting the indicator timer; otherwise its first tick can stop it.
  activeRoom=room;
  // Try to start remote audio automatically after the user taps Join.
