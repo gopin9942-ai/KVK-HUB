@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#101321">
 <title>KVK HUB</title>
+<link rel="icon" type="image/svg+xml" href="kvk-logo.svg">
+<link rel="apple-touch-icon" href="kvk-logo.svg">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#101321;color:white}
@@ -25,7 +27,7 @@ input{width:100%;padding:14px;margin-top:12px;border-radius:9px;border:1px solid
 .roomItem button{margin-top:10px}
 .empty{color:#aab5d0;text-align:center;font-size:14px;padding:12px}.participantGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:18px 0}.participantTile{position:relative;background:#10182b;border:1px solid #35415f;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer}.volumePanel{display:none;margin-top:9px;text-align:left}.volumePanel.open{display:block}.volumePanel label{font-size:11px;color:#aab5d0;display:flex;justify-content:space-between}.volumePanel input{padding:0;margin:7px 0;width:100%;accent-color:#35c9f4}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;outline:2px solid transparent;outline-offset:3px;transition:outline-color .2s ease,filter .2s ease,box-shadow .2s ease;position:relative}.participantTile.is-speaking{background:transparent;border:0;box-shadow:none}
 header{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 15px;background:linear-gradient(135deg,#191f35,#202b49);border-bottom:1px solid #303954}
-.brandMark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#35c9f4,#2876a8);box-shadow:0 0 22px #35c9f455;font-size:25px}
+.brandMark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:transparent;box-shadow:none;padding:1px}.brandMark img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 7px #35c9f477)}
 .brandCopy{text-align:left}.brandCopy h1{font-size:25px;letter-spacing:1.4px}.brandCopy p{margin:4px 0 0;font-size:10px;font-weight:800;letter-spacing:2px;color:#aab5d0}
 @media(max-width:600px){
  html,body{width:100%;height:100%;min-height:100%;overflow:hidden}
@@ -159,7 +161,7 @@ button:active{transform:scale(.985)}button.secondary{background:#263650;color:#e
 input{border-radius:12px;background:#0c1527;border:1px solid #344765;padding:13px 14px}
 #bootSplash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;background:radial-gradient(ellipse at 50% 38%,#1b3d62 0%,#101a30 43%,#080d19 100%);transition:opacity .35s ease,visibility .35s ease}
 #bootSplash.done{opacity:0;visibility:hidden;pointer-events:none}
-.splashOrb{width:104px;height:104px;display:grid;place-items:center;border-radius:32px;color:#092036;background:linear-gradient(145deg,#70edff,#3a9fe0);box-shadow:0 0 0 10px #54dcff12,0 0 55px #35c9f466}
+.splashOrb{width:120px;height:120px;display:grid;place-items:center;border-radius:32px;background:transparent;box-shadow:none}.splashOrb img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 18px #35c9f477)}
 .splashOrb svg{width:65px;height:65px}
 .splashTitle{font-size:clamp(38px,9vw,54px);font-weight:900;letter-spacing:.13em;color:#f4fbff;text-shadow:0 4px 28px #54dcff35}
 .splashTagline{font-size:clamp(11px,2.8vw,14px);font-weight:800;letter-spacing:.28em;color:#aebfd9}
@@ -443,11 +445,11 @@ header{position:relative}
 \n/* Keep the signed-in Home header quiet; the full brand intro stays on the start screen. */\n@media(min-width:0px){body.app-home-screen header{min-height:42px;padding:6px 12px;gap:0}body.app-home-screen header .brandMark{display:none}body.app-home-screen header .brandCopy{text-align:center}body.app-home-screen header .brandCopy h1{font-size:14px;letter-spacing:.12em;margin:0}body.app-home-screen header .brandCopy p{display:none}}\n</style>
 </head>
 <body>
-<div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="24" y="7" width="16" height="31" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M15 29v3a17 17 0 0 0 34 0v-3M32 49v8m-10 0h20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
-<header><button type="button" id="appBackBtn" class="secondary" aria-label="Back" style="display:none">← Back</button><div class="brandMark" aria-hidden="true">🎙️</div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
+<div id="bootSplash" role="status" aria-live="polite"><div class="splashOrb"><img src="kvk-logo.svg" alt="KVK HUB logo"></div><div class="splashTitle">KVK HUB</div><div class="splashTagline">CONNECT <span>•</span> TALK <span>•</span> SHARE</div><div class="splashLoader"><i></i></div></div>
+<header><button type="button" id="appBackBtn" class="secondary" aria-label="Back" style="display:none">← Back</button><div class="brandMark" aria-hidden="true"><img src="kvk-logo.svg" alt=""></div><div class="brandCopy"><h1>KVK HUB</h1><p>CONNECT • TALK • SHARE</p></div></header>
 <main>
 <section id="loginPage" class="card">
-<h2>Welcome to KVK HUB 🎙️</h2><p>Sign in to connect with your friends.</p>
+<h2>Welcome to KVK HUB</h2><p>Sign in to connect with your friends.</p>
 <button id="loginBtn">Continue with Google</button>
 </section>
 <section id="homePage">
