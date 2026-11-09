@@ -961,11 +961,14 @@ function participantMicIsEnabled(profile){
   const participant=isLocal?activeRoom.localParticipant:[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity||p.identity===profile.uid);
   if(!participant)return profile.micEnabled===true;
   if(isLocal)return !!micEnabled;
-  // LiveKit participant microphone state is shared with every client in the room.
-  // Avoid remote MediaStreamTrack.enabled: it can remain false locally after unmute.
+  // Read the audio publication's server-signalled mute state first.
+  // publishTrack(MediaStreamTrack, ...) may be classified as Source.Unknown,
+  // so filtering only Source.Microphone or relying on isMicrophoneEnabled can
+  // incorrectly leave the remote member looking muted after they unmute.
+  const audioPublications=[...(participant.audioTrackPublications?.values?.()||[])].filter(publication=>publication.kind==="audio");
+  const knownMuteStates=audioPublications.map(publication=>publication.isMuted).filter(value=>typeof value==="boolean");
+  if(knownMuteStates.length)return knownMuteStates.some(isMuted=>!isMuted);
   if(typeof participant.isMicrophoneEnabled==="boolean")return participant.isMicrophoneEnabled;
-  const microphonePublications=[...(participant.audioTrackPublications?.values?.()||[])].filter(publication=>publication.source==="microphone");
-  if(microphonePublications.length)return microphonePublications.some(publication=>!publication.isMuted);
   return profile.micEnabled===true;
 }
 function syncParticipantMicState(participant,enabled){
@@ -2311,7 +2314,12 @@ async function changeMicrophoneState(nextEnabled){
  try{
   if(localPublishedMicTrack){
    // Use LiveKit LocalTrack mute/unmute so the state is broadcast to every room member.
-   const microphonePublication=[...(activeRoom.localParticipant.audioTrackPublications?.values?.()||[])].find(publication=>publication.source==="microphone");
+   const audioPublications=[...(activeRoom.localParticipant.audioTrackPublications?.values?.()||[])].filter(publication=>publication.kind==="audio");
+   // Match the exact published MediaStreamTrack first; source can be Unknown
+   // because this app publishes a raw MediaStreamTrack.
+   const microphonePublication=audioPublications.find(publication=>publication.track?.mediaStreamTrack?.id===localPublishedMicTrack.id)
+    ||audioPublications.find(publication=>publication.source==="microphone")
+    ||audioPublications[0];
    const liveKitMicrophoneTrack=microphonePublication?.track;
    if(liveKitMicrophoneTrack){
     if(nextEnabled)await liveKitMicrophoneTrack.unmute();
