@@ -1390,7 +1390,14 @@ async function deleteQuickAccessRoom(room,triggerButton){
   if(finished||remaining>0||confirm.disabled)return;
   confirm.disabled=true;cancel.disabled=true;confirm.textContent="Deleting...";countdown.textContent="Deleting room from the voice service...";
   try{
-   await workerAdminRequest("/delete-room",{roomName:room.id});
+   try{
+    await workerAdminRequest("/delete-room",{roomName:room.id});
+   }catch(liveKitDeleteError){
+    const deleteErrorText=String(liveKitDeleteError?.message||liveKitDeleteError||"");
+    const roomAlreadyMissing=/HTTP\\s*404/i.test(deleteErrorText)&&/(room does not exist|request room does not exist|code not found|not found)/i.test(deleteErrorText);
+    if(!roomAlreadyMissing)throw liveKitDeleteError;
+    console.info("LiveKit room was already absent; continuing Firestore cleanup:",room.id,deleteErrorText);
+   }
    await deleteDoc(doc(db,"rooms",room.id));
    await deleteDoc(doc(db,"users",uid,"myRooms",room.savedDocId||room.id)).catch(error=>console.warn("Could not remove saved room entry:",error));
    finished=true;if(timer)clearInterval(timer);overlay.remove();
