@@ -1157,24 +1157,32 @@ function openQuickRoomSettings(room){
    let roomPhotoURL=existingPhoto;
    const file=photoInput.files?.[0];
    if(file){
-    if(!file.type.startsWith("image/")||file.size>5*1024*1024)throw new Error("Choose an image under 5 MB.");
-    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"room-photo";
-    const imageRef=ref(roomStorage,"room-images/"+room.id+"/"+auth.currentUser.uid+"/"+Date.now()+"-"+safeName);
-    uploadStatus.textContent="Uploading photo: 0%";
-    const uploadTask=uploadBytesResumable(imageRef,file,{contentType:file.type});
-    const uploaded=await new Promise((resolve,reject)=>{
-     let stallTimer=null,settled=false;
-     const finish=(fn,value)=>{if(settled)return;settled=true;if(stallTimer)clearTimeout(stallTimer);fn(value);};
-     const resetStallTimer=()=>{if(stallTimer)clearTimeout(stallTimer);stallTimer=setTimeout(()=>{uploadTask.cancel();finish(reject,new Error("Photo upload stopped responding. Check your connection and Storage rules, then try again."));},60000);};
-     resetStallTimer();
-     uploadTask.on("state_changed",snapshot=>{
-      resetStallTimer();
-      const percent=snapshot.totalBytes?Math.round(snapshot.bytesTransferred/snapshot.totalBytes*100):0;
-      uploadStatus.textContent="Uploading photo: "+percent+"%";
-     },error=>finish(reject,error),()=>finish(resolve,uploadTask.snapshot));
-    });
-    uploadStatus.textContent="Finishing photo save...";
-    roomPhotoURL=await getDownloadURL(uploaded.ref);
+    if(!file.type.startsWith("image/")||file.size>10*1024*1024)throw new Error("Choose an image under 10 MB.");
+    uploadStatus.textContent="Compressing photo for Firestore...";
+    const image=await createImageBitmap(file);
+    const canvas=document.createElement("canvas");
+    const initialScale=Math.min(1,512/Math.max(image.width,image.height));
+    let width=Math.max(1,Math.round(image.width*initialScale));
+    let height=Math.max(1,Math.round(image.height*initialScale));
+    let compressed="";
+    for(let pass=0;pass<4;pass++){
+     canvas.width=width;canvas.height=height;
+     const context=canvas.getContext("2d");
+     if(!context)throw new Error("Could not prepare the selected photo.");
+     context.fillStyle="#ffffff";context.fillRect(0,0,width,height);
+     context.drawImage(image,0,0,width,height);
+     for(const quality of [0.76,0.66,0.56,0.46]){
+      const candidate=canvas.toDataURL("image/jpeg",quality);
+      if(candidate.length<=360000){compressed=candidate;break;}
+     }
+     if(compressed)break;
+     width=Math.max(1,Math.round(width*0.75));
+     height=Math.max(1,Math.round(height*0.75));
+    }
+    image.close?.();
+    if(!compressed)throw new Error("Could not compress this photo small enough. Please choose another image.");
+    roomPhotoURL=compressed;
+    uploadStatus.textContent="Photo compressed ("+Math.round(compressed.length/1024)+" KB).";
    }
    uploadStatus.textContent="Saving room details...";
    await setDoc(doc(db,"rooms",room.id),{roomDisplayName:displayName,roomPhotoURL,updatedAt:serverTimestamp()},{merge:true});
