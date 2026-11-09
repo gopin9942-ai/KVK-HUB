@@ -837,6 +837,8 @@ function identityAudioIsMuted(identity){
 async function refreshRoomRoles(showErrors=false){
  if(!currentRoomCode||!auth.currentUser)return;
  try{
+  const previousRoles=JSON.stringify(roomRoles);
+  const previousCallerRole=currentUserRoomRole;
   const data=await workerAdminRequest("/room-roles",{roomName:currentRoomCode});
   roomOwnerUid=data.ownerUid||roomOwnerUid;
   roomRoles=data.roles&&typeof data.roles==="object"?data.roles:{};
@@ -848,7 +850,7 @@ async function refreshRoomRoles(showErrors=false){
   }
   $("unbanSettingsBtn").style.display=(isRoomAdmin||isRoomModerator)?"block":"none";
   $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
-  renderParticipants();
+  if(previousRoles!==JSON.stringify(roomRoles)||previousCallerRole!==currentUserRoomRole)renderParticipants();
   return true;
  }catch(error){
   console.error("Room role refresh failed:",error);
