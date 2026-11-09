@@ -970,6 +970,7 @@ async function refreshRoomRoles(showErrors=false){
   }
   $("unbanSettingsBtn").style.display=(isRoomAdmin||isRoomModerator)?"block":"none";
   $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
+  $("roomCodeQuickCopyBtn").style.display=isRoomAdmin?"inline-flex":"none";
   if(previousRoles!==JSON.stringify(roomRoles)||previousCallerRole!==currentUserRoomRole)renderParticipants();
   return true;
  }catch(error){
@@ -989,7 +990,7 @@ async function setupModeration(roomData){
  $("unbanSettingsBtn").style.display="none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
- $("roomCodeQuickCopyBtn").style.display="inline-flex";
+ $("roomCodeQuickCopyBtn").style.display="none";
  await refreshRoomRoles(true);
  if(roomRoleRefreshTimer)clearInterval(roomRoleRefreshTimer);
  roomRoleRefreshTimer=setInterval(()=>refreshRoomRoles(false),3000);
@@ -1513,7 +1514,7 @@ function startMyRooms(){
     settings.onclick=e=>{e.stopPropagation();openQuickRoomActions(room,settings);};actions.append(settings);
    }
    const shareJoin=document.createElement("div");shareJoin.className="roomPreviewShareJoin";
-   const share=document.createElement("button");share.type="button";share.className="roomPreviewShare secondary";share.textContent="Share";share.title="Share room";share.onclick=e=>{e.stopPropagation();openRoomShareMenu(room.id,roomData.roomDisplayName||roomData.name||room.name||room.id);};shareJoin.append(share);
+   if(room.isRoomAdmin){const share=document.createElement("button");share.type="button";share.className="roomPreviewShare secondary";share.textContent="Share";share.title="Share room";share.onclick=e=>{e.stopPropagation();openRoomShareMenu(room.id,roomData.roomDisplayName||roomData.name||room.name||room.id);};shareJoin.append(share);}
    const join=document.createElement("button");join.type="button";join.className="roomPreviewJoin";join.textContent="Join";join.onclick=async e=>{e.stopPropagation();try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
    shareJoin.append(join);actions.append(shareJoin);
    const joinRoom=async()=>{try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
@@ -2277,7 +2278,7 @@ async function changeMicrophoneState(nextEnabled){
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
-$("roomCodeQuickCopyBtn").onclick=()=>{if(currentRoomCode)openRoomShareMenu(currentRoomCode,"Voice Room");};
+$("roomCodeQuickCopyBtn").onclick=()=>{if(isRoomAdmin&&currentRoomCode)openRoomShareMenu(currentRoomCode,"Voice Room");};
 $("leaveBtn").onclick=async()=>{
  try{await leaveVoiceRoom();status.textContent="Disconnected. Your room access is saved.";}
  catch(error){console.error("Disconnect failed:",error);status.textContent="Could not disconnect: "+error.message;}
