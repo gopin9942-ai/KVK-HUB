@@ -1634,17 +1634,19 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  const roomSnap=await getDoc(roomRef);
  if(!roomSnap.exists())throw new Error("Room not found. Ask the host to check the Room ID.");
  const roomDetails=roomSnap.data();
- // When the creator joins an older room, refresh the room-level public profile snapshot.
+ // Refresh the creator's public profile snapshot in the background.
+ // Do not make room joining wait for these optional Firestore reads/writes.
  if(roomDetails.creatorUid===auth.currentUser.uid||roomDetails.createdBy===auth.currentUser.uid){
-  try{
-   const ownerProfileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));
-   const ownerProfile=ownerProfileSnap.exists()?ownerProfileSnap.data()||{}:{};
-   const ownerName=ownerProfile.displayName||auth.currentUser.displayName||"User";
-   const rawOwnerPhoto=ownerProfile.photoDataUrl||ownerProfile.photoURL||auth.currentUser.photoURL||"";
-   const ownerPhotoSnapshot=rawOwnerPhoto.startsWith("data:image/")?(rawOwnerPhoto.length<=180000?rawOwnerPhoto:(auth.currentUser.photoURL||"")):rawOwnerPhoto;
-   await setDoc(roomRef,{createdByName:ownerName,creatorPhotoURL:ownerPhotoSnapshot},{merge:true});
-   roomDetails.createdByName=ownerName;roomDetails.creatorPhotoURL=ownerPhotoSnapshot;
-  }catch(profileSnapshotError){console.warn("Could not refresh room creator profile snapshot:",profileSnapshotError);}
+  (async()=>{
+   try{
+    const ownerProfileSnap=await getDoc(doc(db,"users",auth.currentUser.uid));
+    const ownerProfile=ownerProfileSnap.exists()?ownerProfileSnap.data()||{}:{};
+    const ownerName=ownerProfile.displayName||auth.currentUser.displayName||"User";
+    const rawOwnerPhoto=ownerProfile.photoDataUrl||ownerProfile.photoURL||auth.currentUser.photoURL||"";
+    const ownerPhotoSnapshot=rawOwnerPhoto.startsWith("data:image/")?(rawOwnerPhoto.length<=180000?rawOwnerPhoto:(auth.currentUser.photoURL||"")):rawOwnerPhoto;
+    await setDoc(roomRef,{createdByName:ownerName,creatorPhotoURL:ownerPhotoSnapshot},{merge:true});
+   }catch(profileSnapshotError){console.warn("Could not refresh room creator profile snapshot:",profileSnapshotError);}
+  })();
  }
  if(roomDetails.isPublic!==false)throw new Error("Public rooms are disabled. Use a password-protected room.");
  if(activeRoom)await leaveVoiceRoom();
@@ -1788,7 +1790,8 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
  // Audio diagnostics appear after microphone connection.
  appScreenStack.length=0;appScreenStack.push("home");setAppScreen("room");pushAppNav();
- await startNativeVoiceService(roomName);
+ // Start the optional foreground notification service without delaying room UI readiness.
+ startNativeVoiceService(roomName).catch(error=>console.warn("Native voice service start:",error));
  try{
   const personRef=doc(db,"rooms",roomName,"participants",auth.currentUser.uid);
   const updatePresence=async()=>{
@@ -2092,14 +2095,24 @@ function clearPresence(){
  }
 }
 async function leaveVoiceRoom(){
+ // Switch the interface immediately; do cleanup in parallel so Leave feels responsive.
  resetAppNav();appScreenStack.length=0;closeRoomSettings();
- await stopNativeVoiceService();
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
+ const room=activeRoom;
+ activeRoom=null;
+ currentRoomCode=null;
  clearPresence();
- if(activeRoom){const room=activeRoom;await stopLocalMicrophone(room);activeRoom=null;await room.disconnect();}
- currentRoomCode=null;setAppScreen("home");syncActiveRoomShortcut();
+ setAppScreen("home");syncActiveRoomShortcut();
+ // Native notification shutdown must not hold up the room disconnect or the UI.
+ stopNativeVoiceService().catch(error=>console.warn("Could not stop KVK foreground service:",error));
+ const cleanup=[];
+ if(room){
+  cleanup.push(stopLocalMicrophone(room).catch(error=>console.warn("Microphone cleanup:",error)));
+  cleanup.push(room.disconnect().catch(error=>console.warn("LiveKit disconnect:",error)));
+ }
  // Reattach the Quick Access listener after every disconnect so the home list refreshes immediately.
  if(auth.currentUser)startMyRooms();
+ await Promise.all(cleanup);
  status.textContent="You left the room. Quick Access refreshed.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
