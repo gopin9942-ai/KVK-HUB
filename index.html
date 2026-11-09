@@ -443,101 +443,13 @@ header{position:relative}
 }
 
 \n/* Keep the signed-in Home header quiet; the full brand intro stays on the start screen. */\n@media(min-width:0px){body.app-home-screen header{min-height:42px;padding:6px 12px;gap:0}body.app-home-screen header .brandMark{display:none}body.app-home-screen header .brandCopy{text-align:center}body.app-home-screen header .brandCopy h1{font-size:14px;letter-spacing:.12em;margin:0}body.app-home-screen header .brandCopy p{display:none}}\n
-/* KVK HUB — Obsidian Glass visual theme */
-:root{
-  color-scheme:dark;
-  --cyan:#83e8f5;
-  --mint:#8ce6c7;
-  --ink:#050607;
-  --panel:rgba(20,23,26,.70);
-  --line:rgba(220,235,240,.13);
-  --muted:#a4afb7;
-}
+/* Keep the new dark background; restore all original foreground UI styling. */
 html,body{
   background:
     radial-gradient(ellipse at 50% -18%,rgba(72,91,99,.18),transparent 48%),
     radial-gradient(ellipse at 100% 100%,rgba(35,63,67,.12),transparent 42%),
     #050607 !important;
-  color:#edf3f4;
 }
-body{letter-spacing:.012em}
-header{
-  background:rgba(10,12,14,.72)!important;
-  border-bottom:1px solid rgba(220,235,240,.12)!important;
-  box-shadow:0 10px 35px rgba(0,0,0,.22);
-  -webkit-backdrop-filter:blur(22px) saturate(125%);
-  backdrop-filter:blur(22px) saturate(125%);
-}
-.brandMark{background:rgba(255,255,255,.035)!important;box-shadow:0 5px 22px rgba(0,0,0,.28)!important}
-.brandMark img{filter:drop-shadow(0 0 9px rgba(131,232,245,.22))!important}
-.brandCopy h1{color:#f0f7f8!important;text-shadow:0 2px 18px rgba(131,232,245,.10)}
-.brandCopy p{color:#9baeb4!important}
-.card,.passwordModal,.roomSettingsDialog,.settingsPanel,.profileTop,.profileEditor,
-.advancedTools,.audioSettingsPanel{
-  background:linear-gradient(145deg,rgba(28,33,36,.78),rgba(13,16,18,.82))!important;
-  border:1px solid rgba(220,235,240,.14)!important;
-  box-shadow:0 16px 42px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.035)!important;
-  -webkit-backdrop-filter:blur(18px) saturate(115%);
-  backdrop-filter:blur(18px) saturate(115%);
-}
-.card{border-radius:20px}
-#homePage .profileTop{background:rgba(22,27,29,.68)!important}
-.roomItem,.polishedRoomItem,#myRoomList .roomItem{
-  background:linear-gradient(145deg,rgba(31,38,41,.78),rgba(15,19,21,.88))!important;
-  border:1px solid rgba(210,230,235,.14)!important;
-  box-shadow:0 9px 24px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)!important;
-}
-.roomItem strong,.roomPreviewName,.participantName{color:#f0f5f6!important}
-.roomMeta,.roomPreviewSub,.small,.roomFootnote,.audioSupportNote{color:#a5b1b7!important}
-.sectionEyebrow,.roomInputLabel{color:#9bdce3!important}
-button{
-  background:linear-gradient(135deg,#b4e8eb,#70cbd4)!important;
-  color:#071012!important;
-  border:1px solid rgba(205,248,250,.28)!important;
-  box-shadow:0 6px 18px rgba(89,190,200,.12)!important;
-}
-button.secondary,.settingsMenuButton,.appSubScreenBack,#appBackBtn,
-.profileMenuButton,.adminDots,.tileAdminDots,.roomPreviewSettings,
-.callControl:not(.disconnectControl),.muteToggleAction{
-  background:rgba(48,58,62,.76)!important;
-  color:#e7f0f1!important;
-  border:1px solid rgba(220,235,240,.15)!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
-}
-button:hover{filter:brightness(1.08)}
-input,textarea,select{
-  background:rgba(7,10,11,.72)!important;
-  color:#f0f5f6!important;
-  border:1px solid rgba(200,225,230,.19)!important;
-  box-shadow:inset 0 2px 8px rgba(0,0,0,.24)!important;
-}
-input:focus,textarea:focus,select:focus{
-  outline:none!important;border-color:rgba(131,232,245,.58)!important;
-  box-shadow:0 0 0 3px rgba(131,232,245,.09)!important;
-}
-#status,#roomInfo,.settingsHeading,.roomSettingsDialog h3{color:#91e3eb!important}
-.participantTile .avatar{outline-color:rgba(230,245,247,.22)!important}
-.participantRoleBadge{background:rgba(40,61,66,.72)!important;border-color:rgba(131,205,214,.28)!important;color:#c4edf0!important}
-.participantRoleBadge.is-admin{background:rgba(91,43,50,.72)!important;border-color:rgba(220,125,139,.42)!important;color:#ffc7ce!important}
-.participantRoleBadge.is-moderator{background:rgba(82,69,37,.72)!important;border-color:rgba(206,177,103,.42)!important;color:#f3dfa8!important}
-.volumePanel{background:rgba(13,17,19,.72)!important;border-color:rgba(220,235,240,.13)!important}
-.callControlBar{background:rgba(9,12,13,.82)!important;border-color:rgba(220,235,240,.16)!important;backdrop-filter:blur(18px)}
-.disconnectControl,.confirmDeleteAction,.cancelDeleteAction,.dangerAction,
-.tileAdminDropdown button.dangerAction,.deleteChannelAction{background:linear-gradient(135deg,#a94d5b,#783642)!important;color:#fff!important}
-.tileAdminDropdown,.adminActionMenu,.profileMenu{
-  background:rgba(18,23,25,.94)!important;border-color:rgba(220,235,240,.17)!important;
-  box-shadow:0 18px 42px rgba(0,0,0,.55)!important;backdrop-filter:blur(20px)
-}
-.tileAdminDropdown button.menuAction:hover{background:rgba(92,115,120,.22)!important}
-.roomPreviewPhoto,.roomPreviewAvatarFallback,.roomPreviewPeople img,.roomPreviewInitial{
-  border-color:#151b1d!important;background:#303a3d!important
-}
-.roomOnlineDot.is-online{background:#69d9a9!important;box-shadow:0 0 7px rgba(105,217,169,.48)!important}
-#bootSplash{background:radial-gradient(ellipse at 50% 38%,#1c292c 0%,#0b1012 48%,#050607 100%)!important}
-.splashTitle{ text-shadow:0 4px 25px rgba(131,232,245,.16)!important}
-.splashLoader i{background:#83e8f5!important}
-.passwordModalOverlay,.roomSettingsOverlay{background:rgba(0,0,0,.78)!important;backdrop-filter:blur(9px)}
-
 </style>
 </head>
 <body>
