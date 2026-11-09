@@ -56,7 +56,7 @@ if strings.exists():
     app_name = root_xml.find("string[@name='app_name']")
     if app_name is None:
         app_name = ET.SubElement(root_xml, "string", {"name": "app_name"})
-    app_name.text = "KVK Hub"
+    app_name.text = "KVK HUB"
     tree.write(strings, encoding="utf-8", xml_declaration=True)
 
-print("Applied the approved KVK Hub launcher icon and display name.")
+print("Applied the approved KVK HUB launcher icon and display name.")
