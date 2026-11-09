@@ -955,17 +955,18 @@ function identityAudioIsMuted(identity){
  return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
 }
 function participantMicIsEnabled(profile){
- if(!profile||!activeRoom)return profile?.micEnabled===true;
- const identity=profile.livekitIdentity||profile.uid;
- const isLocal=identity===activeRoom.localParticipant?.identity||profile.uid===auth.currentUser?.uid;
- const participant=isLocal?activeRoom.localParticipant:[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity||p.identity===profile.uid);
- if(!participant)return profile.micEnabled===true;
- if(isLocal)return !!micEnabled;
- const publications=[...(participant.audioTrackPublications?.values?.()||[])];
- const microphonePublications=publications.filter(publication=>publication.source==="microphone"||publication.kind==="audio");
- if(microphonePublications.length)return microphonePublications.some(publication=>!publication.isMuted&&publication.track?.mediaStreamTrack?.enabled!==false);
- if(typeof participant.isMicrophoneEnabled==="boolean")return participant.isMicrophoneEnabled;
- return profile.micEnabled===true;
+  if(!profile||!activeRoom)return profile?.micEnabled===true;
+  const identity=profile.livekitIdentity||profile.uid;
+  const isLocal=identity===activeRoom.localParticipant?.identity||profile.uid===auth.currentUser?.uid;
+  const participant=isLocal?activeRoom.localParticipant:[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity||p.identity===profile.uid);
+  if(!participant)return profile.micEnabled===true;
+  if(isLocal)return !!micEnabled;
+  // LiveKit participant microphone state is shared with every client in the room.
+  // Avoid remote MediaStreamTrack.enabled: it can remain false locally after unmute.
+  if(typeof participant.isMicrophoneEnabled==="boolean")return participant.isMicrophoneEnabled;
+  const microphonePublications=[...(participant.audioTrackPublications?.values?.()||[])].filter(publication=>publication.source==="microphone");
+  if(microphonePublications.length)return microphonePublications.some(publication=>!publication.isMuted);
+  return profile.micEnabled===true;
 }
 function syncParticipantMicState(participant,enabled){
  if(!participant?.identity)return;
