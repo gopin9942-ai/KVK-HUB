@@ -1234,7 +1234,7 @@ function openQuickRoomSettings(room){
    const file=photoInput.files?.[0];
    if(file){
     if(!file.type.startsWith("image/")||file.size>10*1024*1024)throw new Error("Choose an image under 10 MB.");
-    uploadStatus.textContent="Compressing photo for Firestore...";
+    uploadStatus.textContent="Preparing your room photo...";
     const image=await createImageBitmap(file);
     const canvas=document.createElement("canvas");
     const initialScale=Math.min(1,512/Math.max(image.width,image.height));
@@ -1365,7 +1365,7 @@ function startMyRooms(){
    },error=>console.warn("Quick Access room metadata listener:",error));
    quickRoomMetadataStops.set(room.id,stopMetadata);
   }
- },error=>{console.error(error);list.innerHTML='<div class="empty">Could not load My Rooms. Check Firestore security rules.</div>';status.textContent="MY ROOMS ERROR: "+error.message;});
+ },error=>{console.error("Could not load My Rooms:",error);list.innerHTML='<div class="empty">Your saved rooms could not be loaded. Please try again.</div>';status.textContent="Could not refresh your saved rooms. Please try again.";});
 }
 async function stopLocalMicrophone(room=activeRoom){
  const track=localPublishedMicTrack;localPublishedMicTrack=null;
