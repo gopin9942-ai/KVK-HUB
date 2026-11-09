@@ -24,22 +24,32 @@ print("Cleared old launcher resources:", removed)
 with Image.open(source) as opened:
     original = opened.convert("RGBA")
 
+# Detect the actual colored KVK artwork, not tiny compression/noise
+# variations in the surrounding black canvas.
 rgb = original.convert("RGB")
-background = rgb.getpixel((0, 0))
-difference = ImageChops.difference(rgb, Image.new("RGB", rgb.size, background))
-mask = difference.convert("L").point(lambda value: 255 if value > 10 else 0)
-bbox = mask.getbbox()
-if bbox is None:
+pixels = rgb.load()
+xs, ys = [], []
+for y in range(rgb.height):
+    for x in range(rgb.width):
+        red, green, blue = pixels[x, y]
+        brightest = max(red, green, blue)
+        saturation = brightest - min(red, green, blue)
+        if brightest >= 48 and (saturation >= 24 or brightest >= 105):
+            xs.append(x)
+            ys.append(y)
+if not xs:
     raise SystemExit("Could not detect visible KVK logo artwork")
 
-left, top, right, bottom = bbox
-pad_x = max(2, int((right - left) * 0.07))
-pad_y = max(2, int((bottom - top) * 0.07))
+left, right = min(xs), max(xs) + 1
+top, bottom = min(ys), max(ys) + 1
+pad_x = max(3, int((right - left) * 0.06))
+pad_y = max(3, int((bottom - top) * 0.06))
 left = max(0, left - pad_x)
 top = max(0, top - pad_y)
 right = min(original.width, right + pad_x)
 bottom = min(original.height, bottom + pad_y)
 artwork = original.crop((left, top, right, bottom))
+print(f"Cropped KVK artwork from {original.size} to {artwork.size}")
 
 # Adaptive icons are masked by Android. Keep the artwork inside the central
 # safe circle, but make the visible logo itself large instead of scaling its
