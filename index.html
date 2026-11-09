@@ -1394,7 +1394,7 @@ async function deleteQuickAccessRoom(room,triggerButton){
     await workerAdminRequest("/delete-room",{roomName:room.id});
    }catch(liveKitDeleteError){
     const deleteErrorText=String(liveKitDeleteError?.message||liveKitDeleteError||"");
-    const roomAlreadyMissing=/HTTP\\s*404/i.test(deleteErrorText)&&/(room does not exist|request room does not exist|code not found|not found)/i.test(deleteErrorText);
+    const roomAlreadyMissing=/HTTP\s*404/i.test(deleteErrorText)&&/(room does not exist|request room does not exist|code not found|not found)/i.test(deleteErrorText);
     if(!roomAlreadyMissing)throw liveKitDeleteError;
     console.info("LiveKit room was already absent; continuing Firestore cleanup:",room.id,deleteErrorText);
    }
