@@ -387,7 +387,7 @@ header{position:relative}
 .roomPreviewPeople img,.roomPreviewInitial{width:25px;height:25px;border-radius:50%;object-fit:cover;border:2px solid #101d32;margin-right:-6px;background:#344762}
 .roomPreviewInitial{display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
 .roomPreviewCount{font-size:10px;color:#a9bad3;margin-left:0}.roomOnlineDot{width:8px;height:8px;flex:none;border-radius:50%;background:#66758b;box-shadow:none}.roomOnlineDot.is-online{background:#35e69a;box-shadow:0 0 7px #35e69a88}
-.roomPreviewActions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}
+.roomPreviewActions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}.roomPreviewShareJoin{display:flex;align-items:center;gap:6px}.roomPreviewShare{width:auto!important;min-height:31px;padding:6px 10px!important;margin:0!important;font-size:11px!important}
 .roomPreviewSettings{width:31px;height:31px;padding:0;margin:0;border-radius:9px;background:#303954;color:#fff;font-size:17px}
 .roomPreviewJoin{width:auto!important;min-height:31px;padding:6px 11px!important;margin:0!important;font-size:11px!important}
 .roomSettingsOverlay{position:fixed;inset:0;z-index:10000;background:#050914d9;display:grid;place-items:center;padding:18px}
@@ -565,7 +565,7 @@ header{
 <div class="card roomScreenCard">
  <div class="roomTopbar">
   <div class="roomTitleGroup"><div class="sectionEyebrow">LIVE VOICE SPACE</div><h2>🎙️ Voice Room</h2><p id="roomInfo" class="small">Room connected</p></div>
-  <div class="roomTopActions"><button id="roomCodeQuickCopyBtn" class="secondary roomCodeQuickCopy" type="button">Room ID</button><button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button></div>
+  <div class="roomTopActions"><button id="roomCodeQuickCopyBtn" class="secondary roomCodeQuickCopy" type="button">Share</button><button id="roomSettingsBtn" class="secondary roomSettingsIcon" aria-label="Room settings">⚙</button></div>
  </div>
  <div id="roomSettingsPanel" class="settingsPanel roomSettingsSheet" style="display:none">
   <div class="settingsHeading">Room Settings</div>
@@ -1291,6 +1291,25 @@ function stopMyRooms(){
  myRoomsRenderVersion++;
 }
 function initials(value){return String(value||"U").trim().split(/\s+/).slice(0,2).map(x=>x.charAt(0)).join("").toUpperCase()||"U";}
+async function copyRoomShareValue(value){
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(value);return;}
+  const temp=document.createElement("textarea");temp.value=value;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
+}
+function roomInviteLink(roomId){const invite=new URL(location.href);invite.search="";invite.hash="";invite.searchParams.set("room",roomId);return invite.toString();}
+function openRoomShareMenu(roomId,roomName="Voice Room"){
+  if(!roomId)return;
+  const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
+  const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");
+  const heading=document.createElement("h3");heading.textContent="Share "+roomName;
+  const roomIdOption=document.createElement("button");roomIdOption.type="button";roomIdOption.className="quickRoomMenuAction";roomIdOption.textContent="Room ID";
+  const linkOption=document.createElement("button");linkOption.type="button";linkOption.className="quickRoomMenuAction";linkOption.textContent="Link";
+  const closeButton=document.createElement("button");closeButton.type="button";closeButton.className="secondary";closeButton.textContent="Close";
+  const close=()=>overlay.remove();
+  roomIdOption.onclick=async()=>{try{await copyRoomShareValue(roomId);close();status.textContent="Room ID copied. You can send it to your friends.";}catch(error){console.error("Copy Room ID:",error);status.textContent="Could not copy Room ID. Please try again.";}};
+  linkOption.onclick=async()=>{try{await copyRoomShareValue(roomInviteLink(roomId));close();status.textContent="Room link copied. You can send it to your friends.";}catch(error){console.error("Copy room link:",error);status.textContent="Could not copy room link. Please try again.";}};
+  closeButton.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
+  dialog.append(heading,roomIdOption,linkOption,closeButton);overlay.append(dialog);document.body.append(overlay);roomIdOption.focus();
+}
 function openQuickRoomActions(room,triggerButton){
  const roomData=room.roomData||{};
  const uid=auth.currentUser?.uid;
@@ -1493,8 +1512,10 @@ function startMyRooms(){
     const settings=document.createElement("button");settings.type="button";settings.className="roomPreviewSettings";settings.textContent="⚙";settings.title="Room Options";settings.setAttribute("aria-label","Room Options");
     settings.onclick=e=>{e.stopPropagation();openQuickRoomActions(room,settings);};actions.append(settings);
    }
+   const shareJoin=document.createElement("div");shareJoin.className="roomPreviewShareJoin";
+   const share=document.createElement("button");share.type="button";share.className="roomPreviewShare secondary";share.textContent="Share";share.title="Share room";share.onclick=e=>{e.stopPropagation();openRoomShareMenu(room.id,roomData.roomDisplayName||roomData.name||room.name||room.id);};shareJoin.append(share);
    const join=document.createElement("button");join.type="button";join.className="roomPreviewJoin";join.textContent="Join";join.onclick=async e=>{e.stopPropagation();try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
-   actions.append(join);
+   shareJoin.append(join);actions.append(shareJoin);
    const joinRoom=async()=>{try{await connectVoiceRoom(room.id);}catch(error){status.textContent="JOIN ERROR: "+error.message;console.error(error);}};
    previewCard.onclick=joinRoom;previewCard.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();joinRoom();}};
    previewCard.append(roomImage,main,actions);item.append(previewCard);list.append(item);
@@ -2249,18 +2270,7 @@ async function changeMicrophoneState(nextEnabled){
 $("muteBtn").onclick=async()=>{if(!activeRoom)return;await changeMicrophoneState(!micEnabled);};
 $("copyVoiceDiagnosticsBtn").onclick=copyVoiceDiagnostics;
 
-$("roomCodeQuickCopyBtn").onclick=async()=>{
- const code=currentRoomCode;
- if(!code)return;
- try{
-  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code);}
-  else{
-   const temp=document.createElement("textarea");temp.value=code;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();
-   const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
-  }
-  status.textContent="Room ID copied! Now you can send it to your friends.";
- }catch(e){console.error("Copy room code failed:",e);status.textContent="Could not copy automatically. Please try again."; }
-};
+$("roomCodeQuickCopyBtn").onclick=()=>{if(currentRoomCode)openRoomShareMenu(currentRoomCode,"Voice Room");};
 $("leaveBtn").onclick=async()=>{
  try{await leaveVoiceRoom();status.textContent="Disconnected. Your room access is saved.";}
  catch(error){console.error("Disconnect failed:",error);status.textContent="Could not disconnect: "+error.message;}
