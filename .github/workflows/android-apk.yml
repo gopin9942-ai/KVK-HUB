@@ -6,6 +6,7 @@ on:
     paths:
       - 'index.html'
       - 'kvk-logo.webp'
+      - 'kvk-app-icon.webp.base64'
       - 'scripts/configure_android_branding.py'
       - 'native-call.js'
       - 'scripts/configure_android_foreground_service.py'
@@ -45,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Restore new KVK HUB launcher artwork
+        run: base64 --decode kvk-app-icon.webp.base64 > kvk-logo.webp
 
       - name: Prepare web assets
         run: |
