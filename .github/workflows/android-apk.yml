@@ -48,7 +48,7 @@ jobs:
         run: npm install
 
       - name: Restore new KVK HUB launcher artwork
-        run: base64 --decode kvk-app-icon.webp.base64 > kvk-logo.webp
+        run: cp kvk-app-icon.webp.base64 kvk-logo.webp
 
       - name: Prepare web assets
         run: |
