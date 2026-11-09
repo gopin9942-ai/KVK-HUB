@@ -962,13 +962,17 @@ async function refreshRoomRoles(showErrors=false){
   const data=await workerAdminRequest("/room-roles",{roomName:currentRoomCode});
   roomOwnerUid=data.ownerUid||roomOwnerUid;
   roomRoles=data.roles&&typeof data.roles==="object"?data.roles:{};
-  currentUserRoomRole=data.callerRole||roomRoles[auth.currentUser.uid]||"member";
+  // The verified room owner must always retain the admin role in the UI,
+  // even if the Worker callerRole field is missing or stale.
+  if(roomOwnerUid)roomRoles[roomOwnerUid]="admin";
+  currentUserRoomRole=(roomOwnerUid&&auth.currentUser.uid===roomOwnerUid)?"admin":(data.callerRole||roomRoles[auth.currentUser.uid]||"member");
   isRoomAdmin=currentUserRoomRole==="admin";
   isRoomModerator=currentUserRoomRole==="moderator";
   for(const [uid,profile] of participantProfiles){
    profile.role=roomRoles[uid]||(uid===roomOwnerUid?"admin":"member");
   }
   $("unbanSettingsBtn").style.display=(isRoomAdmin||isRoomModerator)?"block":"none";
+  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
   $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
   $("roomCodeQuickCopyBtn").style.display=isRoomAdmin?"inline-flex":"none";
   if(previousRoles!==JSON.stringify(roomRoles)||previousCallerRole!==currentUserRoomRole)renderParticipants();
