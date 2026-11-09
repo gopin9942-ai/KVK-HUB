@@ -1,6 +1,6 @@
 {
   "appId": "com.kvkhub.voice",
-  "appName": "KVK HUB",
+  "appName": "KVK Hub",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
