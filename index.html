@@ -1031,14 +1031,21 @@ async function saveProfile(){
  if(!name){status.textContent="Please enter your name.";return;}
  if(publicId&&!/^[a-zA-Z0-9_]{3,24}$/.test(publicId)){status.textContent="KVK User ID must be 3–24 letters, numbers or underscores.";return;}
  const button=$("saveProfileBtn");button.disabled=true;
+ button.textContent="Saving...";
  try{
   await setDoc(doc(db,"users",user.uid),{uid:user.uid,displayName:name,publicId,photoDataUrl:selectedProfilePhoto||null,updatedAt:serverTimestamp()},{merge:true});
-  await loadUserProfile(user);
-  if(appNavDepth>0)history.back();else handleAppBack();
+  // Update the visible profile from the values already in memory; avoid a second Firestore read.
+  const photo=profileAvatar(user,selectedProfilePhoto||"");
+  $("profileTopName").textContent=name;
+  $("profileNameIdInput").value=publicId;
+  $("profileTopId").textContent=publicId?"@"+publicId:"";
   $("userName").textContent="Hello, "+name;
+  setProfileImage($("profileTopPhoto"),photo,name);
+  setProfileImage($("profilePreview"),photo,name);
+  if(appNavDepth>0)history.back();else handleAppBack();
   status.textContent="Profile saved successfully.";
  }catch(error){console.error(error);status.textContent="Profile save failed: "+error.message;}
- finally{button.disabled=false;}
+ finally{button.disabled=false;button.textContent="Save Profile";}
 }
 $("profileMenuButton").onclick=()=>{
  const menu=$("profileMenu");menu.hidden=!menu.hidden;
@@ -1077,10 +1084,10 @@ $("profilePhotoInput").onchange=async event=>{
  if(file.size>8*1024*1024){status.textContent="Choose an image smaller than 8 MB.";return;}
  try{
   const image=await createImageBitmap(file);
-  const canvas=document.createElement("canvas");const scale=Math.min(1,512/Math.max(image.width,image.height));
+  const canvas=document.createElement("canvas");const scale=Math.min(1,384/Math.max(image.width,image.height));
   canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
   canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
-  selectedProfilePhoto=canvas.toDataURL("image/jpeg",0.78);
+  selectedProfilePhoto=canvas.toDataURL("image/jpeg",0.7);
   setProfileImage($("profilePreview"),selectedProfilePhoto,$("profileNameInput").value||"User");
   status.textContent="Photo selected. Press Save Profile.";
  }catch(error){status.textContent="Could not read that image.";console.error(error);}
