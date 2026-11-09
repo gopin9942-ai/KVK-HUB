@@ -1295,7 +1295,7 @@ async function copyRoomShareValue(value){
   if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(value);return;}
   const temp=document.createElement("textarea");temp.value=value;temp.style.position="fixed";temp.style.opacity="0";document.body.appendChild(temp);temp.select();const copied=document.execCommand("copy");temp.remove();if(!copied)throw new Error("Copy not supported");
 }
-function roomInviteLink(roomId){const invite=new URL(location.href);invite.search="";invite.hash="";invite.searchParams.set("room",roomId);return invite.toString();}
+function roomInviteLink(roomId){const invite=new URL("https://gopin9942-ai.github.io/KVK-HUB/");invite.searchParams.set("room",roomId);return invite.toString();}
 function openRoomShareMenu(roomId,roomName="Voice Room"){
   if(!roomId)return;
   const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
@@ -2102,6 +2102,7 @@ async function leaveVoiceRoom(){
  status.textContent="You left the room. Quick Access refreshed.";
 }
 $("loginBtn").onclick=async()=>{ $("loginBtn").disabled=true;status.textContent="Connecting to Google...";try{await loginWithGoogle();}catch(e){console.error(e);status.textContent="Login Error: "+(e.code||e.message);}finally{$("loginBtn").disabled=false;}};
+let inviteJoinStarted=false;
 onAuthStateChanged(auth,async user=>{
  // Reveal the correct signed-in/signed-out screen immediately. Persistence setup
  // must never keep the user behind the boot splash.
@@ -2110,9 +2111,15 @@ onAuthStateChanged(auth,async user=>{
  showHome(user);
  await requestMainPagePermissions();
  try{await authReady;}catch(error){console.error("Firebase auth persistence:",error);}
+ // Shared invite: after login, open the target room directly instead of filling the Room ID field.
  const inviteRoom=new URLSearchParams(location.search).get("room");
- if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom))$("roomCode").value=inviteRoom;
- // Always start on Home after a fresh app launch. Never auto-reconnect to a previous voice room.
+ if(inviteRoom&&/^[a-zA-Z0-9_-]{3,40}$/.test(inviteRoom)&&!inviteJoinStarted){
+  inviteJoinStarted=true;
+  const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete("room");
+  history.replaceState({},document.title,cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  try{await connectVoiceRoom(inviteRoom);}
+  catch(error){console.error("Invite room join:",error);status.textContent="Could not join the invited room: "+error.message;}
+ }
 });
 $("refreshRoomsBtn").onclick=()=>{startMyRooms();status.textContent="Refreshing My Rooms...";};
 function stopDeleteCountdown(){
