@@ -204,6 +204,17 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
+      - name: Verify packaged launcher icon
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -f "$APK"
+          test -n "$AAPT"
+          "$AAPT" dump badging "$APK" | tee /tmp/kvk-apk-badging.txt
+          grep -q "^application-icon-" /tmp/kvk-apk-badging.txt
+          "$AAPT" dump resources "$APK" | grep -q "ic_launcher_foreground"
+          echo "Verified launcher icon resources are packaged in the APK."
+
       - name: Report Android signing fingerprints
         working-directory: android
         run: ./gradlew signingReport
