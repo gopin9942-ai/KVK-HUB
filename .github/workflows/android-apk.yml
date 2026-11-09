@@ -70,7 +70,10 @@ jobs:
           PY
           node --check /tmp/kvk-index-inline.mjs
 
-      - name: Generate Android project
+      - name: Remove previous generated Android project and icon resources
+        run: rm -rf android
+
+      - name: Generate Android project from clean state
         run: npx cap add android
 
       - name: Configure Android foreground voice service
@@ -206,7 +209,7 @@ jobs:
       
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew clean assembleDebug
 
       - name: Verify packaged launcher icon
         run: |
