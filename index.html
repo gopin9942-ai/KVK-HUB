@@ -1885,9 +1885,9 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  localStorage.setItem("kvkActiveRoom:"+auth.currentUser.uid,roomName);
  $("roomInfo").textContent=roomSnap.data().name||"Voice room connected";
  await setupModeration(roomSnap.data());
- $("muteBtnLabel").textContent=data.muted?"Locked":(micEnabled?"Mute":"Unmute");
- $("muteBtn").classList.toggle("is-muted",!micEnabled||!!data.muted);
- $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!data.muted?"🎙":"🔇";
+ $("muteBtnLabel").textContent=serverMicLocked?"Locked":(micEnabled?"Mute":"Unmute");
+ $("muteBtn").classList.toggle("is-muted",!micEnabled||serverMicLocked);
+ $("muteBtn").querySelector(".callControlIcon").textContent=micEnabled&&!serverMicLocked?"🎙":"🔇";
  // Audio diagnostics appear after microphone connection.
  appScreenStack.length=0;appScreenStack.push("home");setAppScreen("room");pushAppNav();
  // Start the optional foreground notification service without delaying room UI readiness.
