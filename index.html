@@ -2144,8 +2144,9 @@ function clearPresence(){
  if(roomRoleRefreshTimer){clearInterval(roomRoleRefreshTimer);roomRoleRefreshTimer=null;}
  stopAllVoiceMeters();participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;roomRoles={};currentUserRoomRole="member";locallyMutedMembers.clear();isRoomModerator=false;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
-  deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(console.error);
+  return deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(error=>{console.error("Could not remove room presence:",error);});
  }
+ return Promise.resolve();
 }
 async function leaveVoiceRoom(){
  // Switch the interface immediately; do cleanup in parallel so Leave feels responsive.
@@ -2153,12 +2154,13 @@ async function leaveVoiceRoom(){
  if(auth.currentUser)localStorage.removeItem("kvkActiveRoom:"+auth.currentUser.uid);
  const room=activeRoom;
  activeRoom=null;
+ // Remove the Firestore participant document while currentRoomCode still identifies this room.
+ const presenceCleanup=clearPresence();
  currentRoomCode=null;
- clearPresence();
  setAppScreen("home");syncActiveRoomShortcut();
  // Native notification shutdown must not hold up the room disconnect or the UI.
  stopNativeVoiceService().catch(error=>console.warn("Could not stop KVK foreground service:",error));
- const cleanup=[];
+ const cleanup=[presenceCleanup];
  if(room){
   cleanup.push(stopLocalMicrophone(room).catch(error=>console.warn("Microphone cleanup:",error)));
   cleanup.push(room.disconnect().catch(error=>console.warn("LiveKit disconnect:",error)));
