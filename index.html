@@ -951,8 +951,9 @@ function identityAudioIsMuted(identity){
  if(activeRoom.localParticipant?.identity===identity)participant=activeRoom.localParticipant;
  else participant=[...activeRoom.remoteParticipants.values()].find(p=>p.identity===identity)||null;
  if(!participant)return false;
- const audioPublications=[...participant.audioTrackPublications.values()];
- return audioPublications.length>0&&audioPublications.every(publication=>!!publication.isMuted);
+ const audioPublications=[...participant.audioTrackPublications.values()].filter(publication=>publication.kind==="audio");
+ if(!audioPublications.length)return participant.permissions?.canPublish===false;
+ return audioPublications.every(publication=>!!publication.isMuted);
 }
 function participantMicIsEnabled(profile){
   if(!profile||!activeRoom)return profile?.micEnabled===true;
@@ -966,6 +967,10 @@ function participantMicIsEnabled(profile){
   // so filtering only Source.Microphone or relying on isMicrophoneEnabled can
   // incorrectly leave the remote member looking muted after they unmute.
   const audioPublications=[...(participant.audioTrackPublications?.values?.()||[])].filter(publication=>publication.kind==="audio");
+  if(!audioPublications.length){
+   if(participant.permissions?.canPublish===false)return false;
+   return profile.micEnabled===true;
+  }
   const knownMuteStates=audioPublications.map(publication=>publication.isMuted).filter(value=>typeof value==="boolean");
   if(knownMuteStates.length)return knownMuteStates.some(isMuted=>!isMuted);
   if(typeof participant.isMicrophoneEnabled==="boolean")return participant.isMicrophoneEnabled;
@@ -1045,7 +1050,7 @@ initializeAppNavigation();
 initializeNativeBackButton();
 const loginPage=$("loginPage"),homePage=$("homePage"),roomPage=$("roomPage"),status=$("status");
 // Join rooms with the microphone OFF by default. The user enables it explicitly after joining.
-let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
+let activeRoom=null,micEnabled=localStorage.getItem("kvkMicEnabled")==="true",serverMicLocked=false,currentRoomCode=null,presenceTimer=null,stopPresenceListener=null;
 // Use Android/WebView built-in voice processing only; no custom AI audio worklet.
 let localMicStream=null,localPublishedMicTrack=null;
 let stopRoomsListener=null,stopRoomPeopleListener=null,stopRoomLifecycleListener=null;
@@ -1716,6 +1721,7 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
   }
  }
  if(!data.token||!data.serverUrl)throw new Error("Worker response is missing token or serverUrl.");
+ serverMicLocked=!!data.muted;
  // Load LiveKit only when the user actually joins a room. A CDN failure must not
  // block Firebase initialization and leave the app stuck on the boot splash.
  const {Room,RoomEvent,ParticipantEvent}=await import("https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs");
@@ -1753,6 +1759,54 @@ async function connectVoiceRoom(roomName,restoreMode=false,providedPassword=""){
  });
  room.on(RoomEvent.TrackUnpublished,(publication,participant)=>{
   if(publication?.kind==="audio")syncParticipantMicState(participant,false);
+ });
+ // A moderator mute revokes publish permission; unmute restores it but LiveKit
+ // does not automatically republish the microphone. Handle both permission events.
+ room.on(RoomEvent.ParticipantPermissionsChanged,async(_previousPermissions,participant)=>{
+  if(participant!==room.localParticipant)return;
+  const canPublish=participant.permissions?.canPublish;
+  if(canPublish===false){
+   serverMicLocked=true;
+   micEnabled=false;
+   localStorage.setItem("kvkMicEnabled","false");
+   try{await stopLocalMicrophone(room);}catch(error){console.warn("Could not stop locked microphone:",error);}
+   await syncMyMicPresence();
+   $("muteBtnLabel").textContent="Locked";
+   $("muteBtn").classList.add("is-muted");
+   $("muteBtn").setAttribute("aria-label","Microphone locked by room admin");
+   $("muteBtn").querySelector(".callControlIcon").textContent="🔇";
+   renderParticipants();
+   status.textContent="Your microphone was locked by the room admin.";
+   await updateNativeVoiceService();
+   return;
+  }
+  if(canPublish===true&&serverMicLocked){
+   try{
+    await setRoomMicrophone(room,true);
+    serverMicLocked=false;
+    micEnabled=true;
+    localStorage.setItem("kvkMicEnabled","true");
+    await syncMyMicPresence();
+    $("muteBtnLabel").textContent="Mute";
+    $("muteBtn").classList.remove("is-muted");
+    $("muteBtn").setAttribute("aria-label","Mute microphone");
+    $("muteBtn").querySelector(".callControlIcon").textContent="🎙";
+    renderParticipants();
+    status.textContent="Admin unmuted your microphone. You can speak now.";
+    await updateNativeVoiceService();
+   }catch(error){
+    serverMicLocked=false;
+    micEnabled=false;
+    localStorage.setItem("kvkMicEnabled","false");
+    await syncMyMicPresence();
+    $("muteBtnLabel").textContent="Unmute";
+    $("muteBtn").classList.add("is-muted");
+    $("muteBtn").setAttribute("aria-label","Unmute microphone");
+    $("muteBtn").querySelector(".callControlIcon").textContent="🔇";
+    status.textContent="Admin unmuted you, but the microphone could not start. Tap Unmute: "+error.message;
+    await updateNativeVoiceService();
+   }
+  }
  });
  room.on(RoomEvent.TrackSubscribed,(track,publication,participant)=>{
   kvkDiag("livekit-track-subscribed",{kind:track.kind,source:track.source||"unknown",participantSid:participant?.sid||null,trackSid:publication?.trackSid||track?.sid||null,remoteParticipantCount:room.remoteParticipants.size});
@@ -2142,7 +2196,7 @@ function clearPresence(){
  if(stopPresenceListener){stopPresenceListener();stopPresenceListener=null;}
  if(stopRoomPeopleListener){stopRoomPeopleListener();stopRoomPeopleListener=null;}
  if(roomRoleRefreshTimer){clearInterval(roomRoleRefreshTimer);roomRoleRefreshTimer=null;}
- stopAllVoiceMeters();participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;roomRoles={};currentUserRoomRole="member";locallyMutedMembers.clear();isRoomModerator=false;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
+ stopAllVoiceMeters();participantProfiles.clear();livekitIdentityToUid.clear();activeSpeakerIds.clear();participantTiles.clear();roomOwnerUid=null;roomRoles={};currentUserRoomRole="member";locallyMutedMembers.clear();serverMicLocked=false;isRoomModerator=false;const participantGrid=$("participantGrid");if(participantGrid)participantGrid.replaceChildren();adminMuteState.clear();isRoomAdmin=false;remoteAudioGains.clear();
  if(currentRoomCode&&auth.currentUser){
   return deleteDoc(doc(db,"rooms",currentRoomCode,"participants",auth.currentUser.uid)).catch(error=>{console.error("Could not remove room presence:",error);});
  }
@@ -2313,6 +2367,7 @@ async function syncMyMicPresence(){
 }
 async function changeMicrophoneState(nextEnabled){
  if(!activeRoom)return;
+ if(serverMicLocked&&nextEnabled){status.textContent="Your microphone is locked by the room admin. Only an Admin can unmute you.";return;}
  try{
   if(localPublishedMicTrack){
    // Use LiveKit LocalTrack mute/unmute so the state is broadcast to every room member.
