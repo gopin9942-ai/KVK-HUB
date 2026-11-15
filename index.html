@@ -1367,14 +1367,68 @@ function openQuickRoomActions(room,triggerButton){
  const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");
  const heading=document.createElement("h3");heading.textContent="Room Options";
  const profile=document.createElement("button");profile.type="button";profile.className="quickRoomMenuAction";profile.textContent="⚙ Profile Settings";
+ const memberLimit=document.createElement("button");memberLimit.type="button";memberLimit.className="quickRoomMenuAction";memberLimit.textContent="👥 Room Limit Settings";
  const remove=document.createElement("button");remove.type="button";remove.className="quickRoomMenuAction quickRoomMenuDanger";remove.textContent="🗑 Delete Channel";
  const closeButton=document.createElement("button");closeButton.type="button";closeButton.className="secondary";closeButton.textContent="Close";
  const close=()=>overlay.remove();
  profile.onclick=()=>{close();openQuickRoomSettings(room);};
+ memberLimit.onclick=()=>{close();openQuickRoomMemberLimitSettings(room);};
  remove.onclick=()=>{close();deleteQuickAccessRoom(room,triggerButton);};
  closeButton.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
- dialog.append(heading,profile,remove,closeButton);overlay.append(dialog);document.body.append(overlay);
+ dialog.append(heading,profile,memberLimit,remove,closeButton);overlay.append(dialog);document.body.append(overlay);
  profile.focus();
+}
+async function openQuickRoomMemberLimitSettings(room){
+ const roomData=room?.roomData||{};
+ const uid=auth.currentUser?.uid;
+ if(!uid||!(roomData.creatorUid===uid||roomData.createdBy===uid)){
+  status.textContent="Only this room's Admin can change the member limit.";return;
+ }
+ const overlay=document.createElement("div");overlay.className="roomSettingsOverlay";
+ const dialog=document.createElement("div");dialog.className="roomSettingsDialog";dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");
+ const heading=document.createElement("h3");heading.textContent="Room Limit Settings";
+ const description=document.createElement("p");description.className="small";description.textContent="Set the maximum number of members allowed in this room. The Admin is included in this limit.";
+ const label=document.createElement("label");label.textContent="Maximum members";
+ const input=document.createElement("input");input.type="number";input.min="1";input.max="10000";input.step="1";input.inputMode="numeric";input.placeholder="Enter member limit";
+ const note=document.createElement("p");note.className="small";note.textContent="Loading current room limit...";
+ const message=document.createElement("p");message.className="small";message.setAttribute("role","status");
+ const buttons=document.createElement("div");buttons.className="roomSettingsButtons";
+ const closeButton=document.createElement("button");closeButton.type="button";closeButton.className="secondary";closeButton.textContent="Close";
+ const save=document.createElement("button");save.type="button";save.className="primary";save.textContent="Save Member Limit";
+ const close=()=>overlay.remove();
+ closeButton.onclick=close;overlay.onclick=e=>{if(e.target===overlay)close();};
+ save.onclick=async()=>{
+  const raw=input.value.trim();
+  if(!raw){message.textContent="Enter a member limit. Leave the existing setting unchanged if you do not want to change it.";return;}
+  const limit=Number(raw);
+  if(!Number.isSafeInteger(limit)||limit<1||limit>10000){message.textContent="Enter a whole number from 1 to 10000.";return;}
+  save.disabled=true;closeButton.disabled=true;save.textContent="Saving...";message.textContent="Saving your custom room limit...";
+  try{
+   const saved=await workerAdminRequest("/room-limit-settings",{roomName:room.id,action:"set",memberLimit:limit});
+   if(saved.success!==true||Number(saved.memberLimit)!==limit)throw new Error(saved.error||"The Worker did not confirm the requested member limit.");
+   message.textContent="Save accepted. Verifying the stored limit...";
+   const check=await workerAdminRequest("/room-limit-settings",{roomName:room.id,action:"get"});
+   if(Number(check.memberLimit)!==limit)throw new Error("The saved value could not be verified. Expected "+limit+", received "+String(check.memberLimit)+".");
+   note.textContent="Custom limit saved and verified: "+check.memberLimit+" members.";
+   message.textContent="Member limit saved and verified successfully.";
+  }catch(error){
+   console.error("Quick Access room limit save failed:",error);
+   message.textContent="Could not save member limit: "+(error.message||"Unknown error");
+  }finally{
+   save.disabled=false;closeButton.disabled=false;save.textContent="Save Member Limit";
+  }
+ };
+ buttons.append(closeButton,save);dialog.append(heading,description,label,input,note,message,buttons);overlay.append(dialog);document.body.append(overlay);
+ try{
+  const data=await workerAdminRequest("/room-limit-settings",{roomName:room.id,action:"get"});
+  if(data.memberLimit!==null&&data.memberLimit!==undefined)input.value=String(data.memberLimit);
+  note.textContent=data.memberLimit===null||data.memberLimit===undefined?"No custom limit is saved. The existing default limit remains active.":"Custom limit currently saved: "+data.memberLimit+" members.";
+  message.textContent="";
+ }catch(error){
+  note.textContent="Could not load the current room limit.";
+  message.textContent="Room limit settings could not load: "+(error.message||"Unknown error");
+ }
+ input.focus();
 }
 function openQuickRoomSettings(room){
  const roomData=room.roomData||{};
