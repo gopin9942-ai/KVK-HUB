@@ -2330,6 +2330,8 @@ $("roomSettingsBtn").onclick=()=>navigateAppScreen("roomSettings");
 $("unbanSettingsBtn").onclick=async()=>{navigateAppScreen("unbanSettings");await refreshModeration();};
 $("memberLimitSettingsBtn").onclick=async()=>{
  if(!isRoomAdmin){status.textContent="Only the room Admin can change the member limit.";return;}
+ const memberLimitPanel=$("memberLimitSettingsPanel");
+ if(memberLimitPanel)memberLimitPanel.style.display="block";
  navigateAppScreen("memberLimitSettings");
  const input=$("memberLimitInput"),note=$("memberLimitCurrentText"),message=$("memberLimitStatus");
  input.value="";message.textContent="Loading current room limit...";note.textContent="The existing default limit will not be changed unless you save a custom limit.";
@@ -2341,18 +2343,32 @@ $("memberLimitSettingsBtn").onclick=async()=>{
  }catch(error){message.textContent="Worker setup is needed before this setting can load: "+error.message;}
 };
 $("saveMemberLimitBtn").onclick=async()=>{
- if(!isRoomAdmin||!currentRoomCode){$("memberLimitStatus").textContent="Only the room Admin can save this setting.";return;}
+ const message=$("memberLimitStatus");
+ if(!isRoomAdmin||!currentRoomCode){message.textContent="Only the room Admin can save this setting.";return;}
  const raw=$("memberLimitInput").value.trim();
- if(!raw){$("memberLimitStatus").textContent="Enter a member limit. Leave it empty only to keep the current default unchanged.";return;}
+ if(!raw){message.textContent="Enter a member limit. Leave it empty only to keep the current default unchanged.";return;}
  const limit=Number(raw);
- if(!Number.isSafeInteger(limit)||limit<1||limit>10000){$("memberLimitStatus").textContent="Enter a whole number from 1 to 10000.";return;}
+ if(!Number.isSafeInteger(limit)||limit<1||limit>10000){message.textContent="Enter a whole number from 1 to 10000.";return;}
  const button=$("saveMemberLimitBtn");button.disabled=true;button.textContent="Saving...";
+ message.textContent="Saving your custom room limit...";
  try{
-  const data=await workerAdminRequest("/room-limit-settings",{roomName:currentRoomCode,action:"set",memberLimit:limit});
-  $("memberLimitCurrentText").textContent="Custom limit saved: "+(data.memberLimit??limit)+" members.";
-  $("memberLimitStatus").textContent="Member limit saved.";
- }catch(error){$("memberLimitStatus").textContent="Could not save member limit: "+error.message;}
- finally{button.disabled=false;button.textContent="Save Member Limit";}
+  const saved=await workerAdminRequest("/room-limit-settings",{roomName:currentRoomCode,action:"set",memberLimit:limit});
+  if(saved.success!==true||Number(saved.memberLimit)!==limit){
+   throw new Error(saved.error||"The Worker did not confirm the requested member limit.");
+  }
+  message.textContent="Save accepted. Verifying the stored limit...";
+  const check=await workerAdminRequest("/room-limit-settings",{roomName:currentRoomCode,action:"get"});
+  if(Number(check.memberLimit)!==limit){
+   throw new Error("The saved value could not be verified. Expected "+limit+", received "+String(check.memberLimit)+".");
+  }
+  $("memberLimitCurrentText").textContent="Custom limit saved and verified: "+check.memberLimit+" members.";
+  message.textContent="Member limit saved and verified successfully.";
+ }catch(error){
+  console.error("Save member limit failed:",error);
+  message.textContent="Could not save member limit: "+(error.message||"Unknown error");
+ }finally{
+  button.disabled=false;button.textContent="Save Member Limit";
+ }
 };
 $("audioSettingsBtn").onclick=()=>{navigateAppScreen("audioSettings");syncAudioPreferenceControls();};
 syncAudioPreferenceControls();
