@@ -581,6 +581,16 @@ header{
    <div class="settingsSubheading">Banned Users</div>
    <div id="adminBanned"><div class="empty">Open Unban Settings to load banned users.</div></div>
   </div>
+  <button id="memberLimitSettingsBtn" class="secondary settingsMenuButton" style="display:none" type="button">👥 Member Limit Settings</button>
+  <div id="memberLimitSettingsPanel" style="display:none">
+   <div class="settingsSubheading">Room Member Limit</div>
+   <p class="small">Set the maximum number of members allowed in this room. Leave the field empty to keep the existing default limit.</p>
+   <label for="memberLimitInput">Maximum members</label>
+   <input id="memberLimitInput" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="Keep current default">
+   <p id="memberLimitCurrentText" class="small">The existing default limit will remain unchanged until you save a custom limit.</p>
+   <button id="saveMemberLimitBtn" class="primary" type="button">Save Member Limit</button>
+   <p id="memberLimitStatus" class="small" role="status"></p>
+  </div>
   <details class="advancedTools"><summary>Advanced help</summary><button id="copyVoiceDiagnosticsBtn" class="secondary settingsMenuButton" type="button">Copy Voice Diagnostics</button></details>
    <button id="leaveRoomSettingsBtn" class="deleteChannelAction" style="display:block;background:#8f3445">Leave Room</button>
   <button id="deleteChannelBtn" class="deleteChannelAction" style="display:none">Delete Room</button>
@@ -738,7 +748,7 @@ function setAppScreen(name){
  // Profile speaking analysis runs only while the actual room screen is open.
  if(name==="room"&&activeRoom&&activeRoom.state==="connected")syncVoiceMetersForRoom();
  else if(name!=="room"){stopAllVoiceMeters();activeSpeakerIds.clear();}
- const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",userSettings:"userSettingsPage"};
+ const ids={login:"loginPage",home:"homePage",room:"roomPage",roomSettings:"roomSettingsPage",audioSettings:"audioSettingsPage",unbanSettings:"unbanSettingsPage",memberLimitSettings:"memberLimitSettingsPage",userSettings:"userSettingsPage"};
  for(const [screen,id] of Object.entries(ids)){const el=$(id);if(el)el.style.display=screen===name?"block":"none";}
  document.body.classList.toggle("room-speaking-active",name==="room"&&!!activeRoom&&activeRoom.state==="connected");
  updateAppBackButton();
@@ -752,9 +762,10 @@ function prepareSeparateScreens(){
  const roomSettings=make("roomSettingsPage","Room Settings");
  const audioSettings=make("audioSettingsPage","Audio Settings");
  const unbanSettings=make("unbanSettingsPage","Unban Settings");
+ const memberLimitSettings=make("memberLimitSettingsPage","Member Limit Settings");
  const userSettings=make("userSettingsPage","User Settings");
- const audio=$("audioSettingsPanel"),unban=$("unbanSettingsPanel"),profile=$("profileEditor"),room=$("roomSettingsPanel");
- roomSettings.append(room);audioSettings.append(audio);unbanSettings.append(unban);userSettings.append(profile);
+ const audio=$("audioSettingsPanel"),unban=$("unbanSettingsPanel"),memberLimit=$("memberLimitSettingsPanel"),profile=$("profileEditor"),room=$("roomSettingsPanel");
+ roomSettings.append(room);audioSettings.append(audio);unbanSettings.append(unban);memberLimitSettings.append(memberLimit);userSettings.append(profile);
  room.style.display="block";audio.style.display="block";unban.style.display="block";profile.style.display="block";
  $("audioSettingsChevron").textContent="";$("unbanSettingsBtn").innerHTML="🛡 Unban Settings";
 }
@@ -1000,6 +1011,7 @@ async function refreshRoomRoles(showErrors=false){
    profile.role=roomRoles[uid]||(uid===roomOwnerUid?"admin":"member");
   }
   $("unbanSettingsBtn").style.display=(isRoomAdmin||isRoomModerator)?"block":"none";
+  $("memberLimitSettingsBtn").style.display=isRoomAdmin?"block":"none";
   $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
   $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
   $("roomCodeQuickCopyBtn").style.display=isRoomAdmin?"inline-flex":"none";
@@ -1021,6 +1033,7 @@ async function setupModeration(roomData){
  $("roomSettingsBtn").style.display="block";
  // Show Unban Settings immediately for the verified room owner; role refresh must not hide the owner controls.
  $("unbanSettingsBtn").style.display=isRoomAdmin?"block":"none";
+ $("memberLimitSettingsBtn").style.display=isRoomAdmin?"block":"none";
  $("deleteChannelBtn").style.display=isRoomAdmin?"block":"none";
  $("leaveRoomSettingsBtn").style.display=isRoomAdmin?"none":"block";
  $("roomCodeQuickCopyBtn").style.display="none";
@@ -2308,12 +2321,39 @@ function closeRoomSettings(){
  if(panel)panel.style.display="block";
  const audio=$("audioSettingsPanel");if(audio)audio.style.display="block";
  const unban=$("unbanSettingsPanel");if(unban)unban.style.display="block";
+ const memberLimit=$("memberLimitSettingsPanel");if(memberLimit)memberLimit.style.display="block";
  const audioChevron=$("audioSettingsChevron");if(audioChevron)audioChevron.textContent="＋";
  const unbanBtn=$("unbanSettingsBtn");if(unbanBtn)unbanBtn.innerHTML="🛡 Unban Settings <span>＋</span>";
  stopDeleteCountdown();
 }
 $("roomSettingsBtn").onclick=()=>navigateAppScreen("roomSettings");
 $("unbanSettingsBtn").onclick=async()=>{navigateAppScreen("unbanSettings");await refreshModeration();};
+$("memberLimitSettingsBtn").onclick=async()=>{
+ if(!isRoomAdmin){status.textContent="Only the room Admin can change the member limit.";return;}
+ navigateAppScreen("memberLimitSettings");
+ const input=$("memberLimitInput"),note=$("memberLimitCurrentText"),message=$("memberLimitStatus");
+ input.value="";message.textContent="Loading current room limit...";note.textContent="The existing default limit will not be changed unless you save a custom limit.";
+ try{
+  const data=await workerAdminRequest("/room-limit-settings",{roomName:currentRoomCode,action:"get"});
+  if(data.memberLimit!==null&&data.memberLimit!==undefined)input.value=String(data.memberLimit);
+  note.textContent=data.memberLimit===null||data.memberLimit===undefined?"No custom limit is saved. The existing default limit remains active.":"Custom limit currently saved: "+data.memberLimit+" members.";
+  message.textContent="";
+ }catch(error){message.textContent="Worker setup is needed before this setting can load: "+error.message;}
+};
+$("saveMemberLimitBtn").onclick=async()=>{
+ if(!isRoomAdmin||!currentRoomCode){$("memberLimitStatus").textContent="Only the room Admin can save this setting.";return;}
+ const raw=$("memberLimitInput").value.trim();
+ if(!raw){$("memberLimitStatus").textContent="Enter a member limit. Leave it empty only to keep the current default unchanged.";return;}
+ const limit=Number(raw);
+ if(!Number.isSafeInteger(limit)||limit<1||limit>10000){$("memberLimitStatus").textContent="Enter a whole number from 1 to 10000.";return;}
+ const button=$("saveMemberLimitBtn");button.disabled=true;button.textContent="Saving...";
+ try{
+  const data=await workerAdminRequest("/room-limit-settings",{roomName:currentRoomCode,action:"set",memberLimit:limit});
+  $("memberLimitCurrentText").textContent="Custom limit saved: "+(data.memberLimit??limit)+" members.";
+  $("memberLimitStatus").textContent="Member limit saved.";
+ }catch(error){$("memberLimitStatus").textContent="Could not save member limit: "+error.message;}
+ finally{button.disabled=false;button.textContent="Save Member Limit";}
+};
 $("audioSettingsBtn").onclick=()=>{navigateAppScreen("audioSettings");syncAudioPreferenceControls();};
 syncAudioPreferenceControls();
 $("noiseSuppressionToggle").onchange=event=>updateAudioPreference("noiseSuppression",event.target.checked);
